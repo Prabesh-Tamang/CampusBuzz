@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import dbConnect from '@/lib/mongodb';
+import Event from '@/models/Event';
+
+export async function GET(req: NextRequest) {
+  try {
+    await dbConnect();
+    const { searchParams } = new URL(req.url);
+    const category = searchParams.get('category');
+    const search = searchParams.get('search');
+
+    const query: Record<string, unknown> = { isActive: true };
+    if (category && category !== 'All') query.category = category;
+    if (search) query.title = { $regex: search, $options: 'i' };
+
+    const events = await Event.find(query).sort({ date: 1 }).lean();
+    return NextResponse.json(events);
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || (session.user as { role?: string }).role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await dbConnect();
+    const data = await req.json();
+
+    const event = await Event.create({
+      ...data,
+      createdBy: (session.user as { id?: string }).id,
+    });
+
+    return NextResponse.json(event, { status: 201 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
