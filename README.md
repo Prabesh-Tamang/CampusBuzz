@@ -1,4 +1,4 @@
-# 🎓 CollegePulse — Smart Campus Event Manager
+# 🎓 CampusBuzz — Smart Campus Event Manager
 
 A full-stack Next.js application for managing college events with QR check-in, admin dashboard, email notifications, and student registration.
 
@@ -15,33 +15,37 @@ A full-stack Next.js application for managing college events with QR check-in, a
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | Next.js 14 (App Router), React, TypeScript |
-| Styling | Tailwind CSS, Custom CSS Variables |
-| Auth | NextAuth.js v4 (Credentials Provider + JWT) |
-| Database | MongoDB + Mongoose |
-| Email | Nodemailer (Gmail SMTP) |
-| QR Code | qrcode (generate) + html5-qrcode (scan) |
-| Animations | Framer Motion |
-| Deployment | Vercel |
+| Layer      | Technology                                  |
+| ---------- | ------------------------------------------- |
+| Frontend   | Next.js 14 (App Router), React, TypeScript  |
+| Styling    | Tailwind CSS, Custom CSS Variables          |
+| Auth       | NextAuth.js v4 (Credentials Provider + JWT) |
+| Database   | MongoDB + Mongoose                          |
+| Email      | Nodemailer (Gmail SMTP)                     |
+| QR Code    | qrcode (generate) + html5-qrcode (scan)     |
+| Animations | Framer Motion                               |
+| Deployment | Vercel                                      |
 
 ## 🚀 Getting Started
 
 ### 1. Clone & Install
+
 ```bash
-git clone https://github.com/your-username/collegepulse.git
-cd collegepulse
+git clone https://github.com/your-username/CampusBuzz.git
+cd CampusBuzz
 npm install
 ```
 
 ### 2. Environment Setup
+
 ```bash
 cp .env.example .env.local
 ```
+
 Fill in your `.env.local`:
+
 ```env
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/collegepulse
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/CampusBuzz
 NEXTAUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
 EMAIL_USER=your-gmail@gmail.com
@@ -50,12 +54,15 @@ ADMIN_EMAIL=admin@youremail.com
 ```
 
 ### 3. Run Development Server
+
 ```bash
 npm run dev
 ```
+
 Visit [http://localhost:3000](http://localhost:3000)
 
 ### 4. Create Admin Account
+
 Sign up with the email you set in `ADMIN_EMAIL` — it will automatically be assigned the admin role.
 
 ## 📁 Project Structure
@@ -91,15 +98,16 @@ src/
 npm install -g vercel
 vercel --prod
 ```
+
 Add your environment variables in the Vercel dashboard.
 
 ## 👤 Roles
 
-| Role | Capabilities |
-|------|-------------|
-| **Student** | Browse events, register, view QR code |
-| **Admin** | All student features + create/edit/delete events, view dashboard, scan QR codes |
+| Role        | Capabilities                                                                    |
+| ----------- | ------------------------------------------------------------------------------- |
+| **Student** | Browse events, register, view QR code                                           |
+| **Admin**   | All student features + create/edit/delete events, view dashboard, scan QR codes |
 
 ---
 
-Built with ❤️ for CollegePulse Internship Project
+Built with ❤️ for CampusBuzz Internship Project

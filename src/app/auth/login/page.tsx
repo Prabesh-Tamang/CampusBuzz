@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Eye, EyeOff } from 'lucide-react';
+import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -16,19 +16,40 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const res = await signIn('credentials', { email, password, redirect: false });
-    if (res?.error) {
-      toast.error('Invalid email or password');
+    try {
+      const res = await signIn('credentials', { 
+        email, 
+        password, 
+        redirect: false,
+      });
+      
+      if (res?.error) {
+        toast.error('Invalid email or password');
+        setLoading(false);
+      } else if (res?.ok) {
+        toast.success('Welcome back!');
+        router.push('/events');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
       setLoading(false);
-    } else {
-      toast.success('Welcome back!');
-      router.push('/events');
     }
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} className="grid-bg">
       <div style={{ width: '100%', maxWidth: 420 }}>
+        
+        {/* Back Button */}
+        <button
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
+        >
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back to Home</span>
+        </button>
+
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 24 }}>
             <div style={{ width: 44, height: 44, background: 'linear-gradient(135deg, #14b8a6, #0d9488)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -48,9 +69,34 @@ export default function LoginPage() {
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input className="input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required style={{ paddingRight: 44 }} />
-                <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                <input 
+                  className="input" 
+                  type={showPass ? 'text' : 'password'} 
+                  placeholder="Enter password" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                  style={{ paddingRight: 50 }} 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 4,
+                    zIndex: 10,
+                    display: 'flex',
+                  }}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                >
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>

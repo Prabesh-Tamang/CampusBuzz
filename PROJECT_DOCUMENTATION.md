@@ -1,4 +1,4 @@
-# CampusBuzz (CollegePulse) - Comprehensive Project Documentation
+# CampusBuzz (CampusBuzz) - Comprehensive Project Documentation
 
 **Version**: 0.1.0  
 **Last Updated**: March 2026  
@@ -32,9 +32,11 @@
 ## Project Overview
 
 ### Purpose
-**CampusBuzz** (internally named **CollegePulse**) is a modern, full-stack campus event management platform designed to streamline event discovery, registration, and attendance tracking for college students and administrators.
+
+**CampusBuzz** (internally named **CampusBuzz**) is a modern, full-stack campus event management platform designed to streamline event discovery, registration, and attendance tracking for college students and administrators.
 
 ### Key Objectives
+
 - **Event Discovery**: Students can browse, search, and filter campus events
 - **Event Registration**: Easy one-click registration with automatic QR code generation
 - **Check-in System**: Admin-driven QR code scanning for attendance verification
@@ -43,10 +45,12 @@
 - **Role-Based Access**: Separate student and admin user flows
 
 ### Target Users
+
 - **Students**: Event discovery, registration, event details
 - **Administrators**: Event creation, management, attendance tracking, analytics
 
 ### Current Status
+
 - **Phase**: MVP (Minimum Viable Product) Complete
 - **Features**: Fully functional event management system
 - **Data**: Seeded with demo data for testing
@@ -57,41 +61,41 @@
 
 ### Frontend Tier
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Framework** | Next.js | 14.2.5 | Full-stack React with App Router |
-| **Language** | TypeScript | 5.x | Type-safe development |
-| **UI Library** | React | 18.2.0 | Component-based UI |
-| **Styling** | Tailwind CSS | 3.4.1 | Utility-first CSS framework |
-| **CSS Processing** | PostCSS | 8.x | CSS transformation pipeline |
-| **CSS Vendor Prefixes** | Autoprefixer | 10.0.1 | Browser compatibility |
-| **Animations** | Framer Motion | 11.2.12 | Advanced motion & page transitions |
-| **Icons** | lucide-react | 0.400.0 | Consistent icon library |
-| **Icons Alt** | react-icons | 5.2.1 | Additional icon library |
-| **Notifications** | react-hot-toast | 2.4.1 | Toast/notification system |
+| Component               | Technology      | Version | Purpose                            |
+| ----------------------- | --------------- | ------- | ---------------------------------- |
+| **Framework**           | Next.js         | 14.2.5  | Full-stack React with App Router   |
+| **Language**            | TypeScript      | 5.x     | Type-safe development              |
+| **UI Library**          | React           | 18.2.0  | Component-based UI                 |
+| **Styling**             | Tailwind CSS    | 3.4.1   | Utility-first CSS framework        |
+| **CSS Processing**      | PostCSS         | 8.x     | CSS transformation pipeline        |
+| **CSS Vendor Prefixes** | Autoprefixer    | 10.0.1  | Browser compatibility              |
+| **Animations**          | Framer Motion   | 11.2.12 | Advanced motion & page transitions |
+| **Icons**               | lucide-react    | 0.400.0 | Consistent icon library            |
+| **Icons Alt**           | react-icons     | 5.2.1   | Additional icon library            |
+| **Notifications**       | react-hot-toast | 2.4.1   | Toast/notification system          |
 
 ### Backend Tier
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **API Framework** | Next.js API Routes | 14.2.5 | Serverless function-based API |
-| **Authentication** | NextAuth.js | 4.24.13 | JWT-based session management |
-| **Database** | MongoDB | (Atlas/Local) | NoSQL document database |
-| **ORM/Schema** | Mongoose | 8.23.0 | MongoDB schema validation & ODM |
-| **Password Hashing** | bcryptjs | 2.4.3 | Secure password encryption |
-| **QR Code Generation** | qrcode | 1.5.3 | Backend QR generation |
-| **QR Code React** | qrcode.react | 3.1.0 | Frontend QR display |
-| **Email Service** | Nodemailer | 6.9.14 | SMTP email sending |
-| **Date Utilities** | date-fns | 2.30.0 | Date formatting & manipulation |
+| Component              | Technology         | Version       | Purpose                         |
+| ---------------------- | ------------------ | ------------- | ------------------------------- |
+| **API Framework**      | Next.js API Routes | 14.2.5        | Serverless function-based API   |
+| **Authentication**     | NextAuth.js        | 4.24.13       | JWT-based session management    |
+| **Database**           | MongoDB            | (Atlas/Local) | NoSQL document database         |
+| **ORM/Schema**         | Mongoose           | 8.23.0        | MongoDB schema validation & ODM |
+| **Password Hashing**   | bcryptjs           | 2.4.3         | Secure password encryption      |
+| **QR Code Generation** | qrcode             | 1.5.3         | Backend QR generation           |
+| **QR Code React**      | qrcode.react       | 3.1.0         | Frontend QR display             |
+| **Email Service**      | Nodemailer         | 6.9.14        | SMTP email sending              |
+| **Date Utilities**     | date-fns           | 2.30.0        | Date formatting & manipulation  |
 
 ### Development Tools
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| **Linter** | ESLint | 8.x | Code quality & style enforcement |
-| **Next.js Config** | eslint-config-next | 14.2.5 | ESLint preset for Next.js |
-| **Node Types** | @types/node | 20.x | TypeScript types for Node.js |
-| **React Types** | @types/react | 18.x | TypeScript types for React |
+| Tool               | Version            | Purpose |
+| ------------------ | ------------------ | ------- | -------------------------------- |
+| **Linter**         | ESLint             | 8.x     | Code quality & style enforcement |
+| **Next.js Config** | eslint-config-next | 14.2.5  | ESLint preset for Next.js        |
+| **Node Types**     | @types/node        | 20.x    | TypeScript types for Node.js     |
+| **React Types**    | @types/react       | 18.x    | TypeScript types for React       |
 
 ### Version Compatibility Matrix
 
@@ -107,6 +111,7 @@ Next.js 14.2.5
 ```
 
 **Notes**:
+
 - All dependencies use caret (`^`) versioning for automatic minor/patch updates
 - No major version conflicts detected
 - MongoDB connection uses Atlas or local MongoDB instance
@@ -230,7 +235,8 @@ E:\Projects\CampusBuzz/
 ## Database Schema & Models
 
 ### Database Name
-- **MongoDB Database**: `collegepulse`
+
+- **MongoDB Database**: `CampusBuzz`
 - **Connection Type**: Mongoose ODM with automatic schema validation
 
 ### Collection 1: Users
@@ -239,18 +245,19 @@ E:\Projects\CampusBuzz/
 
 ```typescript
 interface IUser extends Document {
-  _id: ObjectId;                    // Auto-generated by MongoDB
-  name: string;                     // User's full name (required)
-  email: string;                    // Unique email (required, lowercase)
-  password: string;                 // Bcrypt hashed password (required)
-  role: 'student' | 'admin';       // User role (default: 'student')
-  college: string;                  // College/university name (default: '')
-  createdAt: Date;                  // Auto-set creation timestamp
-  updatedAt: Date;                  // Auto-updated modification timestamp
+  _id: ObjectId; // Auto-generated by MongoDB
+  name: string; // User's full name (required)
+  email: string; // Unique email (required, lowercase)
+  password: string; // Bcrypt hashed password (required)
+  role: "student" | "admin"; // User role (default: 'student')
+  college: string; // College/university name (default: '')
+  createdAt: Date; // Auto-set creation timestamp
+  updatedAt: Date; // Auto-updated modification timestamp
 }
 ```
 
 **Schema Details**:
+
 ```javascript
 {
   name: { type: String, required: true, trim: true },
@@ -262,9 +269,11 @@ interface IUser extends Document {
 ```
 
 **Indexes**:
+
 - `email` (unique) - Fast lookup by email for login
 
 **Sample Document**:
+
 ```json
 {
   "_id": "ObjectId('507f1f77bcf86cd799439011')",
@@ -286,26 +295,27 @@ interface IUser extends Document {
 
 ```typescript
 interface IEvent extends Document {
-  _id: ObjectId;                    // Auto-generated by MongoDB
-  title: string;                    // Event name (required)
-  description: string;              // Event details (required)
-  category: string;                 // Event category (enum)
-  date: Date;                       // Event start date-time (required)
-  endDate: Date;                    // Event end date-time (required)
-  venue: string;                    // Location/venue name (required)
-  capacity: number;                 // Max registrations (default: 100)
-  registeredCount: number;          // Current registrations (default: 0)
-  imageUrl: string;                 // Event poster/image URL (default: '')
-  organizer: string;                // Organizing club/department (required)
-  tags: string[];                   // Search tags/keywords
-  isActive: boolean;                // Event visibility flag (default: true)
-  createdBy: ObjectId;              // Admin who created event (ref: User)
-  createdAt: Date;                  // Auto-set creation timestamp
-  updatedAt: Date;                  // Auto-updated modification timestamp
+  _id: ObjectId; // Auto-generated by MongoDB
+  title: string; // Event name (required)
+  description: string; // Event details (required)
+  category: string; // Event category (enum)
+  date: Date; // Event start date-time (required)
+  endDate: Date; // Event end date-time (required)
+  venue: string; // Location/venue name (required)
+  capacity: number; // Max registrations (default: 100)
+  registeredCount: number; // Current registrations (default: 0)
+  imageUrl: string; // Event poster/image URL (default: '')
+  organizer: string; // Organizing club/department (required)
+  tags: string[]; // Search tags/keywords
+  isActive: boolean; // Event visibility flag (default: true)
+  createdBy: ObjectId; // Admin who created event (ref: User)
+  createdAt: Date; // Auto-set creation timestamp
+  updatedAt: Date; // Auto-updated modification timestamp
 }
 ```
 
 **Category Enum Values**:
+
 - `Technical` - Coding, hackathons, tech talks
 - `Cultural` - Festivals, concerts, performances
 - `Sports` - Athletic events, tournaments
@@ -314,6 +324,7 @@ interface IEvent extends Document {
 - `Other` - Miscellaneous events
 
 **Schema Details**:
+
 ```javascript
 {
   title: { type: String, required: true, trim: true },
@@ -337,10 +348,12 @@ interface IEvent extends Document {
 ```
 
 **Indexes**:
+
 - None explicitly defined (MongoDB creates default `_id` index)
 - Query optimization: `isActive: true` used in most queries
 
 **Sample Document**:
+
 ```json
 {
   "_id": "ObjectId('507f1f77bcf86cd799439012')",
@@ -370,19 +383,20 @@ interface IEvent extends Document {
 
 ```typescript
 interface IRegistration extends Document {
-  _id: ObjectId;                    // Auto-generated by MongoDB
-  userId: ObjectId;                 // Reference to User (required)
-  eventId: ObjectId;                // Reference to Event (required)
-  registrationId: string;           // Unique ticket ID (required, unique)
-  qrCode: string;                   // Base64 encoded QR code (required)
-  checkedIn: boolean;               // Attendance verification (default: false)
-  checkedInAt?: Date;               // Check-in timestamp (optional)
-  createdAt: Date;                  // Registration date-time
-  updatedAt: Date;                  // Last modification date-time
+  _id: ObjectId; // Auto-generated by MongoDB
+  userId: ObjectId; // Reference to User (required)
+  eventId: ObjectId; // Reference to Event (required)
+  registrationId: string; // Unique ticket ID (required, unique)
+  qrCode: string; // Base64 encoded QR code (required)
+  checkedIn: boolean; // Attendance verification (default: false)
+  checkedInAt?: Date; // Check-in timestamp (optional)
+  createdAt: Date; // Registration date-time
+  updatedAt: Date; // Last modification date-time
 }
 ```
 
 **Schema Details**:
+
 ```javascript
 {
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -398,17 +412,20 @@ RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 ```
 
 **Indexes**:
+
 - `registrationId` (unique) - Fast QR code lookup
 - `userId + eventId` (unique compound) - Prevent duplicate registrations
 - Implicit index on `_id`
 
 **Registration ID Format**:
+
 - Pattern: `CP-[TIMESTAMP]-[RANDOM]`
 - Example: `CP-A1B2C3D-4E5F`
 - Generated by function: `generateRegistrationId()`
 
 **QR Code Data Structure**:
 The QR code encodes this JSON as a Base64-encoded PNG image:
+
 ```json
 {
   "registrationId": "CP-A1B2C3D-4E5F",
@@ -418,6 +435,7 @@ The QR code encodes this JSON as a Base64-encoded PNG image:
 ```
 
 **Sample Document**:
+
 ```json
 {
   "_id": "ObjectId('507f1f77bcf86cd799439013')",
@@ -495,7 +513,7 @@ The QR code encodes this JSON as a Base64-encoded PNG image:
 
 ```json
 {
-  "name": "collegepulse",
+  "name": "CampusBuzz",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -538,6 +556,7 @@ The QR code encodes this JSON as a Base64-encoded PNG image:
 ```
 
 **Key Scripts**:
+
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Compile TypeScript and optimize for production
 - `npm run start` - Start production server
@@ -582,6 +601,7 @@ The QR code encodes this JSON as a Base64-encoded PNG image:
 ```
 
 **Key Settings**:
+
 - `strict: true` - Enforce strict type checking
 - `jsx: "preserve"` - Preserve JSX for Next.js processing
 - `@/*` path alias - Clean imports from src folder
@@ -614,6 +634,7 @@ export default nextConfig;
 ```
 
 **Configuration Details**:
+
 - **Turbopack**: Experimental faster Rust-based bundler for faster builds
 - **Remote Images**: Allowed from `example.com` domain for image optimization
 - **Incremental Static Regeneration**: Enabled by default in Next.js 14
@@ -627,64 +648,64 @@ export default nextConfig;
 ```javascript
 module.exports = {
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
-  darkMode: 'class',
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-syne)', 'sans-serif'],
-        mono: ['var(--font-space-mono)', 'monospace'],
-        display: ['var(--font-clash)', 'sans-serif'],
+        sans: ["var(--font-syne)", "sans-serif"],
+        mono: ["var(--font-space-mono)", "monospace"],
+        display: ["var(--font-clash)", "sans-serif"],
       },
       colors: {
         pulse: {
-          50: '#f0fdf9',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#134e4a',
-          900: '#0f3633',
-          950: '#051e1b',
+          50: "#f0fdf9",
+          100: "#ccfbf1",
+          200: "#99f6e4",
+          300: "#5eead4",
+          400: "#2dd4bf",
+          500: "#14b8a6",
+          600: "#0d9488",
+          700: "#0f766e",
+          800: "#134e4a",
+          900: "#0f3633",
+          950: "#051e1b",
         },
         coral: {
-          400: '#fb7185',
-          500: '#f43f5e',
+          400: "#fb7185",
+          500: "#f43f5e",
         },
         amber: {
-          400: '#fbbf24',
-          500: '#f59e0b',
+          400: "#fbbf24",
+          500: "#f59e0b",
         },
       },
       animation: {
-        'fade-up': 'fadeUp 0.6s ease forwards',
-        'fade-in': 'fadeIn 0.4s ease forwards',
-        'slide-left': 'slideLeft 0.5s ease forwards',
-        'pulse-slow': 'pulse 3s ease-in-out infinite',
-        'float': 'float 6s ease-in-out infinite',
+        "fade-up": "fadeUp 0.6s ease forwards",
+        "fade-in": "fadeIn 0.4s ease forwards",
+        "slide-left": "slideLeft 0.5s ease forwards",
+        "pulse-slow": "pulse 3s ease-in-out infinite",
+        float: "float 6s ease-in-out infinite",
       },
       keyframes: {
         fadeUp: {
-          from: { opacity: '0', transform: 'translateY(20px)' },
-          to: { opacity: '1', transform: 'translateY(0)' },
+          from: { opacity: "0", transform: "translateY(20px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
         },
         fadeIn: {
-          from: { opacity: '0' },
-          to: { opacity: '1' },
+          from: { opacity: "0" },
+          to: { opacity: "1" },
         },
         slideLeft: {
-          from: { opacity: '0', transform: 'translateX(20px)' },
-          to: { opacity: '1', transform: 'translateX(0)' },
+          from: { opacity: "0", transform: "translateX(20px)" },
+          to: { opacity: "1", transform: "translateX(0)" },
         },
         float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-10px)' },
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-10px)" },
         },
       },
     },
@@ -694,6 +715,7 @@ module.exports = {
 ```
 
 **Design System**:
+
 - **Primary Color**: Teal (`pulse-500` = `#14b8a6`)
 - **Accent Colors**: Coral (`#f43f5e`), Amber (`#f59e0b`)
 - **Dark Mode**: Class-based dark mode support
@@ -716,6 +738,7 @@ module.exports = {
 ```
 
 **Purpose**:
+
 - Processes Tailwind CSS utility classes
 - Adds vendor prefixes for browser compatibility
 
@@ -728,10 +751,10 @@ module.exports = {
 ```env
 # MongoDB Connection String
 # For local MongoDB:
-MONGODB_URI=mongodb://127.0.0.1:27017/collegepulse
+MONGODB_URI=mongodb://127.0.0.1:27017/CampusBuzz
 
 # For MongoDB Atlas (cloud):
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/collegepulse
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/CampusBuzz
 
 # NextAuth Configuration
 NEXTAUTH_SECRET=your-super-secret-key-here-change-this
@@ -742,7 +765,7 @@ EMAIL_USER=test@gmail.com
 EMAIL_PASS=Test@123
 
 # Admin Setup
-ADMIN_EMAIL=admin@collegepulse.com
+ADMIN_EMAIL=admin@CampusBuzz.com
 ```
 
 ---
@@ -750,6 +773,7 @@ ADMIN_EMAIL=admin@collegepulse.com
 ## API Routes & Endpoints
 
 ### Base URL
+
 - **Development**: `http://localhost:3000`
 - **Production**: `https://yourdomain.com`
 
@@ -760,17 +784,20 @@ All API responses use JSON format with standard HTTP status codes.
 ### Authentication Endpoints
 
 #### 1. NextAuth Handler
+
 **Route**: `GET/POST /api/auth/[...nextauth]`
 
 **Purpose**: OAuth flow handler for NextAuth.js
 
 **Supported Methods**:
+
 - GET: Session information, CSRF token, providers
 - POST: Sign-in, sign-out, callback handling
 
 **No Request Body Required**
 
 **Response** (on GET):
+
 ```json
 {
   "providers": {
@@ -781,17 +808,19 @@ All API responses use JSON format with standard HTTP status codes.
 ```
 
 **Usage**:
+
 ```typescript
 // Client-side
-import { signIn, signOut } from 'next-auth/react';
+import { signIn, signOut } from "next-auth/react";
 
-await signIn('credentials', { email: 'user@example.com', password: 'pass123' });
+await signIn("credentials", { email: "user@example.com", password: "pass123" });
 await signOut();
 ```
 
 ---
 
 #### 2. User Signup
+
 **Route**: `POST /api/auth/signup`
 
 **Purpose**: Create new user account (auto-detects admin role)
@@ -799,6 +828,7 @@ await signOut();
 **Authentication**: None (Public endpoint)
 
 **Request Body**:
+
 ```json
 {
   "name": "John Doe",
@@ -809,6 +839,7 @@ await signOut();
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "message": "Account created",
@@ -817,6 +848,7 @@ await signOut();
 ```
 
 **Response** (400 Bad Request):
+
 ```json
 {
   "error": "Missing required fields"
@@ -824,6 +856,7 @@ await signOut();
 ```
 
 **Response** (409 Conflict):
+
 ```json
 {
   "error": "Email already registered"
@@ -831,10 +864,12 @@ await signOut();
 ```
 
 **Auto-Admin Detection**:
+
 - If `email === process.env.ADMIN_EMAIL`, role is set to `'admin'`
 - Otherwise, role defaults to `'student'`
 
 **Password Security**:
+
 - Hashed with bcryptjs (12 salt rounds)
 - Never sent back in response
 
@@ -843,6 +878,7 @@ await signOut();
 ### Event Endpoints
 
 #### 3. Get Events List
+
 **Route**: `GET /api/events`
 
 **Purpose**: Fetch all active events with optional filters
@@ -850,6 +886,7 @@ await signOut();
 **Authentication**: None (Public endpoint)
 
 **Query Parameters**:
+
 ```
 ?category=Technical&search=summit
 ```
@@ -858,6 +895,7 @@ await signOut();
 - `search` (optional): Case-insensitive search by title
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -882,6 +920,7 @@ await signOut();
 ```
 
 **Filters Applied**:
+
 - Only active events (`isActive: true`)
 - Sorted by date (ascending)
 - Lean query (improved performance)
@@ -889,6 +928,7 @@ await signOut();
 ---
 
 #### 4. Create Event
+
 **Route**: `POST /api/events`
 
 **Purpose**: Create new event (admin-only)
@@ -896,6 +936,7 @@ await signOut();
 **Authentication**: Required (Admin role only)
 
 **Request Body**:
+
 ```json
 {
   "title": "Web Development Bootcamp",
@@ -912,6 +953,7 @@ await signOut();
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439013",
@@ -934,6 +976,7 @@ await signOut();
 ```
 
 **Response** (401 Unauthorized):
+
 ```json
 {
   "error": "Unauthorized"
@@ -941,12 +984,14 @@ await signOut();
 ```
 
 **Authorization Check**:
+
 - Session must exist
 - User role must be `'admin'`
 
 ---
 
 #### 5. Get Event Details
+
 **Route**: `GET /api/events/[id]`
 
 **Purpose**: Fetch single event by ID
@@ -954,9 +999,11 @@ await signOut();
 **Authentication**: None (Public endpoint)
 
 **URL Parameters**:
+
 - `id`: Event MongoDB ObjectId
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439012",
@@ -979,6 +1026,7 @@ await signOut();
 ```
 
 **Response** (404 Not Found):
+
 ```json
 {
   "error": "Event not found"
@@ -988,6 +1036,7 @@ await signOut();
 ---
 
 #### 6. Update Event
+
 **Route**: `PUT /api/events/[id]`
 
 **Purpose**: Update event details (admin-only)
@@ -995,6 +1044,7 @@ await signOut();
 **Authentication**: Required (Admin role only)
 
 **Request Body** (all fields optional):
+
 ```json
 {
   "title": "Updated Event Name",
@@ -1005,6 +1055,7 @@ await signOut();
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439012",
@@ -1016,6 +1067,7 @@ await signOut();
 ---
 
 #### 7. Delete Event
+
 **Route**: `DELETE /api/events/[id]`
 
 **Purpose**: Delete event (admin-only)
@@ -1023,6 +1075,7 @@ await signOut();
 **Authentication**: Required (Admin role only)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true
@@ -1034,6 +1087,7 @@ await signOut();
 ### Registration Endpoints
 
 #### 8. Register for Event
+
 **Route**: `POST /api/register`
 
 **Purpose**: Register user for event with QR code generation and email
@@ -1041,6 +1095,7 @@ await signOut();
 **Authentication**: Required (Session must exist)
 
 **Request Body**:
+
 ```json
 {
   "eventId": "507f1f77bcf86cd799439012"
@@ -1048,6 +1103,7 @@ await signOut();
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "registration": {
@@ -1065,6 +1121,7 @@ await signOut();
 ```
 
 **Response** (400 Bad Request):
+
 ```json
 {
   "error": "Event is full"
@@ -1072,6 +1129,7 @@ await signOut();
 ```
 
 **Response** (409 Conflict):
+
 ```json
 {
   "error": "Already registered"
@@ -1079,6 +1137,7 @@ await signOut();
 ```
 
 **Side Effects**:
+
 1. Creates registration document
 2. Generates unique QR code with registration data
 3. Increments `event.registeredCount` by 1
@@ -1087,6 +1146,7 @@ await signOut();
 ---
 
 #### 9. Get User Registrations
+
 **Route**: `GET /api/register`
 
 **Purpose**: Fetch user's event registrations with populated event data
@@ -1094,6 +1154,7 @@ await signOut();
 **Authentication**: Required (Session must exist)
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -1121,6 +1182,7 @@ await signOut();
 ### Check-in Endpoints
 
 #### 10. QR Code Check-in
+
 **Route**: `POST /api/checkin`
 
 **Purpose**: Validate QR code and mark attendance (admin-only)
@@ -1128,6 +1190,7 @@ await signOut();
 **Authentication**: Required (Admin role only)
 
 **Request Body**:
+
 ```json
 {
   "registrationId": "CP-A1B2C3D-4E5F"
@@ -1135,6 +1198,7 @@ await signOut();
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1157,6 +1221,7 @@ await signOut();
 ```
 
 **Response** (400 Bad Request):
+
 ```json
 {
   "error": "Already checked in",
@@ -1165,6 +1230,7 @@ await signOut();
 ```
 
 **Response** (404 Not Found):
+
 ```json
 {
   "error": "Invalid QR code"
@@ -1172,6 +1238,7 @@ await signOut();
 ```
 
 **Validation**:
+
 - Registration must exist
 - Must not already be checked in
 - Only admins can check in
@@ -1181,6 +1248,7 @@ await signOut();
 ### Admin Statistics Endpoint
 
 #### 11. Dashboard Statistics
+
 **Route**: `GET /api/admin/stats`
 
 **Purpose**: Fetch dashboard analytics (admin-only)
@@ -1188,6 +1256,7 @@ await signOut();
 **Authentication**: Required (Admin role only)
 
 **Response** (200 OK):
+
 ```json
 {
   "totalEvents": 6,
@@ -1206,6 +1275,7 @@ await signOut();
 ```
 
 **Stats Calculated**:
+
 - Total active events (isActive: true)
 - Unique student count
 - Total registrations across all events
@@ -1224,11 +1294,13 @@ await signOut();
 **Props**: None (uses NextAuth hooks)
 
 **Dependencies**:
+
 - `next-auth/react` - Session management
 - `next/link` - Client navigation
 - `lucide-react` - Icons
 
 **Key Features**:
+
 1. **Logo Section**: CampusBuzz branding with gradient icon
 2. **Navigation Links**: Events link, Dashboard (admin-only)
 3. **Auth State Handling**:
@@ -1237,17 +1309,20 @@ await signOut();
 4. **Admin Detection**: Shows dashboard link only for role === 'admin'
 
 **Key Functions**:
+
 ```typescript
-const isAdmin = (session?.user)?.role === 'admin';
+const isAdmin = session?.user?.role === "admin";
 ```
 
 **Styling Classes**:
+
 - `.sticky top-0 z-50` - Sticky header
 - `.bg-[#050d0c]/85 backdrop-blur-xl` - Dark glass effect
 - `.border-b border-border` - Bottom border
 - `.btn-primary` / `.btn-ghost` - Button styles
 
 **Responsive Design**:
+
 - Flexbox layout for responsive alignment
 - Mobile-friendly padding and spacing
 
@@ -1260,6 +1335,7 @@ const isAdmin = (session?.user)?.role === 'admin';
 **Type**: Client Component (`'use client'`)
 
 **Props**:
+
 ```typescript
 interface EventCardProps {
   event: IEvent;
@@ -1268,12 +1344,14 @@ interface EventCardProps {
 ```
 
 **Dependencies**:
+
 - `framer-motion` - Animations
 - `date-fns` - Date formatting
 - `react-icons` - Icons
 - `next/link` - Navigation
 
 **Key Features**:
+
 1. **Event Display**:
    - Title, description, category badge
    - Date/time, venue, organizer
@@ -1292,6 +1370,7 @@ interface EventCardProps {
    - "Event Full" (if at capacity)
 
 **Code Example**:
+
 ```typescript
 <motion.div
   initial={{ opacity: 0, y: 20 }}
@@ -1311,6 +1390,7 @@ interface EventCardProps {
 ```
 
 **Styling**:
+
 - Uses Tailwind utility classes
 - Custom animation classes from tailwind.config.js
 - Responsive grid layout
@@ -1369,6 +1449,7 @@ interface EventCardProps {
 ### Security Features
 
 #### 1. Password Hashing
+
 ```typescript
 // Signup: Hash password with 12 salt rounds
 const hashed = await bcrypt.hash(password, 12);
@@ -1380,18 +1461,23 @@ const isValid = await bcrypt.compare(credentials.password, user.password);
 **Salt Rounds**: 12 (takes ~100-150ms per hash, secure against brute force)
 
 #### 2. JWT Secret
+
 ```env
 NEXTAUTH_SECRET=your-super-secret-key-here-change-this
 ```
 
-**Importance**: 
+**Importance**:
+
 - Signs all JWT tokens
 - Must be cryptographically secure (32+ characters)
 - Never expose in client-side code
 
 #### 3. Session Strategy
+
 ```typescript
-session: { strategy: 'jwt' }
+session: {
+  strategy: "jwt";
+}
 ```
 
 - Uses JWT tokens instead of database sessions
@@ -1399,24 +1485,31 @@ session: { strategy: 'jwt' }
 - Token expires after configured period
 
 #### 4. Authorization Checks
+
 All admin endpoints verify:
+
 ```typescript
 const session = await getServerSession(authOptions);
-if (!session || session.user.role !== 'admin') {
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+if (!session || session.user.role !== "admin") {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 ```
 
 #### 5. Email Uniqueness
+
 ```typescript
 // Prevent duplicate accounts
 const existing = await User.findOne({ email });
 if (existing) {
-  return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
+  return NextResponse.json(
+    { error: "Email already registered" },
+    { status: 409 },
+  );
 }
 ```
 
 #### 6. Duplicate Registration Prevention
+
 ```typescript
 // Compound unique index on registrations
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
@@ -1429,8 +1522,8 @@ interface Session {
   user: {
     email: string;
     name: string;
-    role: 'student' | 'admin';  // Added by callback
-    id: string;                  // Added by callback
+    role: "student" | "admin"; // Added by callback
+    id: string; // Added by callback
   };
   expires: Date;
 }
@@ -1445,14 +1538,15 @@ interface Session {
 **Service**: Nodemailer with Gmail SMTP
 
 **Configuration** (`src/lib/email.ts`):
+
 ```typescript
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,  // App-specific password
+    pass: process.env.EMAIL_PASS, // App-specific password
   },
 });
 
@@ -1488,6 +1582,7 @@ export async function sendRegistrationEmail({
 ### Email Triggers
 
 #### Registration Confirmation Email
+
 - **Trigger**: User successfully registers for event
 - **Recipient**: Registered user email
 - **Content**:
@@ -1497,6 +1592,7 @@ export async function sendRegistrationEmail({
   - Check-in instructions
 
 **Email Template Structure**:
+
 ```html
 <h2>Event Registration Confirmation</h2>
 <p>Hi {name},</p>
@@ -1511,6 +1607,7 @@ export async function sendRegistrationEmail({
 ### Email Service Provider Setup
 
 **Gmail Configuration**:
+
 1. Create Google Account
 2. Enable 2-Factor Authentication
 3. Generate App-Specific Password
@@ -1525,12 +1622,13 @@ export async function sendRegistrationEmail({
 **Library**: `react-hot-toast`
 
 **Usage**:
-```typescript
-import toast from 'react-hot-toast';
 
-toast.success('Successfully registered!');
-toast.error('Failed to register. Already registered?');
-toast.loading('Processing...');
+```typescript
+import toast from "react-hot-toast";
+
+toast.success("Successfully registered!");
+toast.error("Failed to register. Already registered?");
+toast.loading("Processing...");
 ```
 
 **Positions**: Top-right, bottom-center, etc.
@@ -1542,14 +1640,21 @@ toast.loading('Processing...');
 ### QR Code Generation Process
 
 **Step 1: Generate Unique Registration ID**
+
 ```typescript
 function generateRegistrationId() {
-  return 'CP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+  return (
+    "CP-" +
+    Date.now().toString(36).toUpperCase() +
+    "-" +
+    Math.random().toString(36).substring(2, 6).toUpperCase()
+  );
 }
 // Example: CP-A1B2C3D-4E5F
 ```
 
 **Step 2: Create QR Data JSON**
+
 ```json
 {
   "registrationId": "CP-A1B2C3D-4E5F",
@@ -1559,30 +1664,33 @@ function generateRegistrationId() {
 ```
 
 **Step 3: Generate QR Code PNG**
+
 ```typescript
-import QRCode from 'qrcode';
+import QRCode from "qrcode";
 
 const qrData = JSON.stringify({ registrationId, eventId, userId });
 const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
   width: 300,
   margin: 2,
-  errorCorrectionLevel: 'H',  // High error correction
+  errorCorrectionLevel: "H", // High error correction
 });
 // Result: data:image/png;base64,iVBORw0KGgoAAAANSU...
 ```
 
 **Step 4: Store in Database**
+
 ```typescript
 await Registration.create({
   userId,
   eventId,
   registrationId,
-  qrCode: qrCodeDataUrl,  // Base64 PNG string
+  qrCode: qrCodeDataUrl, // Base64 PNG string
   checkedIn: false,
 });
 ```
 
 **Step 5: Send in Email**
+
 ```typescript
 await sendRegistrationEmail({
   to: user.email,
@@ -1594,11 +1702,13 @@ await sendRegistrationEmail({
 ### QR Code Display Flow
 
 **On `/my-events` Page**:
+
 ```typescript
-registration.qrCode  // Display as <img src={qrCode} />
+registration.qrCode; // Display as <img src={qrCode} />
 ```
 
 **On `/dashboard/scanner` Page**:
+
 ```typescript
 // Admin scans with camera using browser API
 // QR code parser extracts: { registrationId, eventId, userId }
@@ -1656,18 +1766,18 @@ registration.qrCode  // Display as <img src={qrCode} />
 ```typescript
 // Find registration by scanned ID
 const registration = await Registration.findOne({ registrationId })
-  .populate('userId')
-  .populate('eventId');
+  .populate("userId")
+  .populate("eventId");
 
 // Validate
 if (!registration) {
   // QR code is invalid/fake
-  return error('Invalid QR code');
+  return error("Invalid QR code");
 }
 
 if (registration.checkedIn) {
   // Already checked in (prevent double entries)
-  return error('Already checked in');
+  return error("Already checked in");
 }
 
 // Mark as checked in
@@ -1685,6 +1795,7 @@ return success(registration);
 ### Dashboard Home (`/dashboard`)
 
 **Features**:
+
 1. **Statistics Cards**:
    - Total Events
    - Total Students
@@ -1705,6 +1816,7 @@ return success(registration);
 ### Event Management (`/dashboard/events`)
 
 **Features**:
+
 1. **Event List**:
    - Title, date, capacity, registered count
    - Registered percentage
@@ -1728,6 +1840,7 @@ return success(registration);
 ### QR Scanner (`/dashboard/scanner`)
 
 **Features**:
+
 1. **Camera Access**:
    - Request browser camera permission
    - Display camera feed
@@ -1754,16 +1867,19 @@ return success(registration);
 We recommend a three-tier testing approach:
 
 #### Tier 1: Unit Tests (Jest)
+
 - Test individual functions, utilities, and components
 - Fast execution, high coverage
 - No external dependencies
 
 #### Tier 2: Integration Tests (Vitest)
+
 - Test API routes, database interactions
 - Test component interactions with API
 - Moderate execution time
 
 #### Tier 3: End-to-End Tests (Cypress)
+
 - Test complete user flows
 - Test entire application UI
 - Slower execution, highest confidence
@@ -1787,14 +1903,14 @@ npm install --save-dev cypress
 
 ```javascript
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'jsdom',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.ts?(x)', '**/?(*.)+(spec|test).ts?(x)'],
+  preset: "ts-jest",
+  testEnvironment: "jsdom",
+  roots: ["<rootDir>/src"],
+  testMatch: ["**/__tests__/**/*.ts?(x)", "**/?(*.)+(spec|test).ts?(x)"],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 };
 ```
 
@@ -1805,31 +1921,31 @@ module.exports = {
 **File**: `src/lib/__tests__/auth.test.ts`
 
 ```typescript
-import bcrypt from 'bcryptjs';
+import bcrypt from "bcryptjs";
 
-describe('Password Hashing', () => {
-  test('should hash password with 12 rounds', async () => {
-    const password = 'SecurePass123!';
+describe("Password Hashing", () => {
+  test("should hash password with 12 rounds", async () => {
+    const password = "SecurePass123!";
     const hashed = await bcrypt.hash(password, 12);
-    
+
     expect(hashed).not.toBe(password);
-    expect(hashed).toMatch(/^\$2[aby]\$/);  // Bcrypt prefix
+    expect(hashed).toMatch(/^\$2[aby]\$/); // Bcrypt prefix
     expect(hashed.length).toBeGreaterThan(20);
   });
 
-  test('should verify matching password', async () => {
-    const password = 'SecurePass123!';
+  test("should verify matching password", async () => {
+    const password = "SecurePass123!";
     const hashed = await bcrypt.hash(password, 12);
-    
+
     const isValid = await bcrypt.compare(password, hashed);
     expect(isValid).toBe(true);
   });
 
-  test('should reject non-matching password', async () => {
-    const password = 'SecurePass123!';
+  test("should reject non-matching password", async () => {
+    const password = "SecurePass123!";
     const hashed = await bcrypt.hash(password, 12);
-    
-    const isValid = await bcrypt.compare('WrongPassword', hashed);
+
+    const isValid = await bcrypt.compare("WrongPassword", hashed);
     expect(isValid).toBe(false);
   });
 });
@@ -1840,12 +1956,12 @@ describe('Password Hashing', () => {
 **File**: `src/models/__tests__/Event.test.ts`
 
 ```typescript
-import Event from '@/models/Event';
+import Event from "@/models/Event";
 
-describe('Event Model', () => {
-  test('should require title, description, date, endDate, venue, organizer', async () => {
+describe("Event Model", () => {
+  test("should require title, description, date, endDate, venue, organizer", async () => {
     const invalidEvent = new Event({
-      title: 'AI Summit',
+      title: "AI Summit",
       // Missing other required fields
     });
 
@@ -1854,39 +1970,39 @@ describe('Event Model', () => {
 
   test('should set default category to "Other"', () => {
     const event = new Event({
-      title: 'Tech Meetup',
-      description: 'Meet fellow developers',
-      date: new Date('2026-05-01'),
-      endDate: new Date('2026-05-01'),
-      venue: 'Main Hall',
-      organizer: 'Tech Club',
+      title: "Tech Meetup",
+      description: "Meet fellow developers",
+      date: new Date("2026-05-01"),
+      endDate: new Date("2026-05-01"),
+      venue: "Main Hall",
+      organizer: "Tech Club",
     });
 
-    expect(event.category).toBe('Other');
+    expect(event.category).toBe("Other");
   });
 
-  test('should validate category enum', async () => {
+  test("should validate category enum", async () => {
     const event = new Event({
-      title: 'Event',
-      description: 'Test',
+      title: "Event",
+      description: "Test",
       date: new Date(),
       endDate: new Date(),
-      venue: 'Hall',
-      organizer: 'Club',
-      category: 'InvalidCategory',
+      venue: "Hall",
+      organizer: "Club",
+      category: "InvalidCategory",
     });
 
     expect(async () => await event.save()).rejects.toThrow();
   });
 
-  test('should have default registeredCount of 0', () => {
+  test("should have default registeredCount of 0", () => {
     const event = new Event({
-      title: 'Event',
-      description: 'Test',
+      title: "Event",
+      description: "Test",
       date: new Date(),
       endDate: new Date(),
-      venue: 'Hall',
-      organizer: 'Club',
+      venue: "Hall",
+      organizer: "Club",
     });
 
     expect(event.registeredCount).toBe(0);
@@ -1899,93 +2015,93 @@ describe('Event Model', () => {
 **File**: `src/app/api/register/__tests__/route.test.ts`
 
 ```typescript
-import { POST as registerEvent } from '@/app/api/register/route';
-import { getServerSession } from 'next-auth';
-import Registration from '@/models/Registration';
-import Event from '@/models/Event';
+import { POST as registerEvent } from "@/app/api/register/route";
+import { getServerSession } from "next-auth";
+import Registration from "@/models/Registration";
+import Event from "@/models/Event";
 
-jest.mock('next-auth');
-jest.mock('@/models/Registration');
-jest.mock('@/models/Event');
+jest.mock("next-auth");
+jest.mock("@/models/Registration");
+jest.mock("@/models/Event");
 
-describe('POST /api/register', () => {
+describe("POST /api/register", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('should return 401 if not authenticated', async () => {
+  test("should return 401 if not authenticated", async () => {
     (getServerSession as jest.Mock).mockResolvedValue(null);
 
-    const req = new Request('http://localhost:3000/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ eventId: 'event-123' }),
+    const req = new Request("http://localhost:3000/api/register", {
+      method: "POST",
+      body: JSON.stringify({ eventId: "event-123" }),
     });
 
     const response = await registerEvent(req as any);
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: 'Login required' });
+    expect(await response.json()).toEqual({ error: "Login required" });
   });
 
-  test('should return 404 if event not found', async () => {
+  test("should return 404 if event not found", async () => {
     (getServerSession as jest.Mock).mockResolvedValue({
-      user: { id: 'user-123', email: 'user@example.com' },
+      user: { id: "user-123", email: "user@example.com" },
     });
 
     (Event.findById as jest.Mock).mockResolvedValue(null);
 
-    const req = new Request('http://localhost:3000/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ eventId: 'invalid-event' }),
+    const req = new Request("http://localhost:3000/api/register", {
+      method: "POST",
+      body: JSON.stringify({ eventId: "invalid-event" }),
     });
 
     const response = await registerEvent(req as any);
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: 'Event not found' });
+    expect(await response.json()).toEqual({ error: "Event not found" });
   });
 
-  test('should return 400 if event is full', async () => {
+  test("should return 400 if event is full", async () => {
     const mockEvent = {
-      _id: 'event-123',
+      _id: "event-123",
       capacity: 100,
       registeredCount: 100,
     };
 
     (getServerSession as jest.Mock).mockResolvedValue({
-      user: { id: 'user-123', email: 'user@example.com' },
+      user: { id: "user-123", email: "user@example.com" },
     });
 
     (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
-    const req = new Request('http://localhost:3000/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ eventId: 'event-123' }),
+    const req = new Request("http://localhost:3000/api/register", {
+      method: "POST",
+      body: JSON.stringify({ eventId: "event-123" }),
     });
 
     const response = await registerEvent(req as any);
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: 'Event is full' });
+    expect(await response.json()).toEqual({ error: "Event is full" });
   });
 
-  test('should create registration with QR code', async () => {
+  test("should create registration with QR code", async () => {
     const mockEvent = {
-      _id: 'event-123',
-      title: 'Tech Summit',
-      date: new Date('2026-04-15'),
+      _id: "event-123",
+      title: "Tech Summit",
+      date: new Date("2026-04-15"),
       capacity: 100,
       registeredCount: 50,
     };
 
     const mockRegistration = {
-      _id: 'reg-123',
-      userId: 'user-123',
-      eventId: 'event-123',
-      registrationId: 'CP-A1B2C3D-4E5F',
-      qrCode: 'data:image/png;base64,...',
+      _id: "reg-123",
+      userId: "user-123",
+      eventId: "event-123",
+      registrationId: "CP-A1B2C3D-4E5F",
+      qrCode: "data:image/png;base64,...",
       checkedIn: false,
     };
 
     (getServerSession as jest.Mock).mockResolvedValue({
-      user: { id: 'user-123', email: 'user@example.com' },
+      user: { id: "user-123", email: "user@example.com" },
     });
 
     (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
@@ -1993,48 +2109,48 @@ describe('POST /api/register', () => {
     (Registration.create as jest.Mock).mockResolvedValue(mockRegistration);
     (Event.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockEvent);
 
-    const req = new Request('http://localhost:3000/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ eventId: 'event-123' }),
+    const req = new Request("http://localhost:3000/api/register", {
+      method: "POST",
+      body: JSON.stringify({ eventId: "event-123" }),
     });
 
     const response = await registerEvent(req as any);
     expect(response.status).toBe(201);
-    
+
     const data = await response.json();
     expect(data.registration).toBeDefined();
-    expect(data.registration.registrationId).toBe('CP-A1B2C3D-4E5F');
+    expect(data.registration.registrationId).toBe("CP-A1B2C3D-4E5F");
     expect(data.qrCode).toBeDefined();
   });
 
-  test('should prevent duplicate registration', async () => {
+  test("should prevent duplicate registration", async () => {
     const mockEvent = {
-      _id: 'event-123',
+      _id: "event-123",
       capacity: 100,
       registeredCount: 50,
     };
 
     const existingRegistration = {
-      _id: 'reg-123',
-      userId: 'user-123',
-      eventId: 'event-123',
+      _id: "reg-123",
+      userId: "user-123",
+      eventId: "event-123",
     };
 
     (getServerSession as jest.Mock).mockResolvedValue({
-      user: { id: 'user-123', email: 'user@example.com' },
+      user: { id: "user-123", email: "user@example.com" },
     });
 
     (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
     (Registration.findOne as jest.Mock).mockResolvedValue(existingRegistration);
 
-    const req = new Request('http://localhost:3000/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ eventId: 'event-123' }),
+    const req = new Request("http://localhost:3000/api/register", {
+      method: "POST",
+      body: JSON.stringify({ eventId: "event-123" }),
     });
 
     const response = await registerEvent(req as any);
     expect(response.status).toBe(409);
-    expect(await response.json()).toEqual({ error: 'Already registered' });
+    expect(await response.json()).toEqual({ error: "Already registered" });
   });
 });
 ```
@@ -2044,93 +2160,100 @@ describe('POST /api/register', () => {
 **File**: `cypress/e2e/user-registration.cy.ts`
 
 ```typescript
-describe('User Registration and Event Registration Flow', () => {
+describe("User Registration and Event Registration Flow", () => {
   beforeEach(() => {
-    cy.visit('/');
+    cy.visit("/");
   });
 
-  test('should allow user to sign up', () => {
+  test("should allow user to sign up", () => {
     cy.get('a:contains("Sign Up")').click();
-    cy.url().should('include', '/auth/signup');
+    cy.url().should("include", "/auth/signup");
 
-    cy.get('input[name="name"]').type('John Doe');
-    cy.get('input[name="email"]').type('john@example.com');
-    cy.get('input[name="password"]').type('SecurePass123!');
-    cy.get('input[name="college"]').type('MIT');
+    cy.get('input[name="name"]').type("John Doe");
+    cy.get('input[name="email"]').type("john@example.com");
+    cy.get('input[name="password"]').type("SecurePass123!");
+    cy.get('input[name="college"]').type("MIT");
 
     cy.get('button:contains("Sign Up")').click();
 
-    cy.url().should('include', '/events');
-    cy.get('a:contains("John")').should('exist');
+    cy.url().should("include", "/events");
+    cy.get('a:contains("John")').should("exist");
   });
 
-  test('should allow user to view events', () => {
-    cy.login('student@example.com', 'student123');
+  test("should allow user to view events", () => {
+    cy.login("student@example.com", "student123");
 
-    cy.visit('/events');
-    cy.get('[data-testid="event-card"]').should('have.length.greaterThan', 0);
+    cy.visit("/events");
+    cy.get('[data-testid="event-card"]').should("have.length.greaterThan", 0);
   });
 
-  test('should allow user to register for event', () => {
-    cy.login('student@example.com', 'student123');
+  test("should allow user to register for event", () => {
+    cy.login("student@example.com", "student123");
 
-    cy.visit('/events');
+    cy.visit("/events");
     cy.get('[data-testid="event-card"]').first().click();
 
     cy.get('button:contains("Register")').click();
-    cy.get('button:contains("View & Register")').should('not.exist');
+    cy.get('button:contains("View & Register")').should("not.exist");
 
-    cy.visit('/my-events');
-    cy.get('[data-testid="registered-event"]').should('have.length.greaterThan', 0);
+    cy.visit("/my-events");
+    cy.get('[data-testid="registered-event"]').should(
+      "have.length.greaterThan",
+      0,
+    );
   });
 
-  test('should display QR code after registration', () => {
-    cy.login('student@example.com', 'student123');
+  test("should display QR code after registration", () => {
+    cy.login("student@example.com", "student123");
 
-    cy.visit('/events');
+    cy.visit("/events");
     cy.get('[data-testid="event-card"]').first().click();
     cy.get('button:contains("Register")').click();
 
-    cy.visit('/my-events');
-    cy.get('[data-testid="qr-code"]').should('exist');
-    cy.get('[data-testid="qr-code"]').should('have.attr', 'src').and('include', 'data:image/png');
+    cy.visit("/my-events");
+    cy.get('[data-testid="qr-code"]').should("exist");
+    cy.get('[data-testid="qr-code"]')
+      .should("have.attr", "src")
+      .and("include", "data:image/png");
   });
 
-  test('should prevent duplicate registration', () => {
-    cy.login('student@example.com', 'student123');
+  test("should prevent duplicate registration", () => {
+    cy.login("student@example.com", "student123");
 
-    cy.visit('/events');
+    cy.visit("/events");
     cy.get('[data-testid="event-card"]').first().click();
 
     cy.get('button:contains("Register")').click();
-    cy.get('[data-testid="success-toast"]').should('be.visible');
+    cy.get('[data-testid="success-toast"]').should("be.visible");
 
-    cy.go('back');
+    cy.go("back");
     cy.get('[data-testid="event-card"]').first().click();
 
     cy.get('button:contains("Register")').click();
-    cy.get('[data-testid="error-toast"]:contains("Already registered")').should('be.visible');
+    cy.get('[data-testid="error-toast"]:contains("Already registered")').should(
+      "be.visible",
+    );
   });
 
-  test('should prevent registration when event is full', () => {
+  test("should prevent registration when event is full", () => {
     // Setup: Create event at capacity
-    cy.visit('/admin/events/new');
+    cy.visit("/admin/events/new");
     cy.createEvent({
-      title: 'Full Event',
+      title: "Full Event",
       capacity: 1,
     });
 
     // First user registers
-    cy.login('student1@example.com', 'pass');
-    cy.registerForEvent('Full Event');
+    cy.login("student1@example.com", "pass");
+    cy.registerForEvent("Full Event");
 
     // Second user tries to register
-    cy.login('student2@example.com', 'pass');
-    cy.visit('/events');
+    cy.login("student2@example.com", "pass");
+    cy.visit("/events");
     cy.get('[data-testid="event-card"]:contains("Full Event")').click();
 
-    cy.get('button:contains("Event Full")').should('be.visible');
-    cy.get('button:contains("Register")').should('not.exist');
+    cy.get('button:contains("Event Full")').should("be.visible");
+    cy.get('button:contains("Register")').should("not.exist");
   });
 });
 ```
@@ -2140,62 +2263,66 @@ describe('User Registration and Event Registration Flow', () => {
 **File**: `cypress/e2e/admin-checkin.cy.ts`
 
 ```typescript
-describe('Admin Check-in Flow', () => {
+describe("Admin Check-in Flow", () => {
   beforeEach(() => {
-    cy.login('admin@collegepulse.com', 'admin123');
+    cy.login("admin@CampusBuzz.com", "admin123");
   });
 
-  test('should navigate to scanner page', () => {
-    cy.visit('/dashboard');
+  test("should navigate to scanner page", () => {
+    cy.visit("/dashboard");
     cy.get('a:contains("Scanner")').click();
-    cy.url().should('include', '/dashboard/scanner');
+    cy.url().should("include", "/dashboard/scanner");
   });
 
-  test('should check in user with valid QR code', () => {
+  test("should check in user with valid QR code", () => {
     // Setup: Create registration with QR code
     cy.loginAsStudent();
-    cy.registerForEvent('AI Summit');
+    cy.registerForEvent("AI Summit");
     cy.getQRCode().then((qrCode) => {
-      cy.wrap(qrCode).as('validQRCode');
+      cy.wrap(qrCode).as("validQRCode");
     });
 
     // Admin check-in
-    cy.login('admin@collegepulse.com', 'admin123');
-    cy.visit('/dashboard/scanner');
+    cy.login("admin@CampusBuzz.com", "admin123");
+    cy.visit("/dashboard/scanner");
 
-    cy.get('@validQRCode').then((qrCode) => {
+    cy.get("@validQRCode").then((qrCode) => {
       cy.simulateQRScan(qrCode);
     });
 
-    cy.get('[data-testid="checkin-success"]').should('be.visible');
-    cy.get('[data-testid="attendee-name"]').should('contain', 'John Doe');
+    cy.get('[data-testid="checkin-success"]').should("be.visible");
+    cy.get('[data-testid="attendee-name"]').should("contain", "John Doe");
   });
 
-  test('should prevent duplicate check-in', () => {
+  test("should prevent duplicate check-in", () => {
     // Already checked in
-    cy.visit('/dashboard/scanner');
-    
-    cy.get('@validQRCode').then((qrCode) => {
+    cy.visit("/dashboard/scanner");
+
+    cy.get("@validQRCode").then((qrCode) => {
       cy.simulateQRScan(qrCode);
     });
 
-    cy.get('[data-testid="error-toast"]:contains("Already checked in")').should('be.visible');
+    cy.get('[data-testid="error-toast"]:contains("Already checked in")').should(
+      "be.visible",
+    );
   });
 
-  test('should reject invalid QR code', () => {
-    cy.visit('/dashboard/scanner');
-    cy.simulateQRScan('invalid-data');
+  test("should reject invalid QR code", () => {
+    cy.visit("/dashboard/scanner");
+    cy.simulateQRScan("invalid-data");
 
-    cy.get('[data-testid="error-toast"]:contains("Invalid QR code")').should('be.visible');
+    cy.get('[data-testid="error-toast"]:contains("Invalid QR code")').should(
+      "be.visible",
+    );
   });
 
-  test('should display dashboard statistics', () => {
-    cy.visit('/dashboard');
+  test("should display dashboard statistics", () => {
+    cy.visit("/dashboard");
 
-    cy.get('[data-testid="stat-total-events"]').should('be.visible');
-    cy.get('[data-testid="stat-total-students"]').should('be.visible');
-    cy.get('[data-testid="stat-total-registrations"]').should('be.visible');
-    cy.get('[data-testid="stat-total-checkins"]').should('be.visible');
+    cy.get('[data-testid="stat-total-events"]').should("be.visible");
+    cy.get('[data-testid="stat-total-students"]').should("be.visible");
+    cy.get('[data-testid="stat-total-registrations"]').should("be.visible");
+    cy.get('[data-testid="stat-total-checkins"]').should("be.visible");
   });
 });
 ```
@@ -2243,17 +2370,20 @@ npm run test:e2e:ui
 ### Installation Steps
 
 1. **Clone Repository**
+
 ```bash
 git clone https://github.com/yourrepo/CampusBuzz.git
 cd CampusBuzz
 ```
 
 2. **Install Dependencies**
+
 ```bash
 npm install
 ```
 
 3. **Setup Environment Variables**
+
 ```bash
 # Copy template
 cp .env.example .env.local
@@ -2267,16 +2397,19 @@ cp .env.example .env.local
 ```
 
 4. **Seed Database** (Optional - for demo data)
+
 ```bash
 node scripts/seed.js
 ```
 
 5. **Start Development Server**
+
 ```bash
 npm run dev
 ```
 
 6. **Access Application**
+
 ```
 http://localhost:3000
 ```
@@ -2284,6 +2417,7 @@ http://localhost:3000
 ### Development Workflow
 
 **Edit Source Files**:
+
 ```
 src/
 ├── app/                # Pages & API routes
@@ -2293,11 +2427,13 @@ src/
 ```
 
 **Automatic Reload**:
+
 - Next.js automatically reloads on file changes
 - TypeScript compilation on save
 - API routes revalidate on changes
 
 **Testing During Development**:
+
 ```bash
 # Run tests in watch mode
 npm test -- --watch
@@ -2333,6 +2469,7 @@ npm run start
 ```
 
 **Output**:
+
 ```
 > next build
 Creating an optimized production build...
@@ -2371,6 +2508,7 @@ vercel
 #### Docker Deployment
 
 **Dockerfile**:
+
 ```dockerfile
 FROM node:20-alpine
 
@@ -2388,14 +2526,16 @@ CMD ["npm", "start"]
 ```
 
 **Build & Run**:
+
 ```bash
-docker build -t collegepulse .
-docker run -p 3000:3000 --env-file .env.local collegepulse
+docker build -t CampusBuzz .
+docker run -p 3000:3000 --env-file .env.local CampusBuzz
 ```
 
 ### Database Migration to Production
 
 **MongoDB Atlas Setup**:
+
 1. Create free cluster on MongoDB Atlas
 2. Create database user
 3. Whitelist IP address
@@ -2403,8 +2543,9 @@ docker run -p 3000:3000 --env-file .env.local collegepulse
 5. Update `MONGODB_URI` in production .env
 
 **Connection String Format**:
+
 ```
-mongodb+srv://username:password@cluster.mongodb.net/collegepulse
+mongodb+srv://username:password@cluster.mongodb.net/CampusBuzz
 ```
 
 ---
@@ -2415,9 +2556,9 @@ mongodb+srv://username:password@cluster.mongodb.net/collegepulse
 
 ```env
 # Database Connection
-MONGODB_URI=mongodb://127.0.0.1:27017/collegepulse
+MONGODB_URI=mongodb://127.0.0.1:27017/CampusBuzz
 # OR for MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/collegepulse
+# MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/CampusBuzz
 
 # NextAuth Configuration
 NEXTAUTH_SECRET=your-super-secret-key-here-min-32-chars
@@ -2428,19 +2569,19 @@ EMAIL_USER=your-email@gmail.com
 EMAIL_PASS=app-specific-password
 
 # Admin Configuration
-ADMIN_EMAIL=admin@collegepulse.com
+ADMIN_EMAIL=admin@CampusBuzz.com
 ```
 
 ### Variable Descriptions
 
-| Variable | Type | Example | Notes |
-|----------|------|---------|-------|
-| `MONGODB_URI` | URL | `mongodb+srv://...` | Database connection string |
-| `NEXTAUTH_SECRET` | String | 32+ random chars | JWT signing secret |
-| `NEXTAUTH_URL` | URL | `http://localhost:3000` | App URL for callbacks |
-| `EMAIL_USER` | Email | `noreply@gmail.com` | Gmail address for sending |
-| `EMAIL_PASS` | String | App-specific password | Gmail app password (not main password) |
-| `ADMIN_EMAIL` | Email | `admin@collegepulse.com` | Auto-assign admin on signup |
+| Variable          | Type   | Example                  | Notes                                  |
+| ----------------- | ------ | ------------------------ | -------------------------------------- |
+| `MONGODB_URI`     | URL    | `mongodb+srv://...`      | Database connection string             |
+| `NEXTAUTH_SECRET` | String | 32+ random chars         | JWT signing secret                     |
+| `NEXTAUTH_URL`    | URL    | `http://localhost:3000`  | App URL for callbacks                  |
+| `EMAIL_USER`      | Email  | `noreply@gmail.com`      | Gmail address for sending              |
+| `EMAIL_PASS`      | String | App-specific password    | Gmail app password (not main password) |
+| `ADMIN_EMAIL`     | Email  | `admin@CampusBuzz.com` | Auto-assign admin on signup            |
 
 ### Generating NEXTAUTH_SECRET
 
@@ -2459,11 +2600,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 **Error**: `MongooseError: Cannot connect to MongoDB`
 
 **Causes**:
+
 - MongoDB not running locally
 - Invalid connection string
 - Network/firewall blocking connection
 
 **Solutions**:
+
 ```bash
 # Check if MongoDB is running (Windows)
 net start MongoDB
@@ -2472,7 +2615,7 @@ net start MongoDB
 mongod --dbpath="C:\data\db"
 
 # Test connection
-mongo mongodb://127.0.0.1:27017/collegepulse
+mongo mongodb://127.0.0.1:27017/CampusBuzz
 ```
 
 ---
@@ -2482,6 +2625,7 @@ mongo mongodb://127.0.0.1:27017/collegepulse
 **Error**: `Error: NEXTAUTH_SECRET is not set`
 
 **Solution**:
+
 ```bash
 # Generate and add to .env.local
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -2495,11 +2639,13 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 **Error**: No confirmation emails received
 
 **Causes**:
+
 - Gmail app password incorrect
 - 2FA not enabled on Gmail
 - Email credentials wrong format
 
 **Solutions**:
+
 1. Create new app password in Gmail security settings
 2. Use app password, not main password
 3. Enable 2-Factor Authentication first
@@ -2517,11 +2663,13 @@ EMAIL_PASS=16-char-app-password
 **Error**: QR code shows as broken image in email
 
 **Causes**:
+
 - QR generation failed
 - Base64 data URL too large for email
 - Email client doesn't support data URLs
 
 **Solutions**:
+
 ```typescript
 // Verify QR generation
 const qrCode = await QRCode.toDataURL(data, { width: 300 });
@@ -2539,6 +2687,7 @@ console.log(qrCode.length); // Should be ~5000-10000 chars
 **Cause**: Compound index not created
 
 **Solution**:
+
 ```bash
 # Manually ensure index exists
 mongo
@@ -2556,13 +2705,14 @@ mongo
 **Cause**: Type definitions missing for NextAuth extensions
 
 **Solution**:
+
 ```typescript
 // Add type definition in types/next-auth.d.ts
-declare module 'next-auth' {
+declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: 'student' | 'admin';
+      role: "student" | "admin";
       email: string;
       name: string;
     };
@@ -2581,6 +2731,7 @@ declare module 'next-auth' {
 **Note**: Next.js API routes don't have CORS issues from same domain
 
 **Solution**:
+
 - Ensure API calls use relative paths: `/api/events`
 - Don't use absolute URLs from frontend code
 
@@ -2591,6 +2742,7 @@ declare module 'next-auth' {
 #### 1. Database Connection Pooling
 
 Already implemented in `src/lib/mongodb.ts`:
+
 ```typescript
 // Caches and reuses connection across requests
 let cached = global.mongoose;
@@ -2687,6 +2839,7 @@ Fixes #issue-number (if applicable)
 **Types**: feat, fix, docs, style, refactor, test, chore
 
 **Example**:
+
 ```
 feat: Add event filtering by category
 
@@ -2709,14 +2862,14 @@ Fixes #45
 
 ## Documentation Index
 
-| Document | Purpose |
-|----------|---------|
-| README.md | Project overview and quick start |
-| PROJECT_DOCUMENTATION.md | This comprehensive guide |
-| .env.example | Environment variables template |
-| src/models/*.ts | Database schema definitions |
-| src/lib/auth.ts | Authentication configuration |
-| src/lib/email.ts | Email service setup |
+| Document                 | Purpose                          |
+| ------------------------ | -------------------------------- |
+| README.md                | Project overview and quick start |
+| PROJECT_DOCUMENTATION.md | This comprehensive guide         |
+| .env.example             | Environment variables template   |
+| src/models/\*.ts         | Database schema definitions      |
+| src/lib/auth.ts          | Authentication configuration     |
+| src/lib/email.ts         | Email service setup              |
 
 ---
 
@@ -2727,7 +2880,7 @@ Fixes #45
 - **Documentation**: This file
 - **Issues**: GitHub Issues for bug reports
 - **Discussions**: GitHub Discussions for questions
-- **Email**: Contact team at support@collegepulse.com
+- **Email**: Contact team at support@CampusBuzz.com
 
 ### External Resources
 
@@ -2747,7 +2900,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 
 ## Project Metadata
 
-- **Name**: CampusBuzz (CollegePulse)
+- **Name**: CampusBuzz (CampusBuzz)
 - **Version**: 0.1.0
 - **Status**: MVP Complete
 - **Last Updated**: March 2026
@@ -2760,4 +2913,3 @@ This project is licensed under the MIT License - see LICENSE file for details.
 **For**: CampusBuzz Development Team  
 **Maintained By**: Engineering Team  
 **Next Review**: Q2 2026
-

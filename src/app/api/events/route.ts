@@ -33,6 +33,14 @@ export async function POST(req: NextRequest) {
     await dbConnect();
     const data = await req.json();
 
+    if (data.date && new Date(data.date) < new Date()) {
+      return NextResponse.json({ error: 'Event date cannot be in the past' }, { status: 400 });
+    }
+
+    if (data.registrationDeadline && new Date(data.registrationDeadline) < new Date()) {
+      return NextResponse.json({ error: 'Registration deadline cannot be in the past' }, { status: 400 });
+    }
+
     const event = await Event.create({
       ...data,
       createdBy: (session.user as { id?: string }).id,
