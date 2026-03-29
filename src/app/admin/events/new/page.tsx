@@ -2,11 +2,18 @@
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image, ArrowLeft } from 'lucide-react'
 
 const categories = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other']
+
+function getMinDateTime() {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
+  return now.toISOString().slice(0, 16)
+}
 
 export default function NewEventPage() {
   const { data: session } = useSession()
@@ -16,6 +23,8 @@ export default function NewEventPage() {
     title: '',
     description: '',
     category: 'Technical',
+    feeType: 'free',
+    feeAmount: 0,
     date: '',
     endDate: '',
     venue: '',
@@ -29,6 +38,12 @@ export default function NewEventPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (new Date(form.date) < new Date()) {
+      toast.error('Event date cannot be in the past')
+      return
+    }
+    
     setLoading(true)
     try {
       const res = await fetch('/api/events', {
@@ -37,12 +52,13 @@ export default function NewEventPage() {
         body: JSON.stringify({
           ...form,
           capacity: Number(form.capacity),
+          feeAmount: Number(form.feeAmount),
           tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      toast.success('Event created successfully! 🎉')
+      toast.success('Event created successfully!')
       router.push('/admin')
     } catch (err: any) {
       toast.error(err.message)
@@ -51,91 +67,262 @@ export default function NewEventPage() {
     }
   }
 
-  const Field = ({ label, children }: any) => (
-    <div>
-      <label className="block text-sm text-gray-400 mb-2 font-medium">{label}</label>
-      {children}
-    </div>
-  )
+  const handleClear = () => {
+    setForm({
+      title: '',
+      description: '',
+      category: 'Technical',
+      feeType: 'free',
+      feeAmount: 0,
+      date: '',
+      endDate: '',
+      venue: '',
+      capacity: 100,
+      registrationDeadline: '',
+      tags: '',
+      image: '',
+    })
+  }
 
   return (
-    <div className="min-h-screen mesh-bg">
-      <Navbar />
-      <div className="pt-24 pb-16 px-4 max-w-3xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <button onClick={() => router.back()} className="text-gray-400 hover:text-white text-sm mb-6 transition-colors">
-            ← Back to Dashboard
-          </button>
-          <h1 className="font-display font-extrabold text-4xl mb-8">
-            Create <span className="gradient-text">Event</span>
+    <div className="min-h-screen">
+      <div className="max-w-[900px] mx-auto px-6 py-12">
+        
+        {/* Header */}
+        <div className="mb-8">
+          <Link href="/admin" className="inline-flex items-center gap-2 text-muted-foreground hover:text-white transition mb-4 text-sm">
+            <ArrowLeft size={16} /> Back to Events
+          </Link>
+          <h1 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white">
+            Create <span className="text-accent">New Event</span>
           </h1>
+          <p className="text-muted-foreground mt-1">Fill in the details to create a new campus event</p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="gradient-border p-8 space-y-6">
-            <Field label="Event Title *">
-              <input type="text" placeholder="e.g. Annual Tech Fest 2024"
-                value={form.title} onChange={e => set('title', e.target.value)} required />
-            </Field>
+        <form onSubmit={handleSubmit} className="card p-8 space-y-6">
+          {/* Title */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Event Title *
+            </label>
+            <input 
+              type="text" 
+              placeholder="e.g. Annual Tech Fest 2025"
+              value={form.title} 
+              onChange={e => set('title', e.target.value)} 
+              required 
+              className="input w-full"
+            />
+          </div>
 
-            <Field label="Description *">
-              <textarea rows={4} placeholder="Describe your event..."
-                value={form.description} onChange={e => set('description', e.target.value)} required />
-            </Field>
+          {/* Description */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Description *
+            </label>
+            <textarea 
+              rows={4} 
+              placeholder="Describe your event..."
+              value={form.description} 
+              onChange={e => set('description', e.target.value)} 
+              required 
+              className="input w-full resize-none"
+            />
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Category *">
-                <select value={form.category} onChange={e => set('category', e.target.value)}>
+          {/* Category & Fee */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Category *
+              </label>
+              <div className="relative">
+                <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <select 
+                  value={form.category} 
+                  onChange={e => set('category', e.target.value)}
+                  className="input w-full pl-10"
+                >
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-              </Field>
-              <Field label="Capacity *">
-                <input type="number" min="1" value={form.capacity}
-                  onChange={e => set('capacity', e.target.value)} required />
-              </Field>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Event Date & Time *">
-                <input type="datetime-local" value={form.date}
-                  onChange={e => set('date', e.target.value)} required />
-              </Field>
-              <Field label="End Date & Time">
-                <input type="datetime-local" value={form.endDate}
-                  onChange={e => set('endDate', e.target.value)} />
-              </Field>
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Fee Type *
+              </label>
+              <div className="relative">
+                <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <select 
+                  value={form.feeType} 
+                  onChange={e => set('feeType', e.target.value)}
+                  className="input w-full pl-10"
+                >
+                  <option value="free">Free</option>
+                  <option value="paid">Paid</option>
+                </select>
+              </div>
             </div>
-
-            <Field label="Registration Deadline *">
-              <input type="datetime-local" value={form.registrationDeadline}
-                onChange={e => set('registrationDeadline', e.target.value)} required />
-            </Field>
-
-            <Field label="Venue *">
-              <input type="text" placeholder="e.g. Main Auditorium, Block A"
-                value={form.venue} onChange={e => set('venue', e.target.value)} required />
-            </Field>
-
-            <Field label="Tags (comma separated)">
-              <input type="text" placeholder="e.g. coding, prizes, networking"
-                value={form.tags} onChange={e => set('tags', e.target.value)} />
-            </Field>
-
-            <Field label="Event Image URL (optional)">
-              <input type="url" placeholder="https://..."
-                value={form.image} onChange={e => set('image', e.target.value)} />
-            </Field>
-
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => router.back()}
-                className="flex-1 py-3 glass hover:bg-white/10 text-white rounded-xl font-semibold transition-all">
-                Cancel
-              </button>
-              <button type="submit" disabled={loading}
-                className="flex-2 flex-1 py-3 bg-pulse-600 hover:bg-pulse-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
-                {loading ? 'Creating...' : '🚀 Create Event'}
-              </button>
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Fee Amount (Rs.)
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">Rs.</span>
+                <input 
+                  type="number" 
+                  min="0" 
+                  value={form.feeAmount}
+                  onChange={e => set('feeAmount', e.target.value)}
+                  disabled={form.feeType === 'free'}
+                  className="input w-full pl-12 disabled:opacity-50"
+                />
+              </div>
             </div>
-          </form>
-        </motion.div>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Event Date & Time *
+              </label>
+              <div className="relative">
+                <Clock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="datetime-local" 
+                  value={form.date}
+                  min={getMinDateTime()}
+                  onChange={e => set('date', e.target.value)} 
+                  required 
+                  className="input w-full pl-10"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                End Date & Time
+              </label>
+              <div className="relative">
+                <Clock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="datetime-local" 
+                  value={form.endDate}
+                  min={form.date || getMinDateTime()}
+                  onChange={e => set('endDate', e.target.value)} 
+                  className="input w-full pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Registration Deadline */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Registration Deadline *
+            </label>
+            <div className="relative">
+              <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="datetime-local" 
+                value={form.registrationDeadline}
+                min={getMinDateTime()}
+                max={form.date}
+                onChange={e => set('registrationDeadline', e.target.value)} 
+                required 
+                className="input w-full pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Venue & Capacity */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Venue *
+              </label>
+              <div className="relative">
+                <MapPin size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="e.g. Main Auditorium"
+                  value={form.venue} 
+                  onChange={e => set('venue', e.target.value)} 
+                  required 
+                  className="input w-full pl-10"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+                Capacity *
+              </label>
+              <div className="relative">
+                <Users size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={form.capacity}
+                  onChange={e => set('capacity', e.target.value)} 
+                  required 
+                  className="input w-full pl-10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Tags (comma separated)
+            </label>
+            <div className="relative">
+              <Tag size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="e.g. coding, prizes, networking"
+                value={form.tags} 
+                onChange={e => set('tags', e.target.value)} 
+                className="input w-full pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Image URL */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Event Image URL (optional)
+            </label>
+            <div className="relative">
+              <Image size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="url" 
+                placeholder="https://..."
+                value={form.image} 
+                onChange={e => set('image', e.target.value)} 
+                className="input w-full pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-border">
+            <button 
+              type="button" 
+              onClick={handleClear}
+              className="btn-ghost flex-1"
+            >
+              Clear All
+            </button>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn-primary flex-[2]"
+            >
+              {loading ? 'Creating...' : 'Create Event'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

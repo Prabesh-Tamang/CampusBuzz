@@ -1,7 +1,4 @@
 const nextConfig = {
-  experimental: {
-    turboPackFileSystem: true,
-  },
   images: {
     remotePatterns: [
       {

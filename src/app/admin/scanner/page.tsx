@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import Navbar from '@/components/Navbar'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh } from 'react-icons/hi'
@@ -87,9 +86,8 @@ export default function ScannerPage() {
   }
 
   return (
-    <div className="min-h-screen mesh-bg">
-      <Navbar />
-      <div className="pt-24 pb-16 px-4 max-w-2xl mx-auto">
+    <div className="min-h-screen">
+      <div className="pb-16 px-4 max-w-2xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <button onClick={() => router.back()} className="text-gray-400 hover:text-white text-sm mb-6 transition-colors">
             ← Back to Dashboard

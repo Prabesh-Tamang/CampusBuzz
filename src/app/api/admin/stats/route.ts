@@ -15,21 +15,30 @@ export async function GET(req: NextRequest) {
 
     await dbConnect();
 
-    const [totalEvents, totalUsers, totalRegistrations, checkedInCount, recentEvents] =
-      await Promise.all([
-        Event.countDocuments(),
-        User.countDocuments({ role: 'student' }),
-        Registration.countDocuments(),
-        Registration.countDocuments({ checkedIn: true }),
-        Event.find().sort({ createdAt: -1 }).limit(5).lean(),
-      ]);
-
-    return NextResponse.json({
+    const now = new Date();
+    const [
       totalEvents,
+      upcomingEvents,
       totalUsers,
       totalRegistrations,
       checkedInCount,
-      recentEvents,
+      allEvents,
+    ] = await Promise.all([
+      Event.countDocuments(),
+      Event.countDocuments({ date: { $gt: now }, isActive: true }),
+      User.countDocuments({ role: 'student' }),
+      Registration.countDocuments(),
+      Registration.countDocuments({ checkedIn: true }),
+      Event.find({ isActive: true }).sort({ date: -1 }).lean(),
+    ]);
+
+    return NextResponse.json({
+      totalEvents,
+      upcomingEvents,
+      totalUsers,
+      totalRegistrations,
+      checkedInCount,
+      recentEvents: allEvents,
     });
   } catch (err) {
     console.error(err);

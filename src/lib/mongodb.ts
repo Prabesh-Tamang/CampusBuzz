@@ -39,6 +39,7 @@
 
 
 import mongoose from 'mongoose';
+import { reconcileAllEvents } from './reconcile';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 
@@ -69,8 +70,11 @@ async function dbConnect() {
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((mongooseInstance) => {
+    cached.promise = mongoose.connect(MONGODB_URI).then(async (mongooseInstance) => {
       console.log("✅ Connected to DB:", mongooseInstance.connection.name);
+      reconcileAllEvents().catch(err =>
+        console.error('[Reconcile] Startup reconciliation failed:', err)
+      );
       return mongooseInstance;
     });
   }

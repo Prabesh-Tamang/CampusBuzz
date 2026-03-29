@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Event from '@/models/Event';
+import Registration from '@/models/Registration';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -24,8 +25,40 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     await dbConnect();
-    const data = await req.json();
-    const event = await Event.findByIdAndUpdate(params.id, data, { new: true });
+    const body = await req.json();
+
+    const currentEvent = await Event.findById(params.id);
+    if (!currentEvent) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    if (body.capacity !== undefined) {
+      if (body.capacity < currentEvent.registeredCount) {
+        return NextResponse.json({
+          error: `Capacity cannot be set below current registrations (${currentEvent.registeredCount})`
+        }, { status: 400 });
+      }
+    }
+
+    if (body.date !== undefined) {
+      const newDate = new Date(body.date);
+      const now = new Date();
+      if (newDate < now) {
+        return NextResponse.json({ error: 'Event date cannot be in the past' }, { status: 400 });
+      }
+    }
+
+    if (body.date && body.endDate) {
+      if (new Date(body.endDate) <= new Date(body.date)) {
+        return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 });
+      }
+    } else if (body.endDate && !body.date) {
+      if (new Date(body.endDate) <= currentEvent.date) {
+        return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 });
+      }
+    }
+
+    const event = await Event.findByIdAndUpdate(params.id, body, { new: true });
     return NextResponse.json(event);
   } catch (err) {
     console.error(err);
@@ -41,8 +74,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     await dbConnect();
-    await Event.findByIdAndDelete(params.id);
-    return NextResponse.json({ message: 'Deleted' });
+    const registrationCount = await Registration.countDocuments({ eventId: params.id });
+
+    if (registrationCount > 0) {
+      await Event.findByIdAndUpdate(params.id, { isActive: false });
+      return NextResponse.json({ success: true, softDeleted: true });
+    } else {
+      await Event.findByIdAndDelete(params.id);
+      return NextResponse.json({ success: true, softDeleted: false });
+    }
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

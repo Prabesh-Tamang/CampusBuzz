@@ -1,10 +1,8 @@
-
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, Eye, EyeOff } from 'lucide-react';
+import { Zap, X, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SignupPage() {
@@ -32,12 +30,16 @@ export default function SignupPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
       
       toast.success('Account created! Please log in.');
       router.push('/auth/login');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Signup failed');
+      const message = err instanceof Error ? err.message : 'Signup failed';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -46,6 +48,15 @@ export default function SignupPage() {
   return (
     <div className="grid-bg flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-[440px]">
+        
+        {/* Close Button */}
+        <button
+          onClick={() => router.push('/')}
+          className="mb-6 text-muted-foreground hover:text-white transition p-1 rounded-lg hover:bg-surface"
+        >
+          <X size={22} />
+        </button>
+
         {/* Header/Logo Section */}
         <div className="mb-10 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5 no-underline">
@@ -53,11 +64,11 @@ export default function SignupPage() {
               <Zap size={22} className="fill-[#042f2e] text-[#042f2e]" />
             </div>
             <span className="text-2xl font-extrabold text-white">
-              College<span className="text-accent">Pulse</span>
+              Campus<span className="text-accent">Buzz</span>
             </span>
           </Link>
           <h1 className="mb-2 text-3xl font-extrabold text-white">Create account</h1>
-          <p className="text-sm text-muted-foreground">Join CollegePulse for free</p>
+          <p className="text-sm text-muted-foreground">Join CampusBuzz for free</p>
         </div>
 
         {/* Form Card */}
@@ -71,7 +82,7 @@ export default function SignupPage() {
               <input
                 name="name"
                 type="text"
-                placeholder="Full Name"
+                placeholder="Enter your full name"
                 className="input w-full"
                 value={form.name}
                 onChange={handleChange}
@@ -87,7 +98,7 @@ export default function SignupPage() {
               <input
                 name="email"
                 type="email"
-                placeholder="ABC@gmail.com"
+                placeholder="your.email@college.edu"
                 className="input w-full"
                 value={form.email}
                 onChange={handleChange}
@@ -103,7 +114,7 @@ export default function SignupPage() {
               <input
                 name="college"
                 type="text"
-                placeholder="XYZ College"
+                placeholder="Your college name"
                 className="input w-full"
                 value={form.college}
                 onChange={handleChange}
@@ -120,7 +131,7 @@ export default function SignupPage() {
                   name="password"
                   type={showPass ? 'text' : 'password'}
                   placeholder="Min 6 characters"
-                  className="input w-full pr-11"
+                  className="input w-full"
                   value={form.password}
                   onChange={handleChange}
                   required
@@ -128,9 +139,10 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition p-1"
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
                 >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>

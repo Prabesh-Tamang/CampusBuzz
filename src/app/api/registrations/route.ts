@@ -58,10 +58,11 @@ export async function POST(req: NextRequest) {
     sendRegistrationEmail({
       to: session.user!.email!,
       name: session.user!.name!,
-      eventTitle: event.title,
+      eventName: event.title,
       eventDate: format(new Date(event.date), 'PPP p'),
       eventVenue: event.venue,
-      qrCode: qrCodeImage,
+      qrCodeDataUrl: qrCodeImage,
+      registrationId: qrToken,
     }).catch(console.error)
 
     return NextResponse.json({
