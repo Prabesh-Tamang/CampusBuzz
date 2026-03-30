@@ -147,21 +147,26 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
         form.method = 'POST'
         form.action = 'https://uat.esewa.com.np/epay/main'
         
-        const fields = {
-          amt: config.amount,
-          txAmt: config.taxAmount,
-          psc: 0,
-          totalAmt: config.totalAmount,
+        const fields: Record<string, string> = {
+          amt: String(config.amount),
+          txAmt: String(config.taxAmount),
+          psc: '0',
+          totalAmt: String(config.totalAmount),
           pid: config.productIdentity,
+          tUid: config.merchantId,
           surl: config.merchantCallbackUrl,
           furl: `${window.location.origin}/events?payment=failed`,
+        }
+        
+        if (data.signature) {
+          fields['signature'] = data.signature
         }
         
         Object.entries(fields).forEach(([key, value]) => {
           const input = document.createElement('input')
           input.type = 'hidden'
           input.name = key
-          input.value = String(value)
+          input.value = value
           form.appendChild(input)
         })
         

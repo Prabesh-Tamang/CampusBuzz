@@ -43,13 +43,13 @@ export default function PaymentHistoryPage() {
   }
 
   if (loading) return (
-    <div className="min-h-screen mesh-bg flex items-center justify-center">
+    <div className="min-h-screen grid-bg flex items-center justify-center">
       <div className="w-12 h-12 border-4 border-pulse-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="min-h-screen mesh-bg">
+    <div className="min-h-screen grid-bg">
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-4xl mx-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

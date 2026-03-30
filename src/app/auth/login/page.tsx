@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
@@ -8,10 +8,29 @@ import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      if ((session?.user as any)?.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/events');
+      }
+    }
+  }, [status, session, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="grid-bg min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,9 +43,19 @@ export default function LoginPage() {
       });
       
       if (res?.error) {
-        toast.error('Invalid email or password');
+        toast.error('Invalid access');
         setLoading(false);
       } else if (res?.ok) {
+        const sessionRes = await fetch('/api/auth/session');
+        const session = await sessionRes.json();
+        
+        if (session?.user?.role === 'admin') {
+          toast.error('Invalid access');
+          await signOut({ callbackUrl: '/auth/login' });
+          setLoading(false);
+          return;
+        }
+        
         toast.success('Welcome back!');
         router.push('/events');
       }
@@ -38,8 +67,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} className="grid-bg">
-      <div style={{ width: '100%', maxWidth: 420 }}>
+    <div className="grid-bg min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
         
         {/* Back Button */}
         <button
@@ -50,62 +79,50 @@ export default function LoginPage() {
           <span className="text-sm font-medium">Back to Home</span>
         </button>
 
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 24 }}>
-            <div style={{ width: 44, height: 44, background: 'linear-gradient(135deg, #14b8a6, #0d9488)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={22} color="#042f2e" fill="#042f2e" />
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-flex items-center gap-2.5 no-underline mb-6">
+            <div className="w-11 h-11 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl flex items-center justify-center">
+              <Zap size={22} className="text-[#042f2e] fill-[#042f2e]" />
             </div>
-            <span style={{ fontSize: 22, fontWeight: 800 }}>College<span style={{ color: 'var(--accent)' }}>Pulse</span></span>
+            <span className="text-2xl font-extrabold text-white">Campus<span className="text-accent">Buzz</span></span>
           </Link>
-          <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px' }}>Welcome back</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>Sign in to your account</p>
+          <h1 className="text-3xl font-extrabold text-white mb-2">Welcome back</h1>
+          <p className="text-gray-500 text-sm">Sign in to your account</p>
         </div>
-        <div className="card" style={{ padding: 36 }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+        <div className="card p-9">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</label>
-              <input className="input" type="email" placeholder="you@college.edu" value={email} onChange={e => setEmail(e.target.value)} required />
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
+              <input className="input w-full" type="email" placeholder="you@college.edu" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Password</label>
-              <div style={{ position: 'relative' }}>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
+              <div className="relative">
                 <input 
-                  className="input" 
+                  className="input w-full pr-11" 
                   type={showPass ? 'text' : 'password'} 
                   placeholder="Enter password" 
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
                   required 
-                  style={{ paddingRight: 50 }} 
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    padding: 4,
-                    zIndex: 10,
-                    display: 'flex',
-                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
                   aria-label={showPass ? 'Hide password' : 'Show password'}
                 >
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn-primary" style={{ width: '100%', fontSize: 16, padding: '14px 0' }} disabled={loading}>
+            <button type="submit" className="btn-primary w-full text-base py-3.5" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: 'var(--text-muted)' }}>
-            Don't have an account? <Link href="/auth/signup" style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>Sign up</Link>
+          <p className="text-center mt-6 text-sm text-gray-500">
+            Don't have an account? <Link href="/auth/signup" className="font-bold text-accent no-underline hover:underline">Sign up</Link>
           </p>
         </div>
       </div>

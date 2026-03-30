@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, LayoutDashboard, Calendar, ScanLine, CreditCard, LogOut, Shield, BarChart3 } from 'lucide-react';
+import { Zap, Calendar, ScanLine, CreditCard, LogOut, Shield, BarChart3 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 
@@ -13,7 +13,6 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/events/new', icon: Calendar, label: 'New Event' },
   { href: '/admin/scanner', icon: ScanLine, label: 'Scanner' },
   { href: '/admin/payments', icon: CreditCard, label: 'Payments' },
@@ -23,21 +22,28 @@ const navItems = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    if (pathname === '/admin/login') return;
+    
     if (status === 'unauthenticated') {
       router.push('/admin/login');
     } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
       router.push('/');
     }
-  }, [status, session, router]);
+  }, [status, session, router, pathname]);
+
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen mesh-bg flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-pulse-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen grid-bg flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -51,12 +57,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen mesh-bg flex">
+    <div className="min-h-screen grid-bg flex">
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-surface border-r border-border min-h-screen fixed left-0 top-0">
         {/* Logo */}
         <div className="p-6 border-b border-border">
-          <Link href="/admin" className="flex items-center gap-3">
+          <Link href="/admin/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
               <Zap size={20} className="text-teal-950 fill-teal-950" />
             </div>
@@ -108,7 +114,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-border px-4 h-16 flex items-center justify-between">
-        <Link href="/admin" className="flex items-center gap-2">
+        <Link href="/admin/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
             <Zap size={16} className="text-teal-950 fill-teal-950" />
           </div>

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import Navbar from '@/components/Navbar'
-import { Search, Calendar, MapPin, Users } from 'lucide-react'
+import { Search, Calendar, MapPin, Users, DollarSign, Filter, Ticket, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
@@ -17,6 +17,16 @@ interface Event {
   venue: string
   capacity: number
   registeredCount: number
+  feeType: 'free' | 'paid'
+  feeAmount: number
+}
+
+interface Registration {
+  _id: string
+  eventId: Event
+  registrationId: string
+  checkedIn: boolean
+  createdAt: string
 }
 
 interface Recommendation {
@@ -29,9 +39,12 @@ export default function EventsPage() {
   const { data: session } = useSession()
   const [events, setEvents] = useState<Event[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
+  const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all')
+  const [showEnded, setShowEnded] = useState(false)
 
   useEffect(() => {
     fetchEvents()
@@ -42,8 +55,19 @@ export default function EventsPage() {
           if (d.recommendations) setRecommendations(d.recommendations)
         })
         .catch(() => {})
+      fetchRegistrations()
     }
-  }, [session, search, category])
+  }, [session, search, category, feeFilter, showEnded])
+
+  async function fetchRegistrations() {
+    try {
+      const res = await fetch('/api/registrations')
+      const data = await res.json()
+      if (data.registrations && Array.isArray(data.registrations)) {
+        setRegistrations(data.registrations)
+      }
+    } catch {}
+  }
 
   async function fetchEvents() {
     setLoading(true)
@@ -56,7 +80,19 @@ export default function EventsPage() {
     const allEvents: Event[] = Array.isArray(data) ? data : []
     
     const now = new Date()
-    const sorted = allEvents
+    let filtered = allEvents
+    
+    if (!showEnded) {
+      filtered = filtered.filter(e => new Date(e.date) >= now)
+    }
+    
+    if (feeFilter === 'free') {
+      filtered = filtered.filter(e => e.feeType === 'free')
+    } else if (feeFilter === 'paid') {
+      filtered = filtered.filter(e => e.feeType === 'paid')
+    }
+    
+    const sorted = filtered
       .sort((a, b) => {
         const aEnded = new Date(a.date) < now
         const bEnded = new Date(b.date) < now
@@ -74,190 +110,340 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <div className="max-w-[1200px] mx-auto px-6 py-12">
+      <div className="max-w-[1400px] mx-auto px-6 py-12">
+        <div className="flex flex-col lg:flex-row gap-8">
 
-        {/* Header */}
-        <div className="mb-10">
-          <h1 className="text-[clamp(32px,5vw,48px)] font-extrabold tracking-tighter text-white mb-3">
-            All Events
-          </h1>
-          <p className="text-muted-foreground">
-            Browse and register for upcoming campus activities.
-          </p>
-        </div>
-
-        {/* Recommendations Strip */}
-        {session && (session.user as { role?: string })?.role !== 'admin' && recommendations.length > 0 && (
-          <div className="mb-10">
-            <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
-              Recommended for you
-            </h2>
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {recommendations.map(({ event: recEvent, reason }) => (
-                <Link
-                  key={recEvent._id}
-                  href={`/events/${recEvent._id}`}
-                  className="card flex-shrink-0 w-72 p-5 cursor-pointer relative"
-                  data-testid="event-card"
-                >
-                  <div className="absolute top-3 right-3 opacity-0 hover:opacity-100 transition-opacity">
-                    <span className="text-xs bg-black/60 text-white px-2 py-1 rounded">
-                      {reason}
-                    </span>
-                  </div>
-                  <div className="mb-3">
-                    <span className={`badge cat-${recEvent.category}`}>
-                      {recEvent.category}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold text-white mb-3 line-clamp-2">
-                    {recEvent.title}
-                  </h3>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-accent" />
-                      {format(new Date(recEvent.date), 'MMM d, yyyy')}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={14} className="text-accent" />
-                      {recEvent.venue}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-[clamp(32px,5vw,48px)] font-extrabold tracking-tighter text-white mb-3">
+                All Events
+              </h1>
+              <p className="text-muted-foreground">
+                Browse and register for upcoming campus activities.
+              </p>
             </div>
-          </div>
-        )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <div className="relative flex-1 min-w-[250px]">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by name, venue or description..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`px-4 py-2.5 rounded-lg text-sm font-semibold border transition ${
-                  category === cat
-                    ? 'bg-accent text-[#042f2e] border-accent'
-                    : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Events */}
-        {loading ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="card overflow-hidden animate-pulse">
-                <div className="h-36 bg-surface2" />
-                <div className="p-5">
-                  <div className="h-6 w-3/4 bg-surface2 rounded mb-3" />
-                  <div className="h-4 w-full bg-surface2 rounded mb-2" />
-                  <div className="h-4 w-2/3 bg-surface2 rounded mb-4" />
-                  <div className="h-4 w-1/2 bg-surface2 rounded" />
+            {/* Recommendations Strip */}
+            {session && (session.user as { role?: string })?.role !== 'admin' && recommendations.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
+                  Recommended for you
+                </h2>
+                <div className="flex gap-4 overflow-x-auto pb-4">
+                  {recommendations.map(({ event: recEvent, reason }) => (
+                    <Link
+                      key={recEvent._id}
+                      href={`/events/${recEvent._id}`}
+                      className="card flex-shrink-0 w-72 p-5 cursor-pointer relative"
+                      data-testid="event-card"
+                    >
+                      <div className="absolute top-3 right-3 opacity-0 hover:opacity-100 transition-opacity">
+                        <span className="text-xs bg-black/60 text-white px-2 py-1 rounded">
+                          {reason}
+                        </span>
+                      </div>
+                      <div className="mb-3">
+                        <span className={`badge cat-${recEvent.category}`}>
+                          {recEvent.category}
+                        </span>
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-3 line-clamp-2">
+                        {recEvent.title}
+                      </h3>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-accent" />
+                          {format(new Date(recEvent.date), 'MMM d, yyyy')}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-accent" />
+                          {recEvent.venue}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        ) : events.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-xl text-muted-foreground">No events found.</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map(event => (
-              <Link key={event._id} href={`/events/${event._id}`}>
-                <div className="card p-0 cursor-pointer overflow-hidden group">
-                  {/* Header Banner */}
-                  <div 
-                    className="h-36 relative"
-                    style={{
-                      background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
-                                 event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
-                                 event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                 event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
-                                 'linear-gradient(135deg, #60a5fa, #2563eb)'
-                    }}
+            )}
+
+            {/* Search */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search by name, venue or description..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="input pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="space-y-4 mb-8">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Filter size={14} />
+                  <span>Category:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setCategory(cat)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                        category === cat
+                          ? 'bg-accent text-[#042f2e] border-accent'
+                          : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <DollarSign size={14} />
+                  <span>Fee:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setFeeFilter('all')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                      feeFilter === 'all'
+                        ? 'bg-gray-600 text-white border-gray-600'
+                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
+                    }`}
                   >
-                    <div className="absolute top-3 left-3 flex gap-2">
-                      <span className="badge bg-white/20 text-white backdrop-blur-sm">
-                        {event.category}
-                      </span>
-                      {isEnded(event) && (
-                        <span className="badge bg-gray-500/40 text-gray-300 backdrop-blur-sm">
-                          ENDED
-                        </span>
-                      )}
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFeeFilter('free')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                      feeFilter === 'free'
+                        ? 'bg-green-500/20 text-green-400 border-green-500'
+                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
+                    }`}
+                  >
+                    Free
+                  </button>
+                  <button
+                    onClick={() => setFeeFilter('paid')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                      feeFilter === 'paid'
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500'
+                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
+                    }`}
+                  >
+                    Paid
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowEnded(!showEnded)}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                      showEnded
+                        ? 'bg-gray-600 text-white border-gray-600'
+                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
+                    }`}
+                  >
+                    Show Ended
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Events Grid */}
+            {loading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="card overflow-hidden animate-pulse">
+                    <div className="h-36 bg-surface2" />
+                    <div className="p-5">
+                      <div className="h-6 w-3/4 bg-surface2 rounded mb-3" />
+                      <div className="h-4 w-full bg-surface2 rounded mb-2" />
+                      <div className="h-4 w-2/3 bg-surface2 rounded mb-4" />
+                      <div className="h-4 w-1/2 bg-surface2 rounded" />
                     </div>
-                    {getSpots(event) <= 10 && getSpots(event) > 0 && (
-                      <div className="absolute top-3 right-3">
-                        <span className="badge bg-amber-500/20 text-amber-400 backdrop-blur-sm">
-                          {getSpots(event)} spots left!
-                        </span>
-                      </div>
-                    )}
-                    {getSpots(event) <= 0 && (
-                      <div className="absolute top-3 right-3">
-                        <span className="badge bg-gray-500/20 text-gray-300 backdrop-blur-sm">FULL</span>
-                      </div>
-                    )}
                   </div>
-
-                  {/* Content */}
-                  <div className="p-5">
-                    <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors">
-                      {event.title}
-                    </h3>
-
-                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                      {event.description}
-                    </p>
-
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-accent" />
-                        {format(new Date(event.date), 'MMM d, yyyy')}
+                ))}
+              </div>
+            ) : events.length === 0 ? (
+              <div className="text-center py-20">
+                <p className="text-xl text-muted-foreground">No events found.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {events.map(event => (
+                  <Link key={event._id} href={`/events/${event._id}`}>
+                    <div className="card p-0 cursor-pointer overflow-hidden group">
+                      {/* Header Banner */}
+                      <div 
+                        className="h-36 relative"
+                        style={{
+                          background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
+                                     event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
+                                     event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                     event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
+                                     'linear-gradient(135deg, #60a5fa, #2563eb)'
+                        }}
+                      >
+                        <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+                          <span className="badge bg-white/20 text-white backdrop-blur-sm">
+                            {event.category}
+                          </span>
+                          {event.feeType === 'paid' ? (
+                            <span className="badge bg-amber-500/40 text-amber-300 backdrop-blur-sm">
+                              Rs. {event.feeAmount}
+                            </span>
+                          ) : (
+                            <span className="badge bg-green-500/40 text-green-300 backdrop-blur-sm">
+                              Free
+                            </span>
+                          )}
+                        </div>
+                        <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
+                          {isEnded(event) && (
+                            <span className="badge bg-gray-500/40 text-gray-300 backdrop-blur-sm">
+                              ENDED
+                            </span>
+                          )}
+                          {getSpots(event) <= 10 && getSpots(event) > 0 && (
+                            <span className="badge bg-amber-500/20 text-amber-400 backdrop-blur-sm">
+                              {getSpots(event)} spots left!
+                            </span>
+                          )}
+                          {getSpots(event) <= 0 && (
+                            <span className="badge bg-gray-500/20 text-gray-300 backdrop-blur-sm">FULL</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="text-accent" />
-                        {event.venue}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users size={14} className="text-accent" />
-                        {event.registeredCount}/{event.capacity} registered
+
+                      {/* Content */}
+                      <div className="p-5">
+                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors">
+                          {event.title}
+                        </h3>
+
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                          {event.description}
+                        </p>
+
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-accent" />
+                            {format(new Date(event.date), 'MMM d, yyyy')}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-accent" />
+                            {event.venue}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users size={14} className="text-accent" />
+                            {event.registeredCount}/{event.capacity} registered
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-accent rounded-full transition-all"
+                              style={{ width: `${(event.registeredCount / event.capacity) * 100}%` }}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
-                    {/* Progress bar */}
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-accent rounded-full transition-all"
-                          style={{ width: `${(event.registeredCount / event.capacity) * 100}%` }}
-                        />
-                      </div>
+          {/* Sidebar - User Registration History */}
+          {session && (session.user as { role?: string })?.role !== 'admin' && (
+            <aside className="w-full lg:w-80 flex-shrink-0">
+              <div className="card p-5 sticky top-24">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                      <Ticket size={18} className="text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white">My Registrations</h3>
+                      <p className="text-xs text-muted-foreground">{registrations.length} events</p>
                     </div>
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
+
+                {registrations.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Ticket size={32} className="text-muted-foreground mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-muted-foreground">No registrations yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Browse events to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    {registrations.slice(0, 10).map(reg => (
+                      <Link
+                        key={reg._id}
+                        href={`/events/${reg.eventId?._id}`}
+                        className="block p-3 bg-surface2 rounded-lg hover:bg-dark-border transition-colors group"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate group-hover:text-accent transition-colors">
+                              {reg.eventId?.title || 'Event'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                reg.checkedIn 
+                                  ? 'bg-green-500/20 text-green-400' 
+                                  : 'bg-amber-500/20 text-amber-400'
+                              }`}>
+                                {reg.checkedIn ? 'Checked In' : 'Registered'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(reg.eventId?.date || reg.createdAt), 'MMM d')}
+                            </p>
+                          </div>
+                          <ChevronRight size={14} className="text-muted-foreground mt-1 flex-shrink-0" />
+                        </div>
+                      </Link>
+                    ))}
+                    
+                    {registrations.length > 10 && (
+                      <Link
+                        href="/my-registrations"
+                        className="block text-center py-2 text-sm text-accent hover:text-accent/80 transition-colors"
+                      >
+                        View all {registrations.length} registrations
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Link
+                    href="/my-payments"
+                    className="flex items-center justify-center gap-2 py-2.5 text-sm text-muted-foreground hover:text-white transition-colors"
+                  >
+                    <DollarSign size={14} />
+                    View Payment History
+                  </Link>
+                </div>
+              </div>
+            </aside>
+          )}
+        </div>
 
       </div>
     </div>

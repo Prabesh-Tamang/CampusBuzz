@@ -47,11 +47,12 @@ export default function AdminFlaggedPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ registrationId }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to approve');
       setFlagged(prev => prev.filter(f => f.registrationId !== registrationId));
-      toast.success('Check-in approved');
+      toast.success('Check-in approved successfully');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to override');
+      toast.error(err instanceof Error ? err.message : 'Failed to approve check-in');
     }
   }
 
