@@ -107,7 +107,3 @@ Add your environment variables in the Vercel dashboard.
 | ----------- | ------------------------------------------------------------------------------- |
 | **Student** | Browse events, register, view QR code                                           |
 | **Admin**   | All student features + create/edit/delete events, view dashboard, scan QR codes |
-
----
-
-Built with ❤️ for CampusBuzz Internship Project
