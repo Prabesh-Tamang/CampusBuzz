@@ -84,7 +84,7 @@ export default function MyEventsPage() {
   }
 
   return (
-    <div className="min-h-screen mesh-bg">
+    <div className="min-h-screen grid-bg">
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

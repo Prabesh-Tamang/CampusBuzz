@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, X, Eye, EyeOff } from 'lucide-react';
+import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SignupPage() {
@@ -49,12 +49,13 @@ export default function SignupPage() {
     <div className="grid-bg flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-[440px]">
         
-        {/* Close Button */}
+        {/* Back Button */}
         <button
           onClick={() => router.push('/')}
-          className="mb-6 text-muted-foreground hover:text-white transition p-1 rounded-lg hover:bg-surface"
+          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
         >
-          <X size={22} />
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back to Home</span>
         </button>
 
         {/* Header/Logo Section */}

@@ -1,16 +1,35 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Shield, ArrowLeft, Eye, EyeOff, Lock, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      if ((session?.user as any)?.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/events');
+      }
+    }
+  }, [status, session, router]);
+
+  if (status === 'loading') {
+    return (
+      <div className="grid-bg min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,8 +45,18 @@ export default function AdminLoginPage() {
         toast.error('Invalid credentials');
         setLoading(false);
       } else if (res?.ok) {
+        const sessionRes = await fetch('/api/auth/session');
+        const sessionData = await sessionRes.json();
+        
+        if (sessionData?.user?.role !== 'admin') {
+          await signOut({ redirect: false });
+          toast.error('Invalid access. Admin credentials required.');
+          setLoading(false);
+          return;
+        }
+        
         toast.success('Welcome, Admin!');
-        router.push('/admin');
+        router.push('/admin/dashboard');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -37,8 +66,8 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} className="mesh-bg">
-      <div style={{ width: '100%', maxWidth: 420 }}>
+    <div className="grid-bg min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
         
         {/* Back Button */}
         <button
@@ -50,82 +79,58 @@ export default function AdminLoginPage() {
         </button>
         
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ 
-            width: 64, 
-            height: 64, 
-            background: 'linear-gradient(135deg, #14b8a6, #0d9488)', 
-            borderRadius: 16, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            margin: '0 auto 20px',
-            boxShadow: '0 8px 32px rgba(20, 184, 166, 0.3)'
-          }}>
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-teal-500/20">
             <Shield size={32} color="#042f2e" fill="#042f2e" />
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 8px', color: 'white' }}>
+          <h1 className="text-3xl font-extrabold text-white mb-2">
             Admin Portal
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>
+          <p className="text-gray-500 text-sm">
             Sign in to manage events and check-ins
           </p>
         </div>
 
-        <div className="card" style={{ padding: 32 }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="card p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
             
             {/* Email */}
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                 Admin Email
               </label>
-              <div style={{ position: 'relative' }}>
-                <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
+              <div className="relative">
+                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 z-10" />
                 <input 
-                  className="input" 
+                  className="input w-full pl-11"
                   type="email" 
                   placeholder="admin@campusbuzz.com" 
                   value={email} 
-                  onChange={e => setEmail(e.target.value)} 
+                  onChange={(e) => setEmail(e.target.value)} 
                   required 
-                  style={{ paddingLeft: 42 }}
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                 Password
               </label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', zIndex: 1 }} />
+              <div className="relative">
+                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 z-10" />
                 <input 
-                  className="input" 
+                  className="input w-full pl-11 pr-11"
                   type={showPass ? 'text' : 'password'} 
                   placeholder="Enter password" 
                   value={password} 
-                  onChange={e => setPassword(e.target.value)} 
+                  onChange={(e) => setPassword(e.target.value)} 
                   required 
-                  style={{ paddingLeft: 42, paddingRight: 50 }} 
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    padding: 4,
-                    zIndex: 10,
-                    display: 'flex',
-                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
                 >
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -134,8 +139,7 @@ export default function AdminLoginPage() {
 
             <button 
               type="submit" 
-              className="btn-primary" 
-              style={{ width: '100%', fontSize: 16, padding: '14px 0', marginTop: 8 }}
+              className="btn-primary w-full text-base py-3.5 mt-2"
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In as Admin'}

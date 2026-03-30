@@ -38,7 +38,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen mesh-bg flex items-center justify-center p-4">
+    <div className="min-h-screen grid-bg flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}

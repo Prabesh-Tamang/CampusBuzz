@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image, ArrowLeft } from 'lucide-react'
+import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image, ArrowLeft, Building } from 'lucide-react'
 
 const categories = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other']
 
@@ -32,6 +32,7 @@ export default function NewEventPage() {
     registrationDeadline: '',
     tags: '',
     image: '',
+    organizer: '',
   })
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
@@ -81,6 +82,7 @@ export default function NewEventPage() {
       registrationDeadline: '',
       tags: '',
       image: '',
+      organizer: '',
     })
   }
 
@@ -268,6 +270,24 @@ export default function NewEventPage() {
                   className="input w-full pl-10"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Organizer */}
+          <div>
+            <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
+              Organizer *
+            </label>
+            <div className="relative">
+              <Building size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="e.g. Computer Science Department, Student Council"
+                value={form.organizer} 
+                onChange={e => set('organizer', e.target.value)} 
+                required 
+                className="input w-full pl-10"
+              />
             </div>
           </div>
 

@@ -75,6 +75,11 @@ export default function HomePage() {
       window.location.href = "/admin";
       return;
     }
+    
+    if (status === "authenticated" && session?.user?.role === "user") {
+      window.location.href = "/events";
+      return;
+    }
 
     fetch("/api/events")
       .then((r) => r.json())

@@ -20,6 +20,7 @@ export interface PaymentInitResult {
   productIdentity: string;
   productName: string;
   provider: 'esewa' | 'khalti';
+  signature?: string;
   khaltiConfig?: {
     publicKey: string;
     amount: number;
@@ -95,8 +96,7 @@ export async function initializePayment(
   } else {
     const totalAmount = amount;
     const taxAmount = 0;
-    const serviceCharge = 0;
-    const productAmount = totalAmount - taxAmount - serviceCharge;
+    const productAmount = totalAmount;
     const signature = generateEsewaSignature(productAmount.toString(), purchaseOrderId);
 
     return {
@@ -106,6 +106,7 @@ export async function initializePayment(
       productIdentity: purchaseOrderId,
       productName: purchaseOrderName,
       provider: 'esewa',
+      signature,
       esewaConfig: {
         amount: productAmount,
         taxAmount,
