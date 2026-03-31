@@ -60,8 +60,4 @@ build/
 # =========================
 # Local-only files
 # =========================
-idea.txt
-MASTER_PROMPT.md
-projectDetails.md
-PROJECT_DOCUMENTATION.md
-error.txt
+docs/
