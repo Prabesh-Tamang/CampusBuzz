@@ -1,6 +1,7 @@
 import Registration from '@/models/Registration';
 import Event, { IEvent } from '@/models/Event';
 import mongoose from 'mongoose';
+import { RECOMMENDATION_TOP_K } from '@/lib/constants';
 
 export interface RecommendationResult {
   event: IEvent;
@@ -32,7 +33,7 @@ async function buildMatrix(): Promise<{
 }
 
 function computeIDF(userCount: number, totalUsers: number): number {
-  return Math.log((totalUsers / (userCount + 1)) + 1);
+  return Math.log(totalUsers / (userCount + 1)) + 1;
 }
 
 function cosineSimilarity(
@@ -59,7 +60,7 @@ function cosineSimilarity(
 
 export async function getRecommendations(
   userId: string,
-  topK = 5
+  topK = RECOMMENDATION_TOP_K
 ): Promise<RecommendationResult[]> {
   const { userEvents, eventUserCount, totalUsers } = await buildMatrix();
 

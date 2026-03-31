@@ -6,11 +6,13 @@ export interface IPayment extends Document {
   registrationId?: mongoose.Types.ObjectId;
   amount: number;
   provider: 'esewa' | 'khalti';
-  transactionId: string;
+  transactionId?: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
-  purchaseOrderId: string;
+  purchaseOrderId?: string;
   purchaseOrderName: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+  refundedAt?: Date;
+  refundedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,22 +24,24 @@ const PaymentSchema = new Schema<IPayment>(
     registrationId: { type: Schema.Types.ObjectId, ref: 'Registration' },
     amount: { type: Number, required: true },
     provider: { type: String, enum: ['esewa', 'khalti'], required: true },
-    transactionId: { type: String, required: true },
+    transactionId: { type: String },
     status: {
       type: String,
       enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending'
+      default: 'pending',
     },
-    purchaseOrderId: { type: String, required: true },
+    purchaseOrderId: { type: String },
     purchaseOrderName: { type: String, required: true },
     metadata: { type: Schema.Types.Mixed },
+    refundedAt: { type: Date },
+    refundedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
 
 PaymentSchema.index({ userId: 1, eventId: 1 });
-PaymentSchema.index({ transactionId: 1 }, { unique: true });
-PaymentSchema.index({ purchaseOrderId: 1 }, { unique: true });
+PaymentSchema.index({ transactionId: 1 }, { unique: true, sparse: true });
+PaymentSchema.index({ purchaseOrderId: 1 }, { unique: true, sparse: true });
 PaymentSchema.index({ status: 1 });
 
 export default mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);

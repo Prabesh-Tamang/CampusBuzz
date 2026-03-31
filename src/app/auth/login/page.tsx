@@ -69,15 +69,6 @@ export default function LoginPage() {
   return (
     <div className="grid-bg min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        
-        {/* Back Button */}
-        <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Back to Home</span>
-        </button>
 
         <div className="text-center mb-10">
           <Link href="/" className="inline-flex items-center gap-2.5 no-underline mb-6">
@@ -124,6 +115,14 @@ export default function LoginPage() {
           <p className="text-center mt-6 text-sm text-gray-500">
             Don't have an account? <Link href="/auth/signup" className="font-bold text-accent no-underline hover:underline">Sign up</Link>
           </p>
+        </div>
+
+        {/* Back to Home — below the card */}
+        <div className="mt-6 text-center">
+          <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm">
+            <ArrowLeft size={15} />
+            Back to Home
+          </Link>
         </div>
       </div>
     </div>

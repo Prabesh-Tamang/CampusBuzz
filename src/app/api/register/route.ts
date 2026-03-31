@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     const event = await Event.findById(eventId);
     if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
 
+    if (event.feeType === 'paid') return NextResponse.json({ error: 'Paid event — use payment flow' }, { status: 400 });
+
     if (event.date < new Date()) {
       return NextResponse.json({ error: 'This event has already ended' }, { status: 400 });
     }

@@ -1,23 +1,16 @@
 import { IsolationForest } from './isolationForest';
 import { extractFeatures } from './checkinFeatures';
 import Registration from '@/models/Registration';
-
-const MIN_TRAINING_SAMPLES = 20;
-const RETRAIN_INTERVAL = 100;
+import { MIN_TRAINING_SAMPLES, RETRAIN_INTERVAL } from '@/lib/constants';
 
 let model: IsolationForest | null = null;
 let checkinsSinceRetrain = 0;
 let trainingCount = 0;
 
 export async function trainModel(): Promise<void> {
-  const checkins = await Registration.find({ checkedIn: true })
+  const checkins = await Registration.find({ checkedIn: true, adminOverride: { $ne: true } })
     .populate('eventId', 'category date')
     .lean();
-
-  if (checkins.length < MIN_TRAINING_SAMPLES) {
-    console.log(`[IsolationForest] Only ${checkins.length} samples — skipping training (need ${MIN_TRAINING_SAMPLES})`);
-    return;
-  }
 
   const featureVectors: number[][] = [];
 
@@ -37,6 +30,11 @@ export async function trainModel(): Promise<void> {
     } catch {
       // Skip malformed records
     }
+  }
+
+  if (featureVectors.length < MIN_TRAINING_SAMPLES) {
+    console.warn(`[IsolationForest] Only ${featureVectors.length} valid samples — skipping training (need ${MIN_TRAINING_SAMPLES})`);
+    return;
   }
 
   model = new IsolationForest(100, 256);

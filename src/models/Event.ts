@@ -1,9 +1,10 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { EVENT_CATEGORIES } from '@/lib/constants';
 
 export interface IEvent extends Document {
   title: string;
   description: string;
-  category: string;
+  category: typeof EVENT_CATEGORIES[number];
   date: Date;
   endDate: Date;
   venue: string;
@@ -17,7 +18,11 @@ export interface IEvent extends Document {
   feeAmount: number;
   registrationDeadline?: Date;
   createdBy: mongoose.Types.ObjectId;
+  isCancelled: boolean;
+  cancelledAt?: Date;
+  cancelReason?: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const EventSchema = new Schema<IEvent>(
@@ -26,7 +31,7 @@ const EventSchema = new Schema<IEvent>(
     description: { type: String, required: true },
     category: {
       type: String,
-      enum: ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other'],
+      enum: EVENT_CATEGORIES,
       default: 'Other',
     },
     date: { type: Date, required: true },
@@ -42,6 +47,9 @@ const EventSchema = new Schema<IEvent>(
     feeAmount: { type: Number, default: 0 },
     registrationDeadline: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    isCancelled: { type: Boolean, default: false },
+    cancelledAt: { type: Date },
+    cancelReason: { type: String },
   },
   { timestamps: true }
 );

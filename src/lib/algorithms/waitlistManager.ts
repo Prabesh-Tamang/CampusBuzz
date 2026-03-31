@@ -5,6 +5,7 @@ import Event from '@/models/Event';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 import { sendPromotionEmail } from '@/lib/email';
+import { WAITLIST_HOUR_DISCOUNT_MS } from '@/lib/constants';
 import crypto from 'crypto';
 
 export interface WaitlistEntry {
@@ -27,7 +28,7 @@ export async function computePriorityScore(
     userId,
     checkedIn: true,
   });
-  return joinedAt.getTime() - attendanceBonus * 3_600_000;
+  return joinedAt.getTime() - attendanceBonus * WAITLIST_HOUR_DISCOUNT_MS;
 }
 
 export async function buildHeap(eventId: string): Promise<MinHeap<WaitlistEntry>> {

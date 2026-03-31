@@ -4,6 +4,7 @@ import Event from '@/models/Event';
 import Registration from '@/models/Registration';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import { sendPaymentConfirmation } from '@/lib/email';
 
 const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
 const KHALTI_API_URL = process.env.KHALTI_API_URL || 'https://dev.khalti.com/api/v2';
@@ -57,13 +58,13 @@ export async function initializePayment(
   const amount = event.feeAmount;
   const purchaseOrderId = `PO-${Date.now()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
   const purchaseOrderName = `Registration: ${event.title}`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   const payment = await Payment.create({
     userId,
     eventId,
     amount,
     provider,
-    transactionId: '',
     status: 'pending',
     purchaseOrderId,
     purchaseOrderName,
@@ -71,6 +72,39 @@ export async function initializePayment(
   });
 
   if (provider === 'khalti') {
+    // Khalti v2 e-payment: initiate on server, redirect user to Khalti-hosted page
+    const khaltiRes = await fetch(`${KHALTI_API_URL}/epayment/initiate/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${KHALTI_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        return_url: `${appUrl}/api/payment/khalti/callback`,
+        website_url: appUrl,
+        amount: amount * 100, // paisa
+        purchase_order_id: purchaseOrderId,
+        purchase_order_name: purchaseOrderName,
+        customer_info: {
+          name: user.name,
+          email: user.email,
+        },
+      }),
+    });
+
+    if (!khaltiRes.ok) {
+      const err = await khaltiRes.json();
+      console.error('[Khalti initiate]', err);
+      throw new Error('Failed to initiate Khalti payment');
+    }
+
+    const khaltiData = await khaltiRes.json();
+
+    // Store pidx for later verification
+    await Payment.findByIdAndUpdate(payment._id, {
+      metadata: { ...payment.metadata as object, pidx: khaltiData.pidx },
+    });
+
     return {
       success: true,
       paymentId: payment._id.toString(),
@@ -78,26 +112,23 @@ export async function initializePayment(
       productIdentity: purchaseOrderId,
       productName: purchaseOrderName,
       provider: 'khalti',
+      // payment_url is where we redirect the user
       khaltiConfig: {
         publicKey: process.env.KHALTI_PUBLIC_KEY || '',
         amount: amount * 100,
         productIdentity: purchaseOrderId,
         productName: purchaseOrderName,
-        productUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/events/${eventId}`,
+        productUrl: `${appUrl}/events/${eventId}`,
         additionalData: {
-          productDetails: {
-            identity: purchaseOrderId,
-            name: purchaseOrderName,
-            total_amount: amount * 100,
-          },
+          payment_url: khaltiData.payment_url,
+          pidx: khaltiData.pidx,
         },
       },
     };
   } else {
-    const totalAmount = amount;
-    const taxAmount = 0;
-    const productAmount = totalAmount;
-    const signature = generateEsewaSignature(productAmount.toString(), purchaseOrderId);
+    // eSewa v2: generate signature server-side with the transaction_uuid we control
+    const transactionUuid = purchaseOrderId; // use purchaseOrderId as the uuid for consistency
+    const signature = generateEsewaSignature(String(amount), transactionUuid);
 
     return {
       success: true,
@@ -108,23 +139,25 @@ export async function initializePayment(
       provider: 'esewa',
       signature,
       esewaConfig: {
-        amount: productAmount,
-        taxAmount,
-        totalAmount,
+        amount,
+        taxAmount: 0,
+        totalAmount: amount,
         productIdentity: purchaseOrderId,
         productName: purchaseOrderName,
         merchantId: ESEWA_MERCHANT_ID,
         merchantSecret: ESEWA_SECRET_KEY,
-        merchantCallbackUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payment/esewa/callback`,
+        merchantCallbackUrl: `${appUrl}/api/payment/esewa/callback`,
       },
     };
   }
 }
 
-function generateEsewaSignature(amount: string, productIdentity: string): string {
-  const hash = crypto.createHash('sha256');
-  hash.update(`${ESEWA_MERCHANT_ID}|${productIdentity}|${amount}|${ESEWA_SECRET_KEY}|${ESEWA_SECRET_KEY}`);
-  return hash.digest('base64');
+function generateEsewaSignature(totalAmount: string, transactionUuid: string): string {
+  // eSewa v2 HMAC-SHA256: message = "total_amount=X,transaction_uuid=Y,product_code=Z"
+  const message = `total_amount=${totalAmount},transaction_uuid=${transactionUuid},product_code=${ESEWA_MERCHANT_ID}`;
+  const hmac = crypto.createHmac('sha256', ESEWA_SECRET_KEY);
+  hmac.update(message);
+  return hmac.digest('base64');
 }
 
 export async function verifyKhaltiPayment(pidx: string, transactionId: string, amount: number): Promise<boolean> {
@@ -246,6 +279,21 @@ export async function completeRegistration(paymentId: string, userId: string, ev
     }, { session });
 
     await session.commitTransaction();
+
+    // Fire-and-forget: send payment confirmation email after successful commit
+    const user = await User.findById(userId).lean() as any;
+    if (user) {
+      sendPaymentConfirmation({
+        to: user.email,
+        name: user.name,
+        eventName: event.title,
+        amount: payment.amount,
+        provider: payment.provider,
+        transactionId: payment.transactionId,
+        qrCodeDataUrl: registration[0].qrCode,
+        registrationId: registration[0].registrationId,
+      }).catch(err => console.error('[Email] Payment confirmation failed:', err));
+    }
   } catch (err) {
     await session.abortTransaction();
     throw err;

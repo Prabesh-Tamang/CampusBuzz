@@ -7,7 +7,12 @@ export interface IRegistration extends Document {
   qrCode: string;
   checkedIn: boolean;
   checkedInAt?: Date;
+  anomalyScore?: number;
+  flagged: boolean;
+  adminOverride: boolean;
+  paymentId?: mongoose.Types.ObjectId;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const RegistrationSchema = new Schema<IRegistration>(
@@ -18,10 +23,19 @@ const RegistrationSchema = new Schema<IRegistration>(
     qrCode: { type: String, required: true },
     checkedIn: { type: Boolean, default: false },
     checkedInAt: { type: Date },
+    anomalyScore: { type: Number },
+    flagged: { type: Boolean, default: false },
+    adminOverride: { type: Boolean, default: false },
+    paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
   },
   { timestamps: true }
 );
 
+// Index for single-lookup performance by registrationId (unique already creates one,
+// but explicit declaration makes intent clear and supports .hint() usage)
+RegistrationSchema.index({ registrationId: 1 });
+
+// Compound unique index to prevent duplicate registrations
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 
 export default mongoose.models.Registration ||

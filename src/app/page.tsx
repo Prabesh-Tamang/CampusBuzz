@@ -71,16 +71,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "admin") {
-      window.location.href = "/admin";
-      return;
-    }
-    
-    if (status === "authenticated" && session?.user?.role === "user") {
-      window.location.href = "/events";
-      return;
-    }
-
     fetch("/api/events")
       .then((r) => r.json())
       .then((data) => {
@@ -94,7 +84,7 @@ export default function HomePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [status, session]);
+  }, []);
 
   return (
     <div className="min-h-screen">

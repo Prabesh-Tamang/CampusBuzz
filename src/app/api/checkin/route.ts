@@ -3,13 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Registration from '@/models/Registration';
-import Event from '@/models/Event';
 import { rateLimit } from '@/lib/rateLimit';
 import { extractFeatures } from '@/lib/ml/checkinFeatures';
 import { getModel, isModelReady, recordCheckin } from '@/lib/ml/modelManager';
-
-const WARN_THRESHOLD  = 0.6;
-const BLOCK_THRESHOLD = 0.8;
+import { ANOMALY_WARN_THRESHOLD, ANOMALY_BLOCK_THRESHOLD } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,23 +28,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'registrationId required' }, { status: 400 });
     }
 
-    const registration = await Registration.findOne({ registrationId })
+    // First, fetch the registration (with populated fields) to compute anomaly score
+    // and to check if it exists at all
+    const existing = await Registration.findOne({ registrationId })
       .populate('userId', 'name email')
       .populate('eventId', 'title date venue category');
 
-    if (!registration) {
+    if (!existing) {
       return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 });
     }
 
-    if (registration.checkedIn) {
+    // If already checked in, return early before attempting atomic update
+    if (existing.checkedIn) {
       return NextResponse.json({
         error: 'Already checked in',
-        checkedInAt: registration.checkedInAt,
+        checkedInAt: existing.checkedInAt,
       }, { status: 400 });
     }
 
     const checkinTime = new Date();
-    const event = registration.eventId as any;
+    const event = existing.eventId as any;
 
     let anomalyScore: number | null = null;
     let flagged = false;
@@ -57,28 +57,44 @@ export async function POST(req: NextRequest) {
       try {
         const ifoModel = await getModel();
         const features = await extractFeatures({
-          userId: registration.userId.toString(),
-          eventId: registration.eventId.toString(),
+          userId: existing.userId.toString(),
+          eventId: existing.eventId.toString(),
           eventCategory: event.category,
           eventDate: event.date,
-          registrationCreatedAt: registration.createdAt,
+          registrationCreatedAt: existing.createdAt,
           checkinTime,
         });
 
         anomalyScore = Math.round(ifoModel!.anomalyScore(features) * 1000) / 1000;
-        flagged  = anomalyScore >= WARN_THRESHOLD;
-        blocked  = anomalyScore >= BLOCK_THRESHOLD;
+        flagged  = anomalyScore >= ANOMALY_WARN_THRESHOLD;
+        blocked  = anomalyScore >= ANOMALY_BLOCK_THRESHOLD;
       } catch (err) {
         console.error('[IsolationForest] Scoring failed:', err);
       }
     }
 
-    await Registration.findByIdAndUpdate(registration._id, {
-      checkedIn: !blocked,
-      checkedInAt: blocked ? undefined : checkinTime,
-      anomalyScore,
-      flagged,
-    });
+    // Atomic update: only succeeds if checkedIn is still false (prevents race condition)
+    const updated = await Registration.findOneAndUpdate(
+      { registrationId, checkedIn: false },
+      {
+        $set: {
+          checkedIn: !blocked,
+          checkedInAt: blocked ? undefined : checkinTime,
+          anomalyScore,
+          flagged,
+        },
+      },
+      { new: true }
+    );
+
+    // If findOneAndUpdate returned null, another request already checked in this registration
+    if (!updated) {
+      const alreadyCheckedIn = await Registration.findOne({ registrationId }).lean();
+      return NextResponse.json({
+        error: 'Already checked in',
+        checkedInAt: alreadyCheckedIn?.checkedInAt,
+      }, { status: 400 });
+    }
 
     if (!blocked) recordCheckin();
 
@@ -96,10 +112,10 @@ export async function POST(req: NextRequest) {
       warning: flagged,
       anomalyScore,
       registration: {
-        attendeeName: registration.userId?.name || 'Student',
-        attendeeEmail: registration.userId?.email || '',
+        attendeeName: existing.userId?.name || 'Student',
+        attendeeEmail: existing.userId?.email || '',
         eventTitle: event.title || 'Event',
-        registrationId: registration.registrationId,
+        registrationId: existing.registrationId,
       },
     });
   } catch (err) {

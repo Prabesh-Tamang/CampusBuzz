@@ -281,16 +281,18 @@ export default function EventsPage() {
             ) : (
               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {events.map(event => (
-                  <Link key={event._id} href={`/events/${event._id}`}>
-                    <div className="card p-0 cursor-pointer overflow-hidden group">
+                  <Link key={event._id} href={`/events/${event._id}`} className="flex">
+                    <div className="card p-0 cursor-pointer overflow-hidden group flex flex-col w-full">
                       {/* Header Banner */}
                       <div 
-                        className="h-36 relative"
+                        className="h-36 relative flex-shrink-0"
                         style={{
                           background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
                                      event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
                                      event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
                                      event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
+                                     event.category === 'Seminar' ? 'linear-gradient(135deg, #fb923c, #ea580c)' :
+                                     event.category === 'Hackathon' ? 'linear-gradient(135deg, #ec4899, #db2777)' :
                                      'linear-gradient(135deg, #60a5fa, #2563eb)'
                         }}
                       >
@@ -310,13 +312,11 @@ export default function EventsPage() {
                         </div>
                         <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
                           {isEnded(event) && (
-                            <span className="badge bg-gray-500/40 text-gray-300 backdrop-blur-sm">
-                              ENDED
-                            </span>
+                            <span className="badge bg-gray-500/40 text-gray-300 backdrop-blur-sm">ENDED</span>
                           )}
                           {getSpots(event) <= 10 && getSpots(event) > 0 && (
                             <span className="badge bg-amber-500/20 text-amber-400 backdrop-blur-sm">
-                              {getSpots(event)} spots left!
+                              {getSpots(event)} left!
                             </span>
                           )}
                           {getSpots(event) <= 0 && (
@@ -325,28 +325,28 @@ export default function EventsPage() {
                         </div>
                       </div>
 
-                      {/* Content */}
-                      <div className="p-5">
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors">
+                      {/* Content — flex-1 so all cards stretch to same height */}
+                      <div className="p-5 flex flex-col flex-1">
+                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors line-clamp-2 min-h-[3.5rem]">
                           {event.title}
                         </h3>
 
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">
                           {event.description}
                         </p>
 
                         <div className="space-y-2 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-accent" />
-                            {format(new Date(event.date), 'MMM d, yyyy')}
+                            <Calendar size={14} className="text-accent flex-shrink-0" />
+                            <span className="truncate">{format(new Date(event.date), 'MMM d, yyyy')}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-accent" />
-                            {event.venue}
+                            <MapPin size={14} className="text-accent flex-shrink-0" />
+                            <span className="truncate">{event.venue}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Users size={14} className="text-accent" />
-                            {event.registeredCount}/{event.capacity} registered
+                            <Users size={14} className="text-accent flex-shrink-0" />
+                            <span>{event.registeredCount}/{event.capacity} registered</span>
                           </div>
                         </div>
 
@@ -354,8 +354,11 @@ export default function EventsPage() {
                         <div className="mt-4 pt-4 border-t border-border">
                           <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-accent rounded-full transition-all"
-                              style={{ width: `${(event.registeredCount / event.capacity) * 100}%` }}
+                              className={`h-full rounded-full transition-all ${
+                                getSpots(event) <= 0 ? 'bg-red-500' :
+                                (event.registeredCount / event.capacity) > 0.8 ? 'bg-amber-500' : 'bg-accent'
+                              }`}
+                              style={{ width: `${Math.min((event.registeredCount / event.capacity) * 100, 100)}%` }}
                             />
                           </div>
                         </div>
