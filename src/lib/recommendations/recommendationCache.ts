@@ -1,3 +1,4 @@
+import { CACHE_TTL_MS } from '@/lib/constants';
 import { RecommendationResult } from './recommender';
 
 interface CacheEntry {
@@ -7,7 +8,7 @@ interface CacheEntry {
 
 class RecommendationCache {
   private store = new Map<string, CacheEntry>();
-  private readonly TTL_MS = 60 * 60 * 1000;
+  private readonly TTL_MS = CACHE_TTL_MS;
 
   get(userId: string): RecommendationResult[] | null {
     const entry = this.store.get(userId);

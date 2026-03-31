@@ -7,9 +7,14 @@ export interface CheckinContext {
   eventDate: Date;
   registrationCreatedAt: Date;
   checkinTime: Date;
+  adminOverride?: boolean;
 }
 
 export async function extractFeatures(ctx: CheckinContext): Promise<number[]> {
+  if (ctx.adminOverride === true) {
+    return [0, 0, 0, 0, 0, 0];
+  }
+
   const {
     userId, eventId, eventCategory,
     eventDate, registrationCreatedAt, checkinTime

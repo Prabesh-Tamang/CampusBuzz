@@ -48,15 +48,6 @@ export default function SignupPage() {
   return (
     <div className="grid-bg flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-[440px]">
-        
-        {/* Back Button */}
-        <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Back to Home</span>
-        </button>
 
         {/* Header/Logo Section */}
         <div className="mb-10 text-center">
@@ -165,6 +156,14 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+        </div>
+
+        {/* Back to Home — below the card */}
+        <div className="mt-6 text-center">
+          <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm">
+            <ArrowLeft size={15} />
+            Back to Home
+          </Link>
         </div>
       </div>
     </div>

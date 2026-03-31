@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Event from '@/models/Event';
 import Registration from '@/models/Registration';
+import Payment from '@/models/Payment';
+import { sendCancellationEmail } from '@/lib/email';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -74,15 +76,59 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     }
 
     await dbConnect();
-    const registrationCount = await Registration.countDocuments({ eventId: params.id });
 
-    if (registrationCount > 0) {
-      await Event.findByIdAndUpdate(params.id, { isActive: false });
-      return NextResponse.json({ success: true, softDeleted: true });
-    } else {
-      await Event.findByIdAndDelete(params.id);
-      return NextResponse.json({ success: true, softDeleted: false });
+    let cancelReason = '';
+    try {
+      const body = await req.json();
+      cancelReason = body?.cancelReason ?? '';
+    } catch {
+      // body is optional
     }
+
+    const event = await Event.findById(params.id);
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // Mark event as cancelled
+    event.isCancelled = true;
+    event.isActive = false;
+    event.cancelledAt = new Date();
+    event.cancelReason = cancelReason;
+    await event.save();
+
+    // Refund all completed payments for this event
+    await Payment.updateMany(
+      { eventId: params.id, status: 'completed' },
+      {
+        $set: {
+          status: 'refunded',
+          refundedAt: new Date(),
+          refundedBy: (session.user as { id?: string }).id,
+        },
+      }
+    );
+
+    // Fire-and-forget: send cancellation emails to all registered students
+    Registration.find({ eventId: params.id })
+      .populate('userId', 'email name')
+      .lean()
+      .then((registrations) => {
+        for (const reg of registrations) {
+          const user = reg.userId as unknown as { email: string; name: string } | null;
+          if (user?.email) {
+            sendCancellationEmail({
+              to: user.email,
+              name: user.name ?? 'Student',
+              eventName: event.title,
+              cancelReason,
+            }).catch((err) => console.error('[Email] cancellation email error:', err));
+          }
+        }
+      })
+      .catch((err) => console.error('[Cancellation] failed to fetch registrations for email:', err));
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

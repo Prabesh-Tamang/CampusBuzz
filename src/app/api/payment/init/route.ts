@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import { initializePayment } from '@/lib/payment';
+import Event from '@/models/Event';
+import Payment from '@/models/Payment';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,11 +24,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment provider' }, { status: 400 });
     }
 
+    // Guard: event must exist and be a paid event
+    const event = await Event.findById(eventId).lean();
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+    if (event.feeType !== 'paid') {
+      return NextResponse.json({ error: 'Free events do not require payment' }, { status: 400 });
+    }
+
+    // Guard: student must not already have a completed payment for this event
+    const existingPayment = await Payment.findOne({
+      userId: session.user.id,
+      eventId,
+      status: 'completed',
+    }).lean();
+    if (existingPayment) {
+      return NextResponse.json({ error: 'Already registered for this event' }, { status: 409 });
+    }
+
     const result = await initializePayment(session.user.id, eventId, provider);
     
     return NextResponse.json(result);
   } catch (err: any) {
     console.error('[API /payment/init]', err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

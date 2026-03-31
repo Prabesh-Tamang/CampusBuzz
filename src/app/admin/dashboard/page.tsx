@@ -146,6 +146,9 @@ export default function AdminDashboard() {
             <p className="text-muted-foreground mt-1">Welcome back, {session?.user?.name}</p>
           </div>
           <div className="flex gap-3">
+            <Link href="/admin/events/new" className="btn-primary flex items-center gap-2">
+              <Plus size={16} /> New Event
+            </Link>
             <Link href="/admin/scanner" className="btn-ghost flex items-center gap-2">
               <QrCode size={16} /> Scanner
             </Link>
