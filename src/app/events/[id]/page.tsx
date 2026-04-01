@@ -72,13 +72,24 @@ export default function EventDetailPage() {
       });
 
     if (session) {
-      fetch('/api/register')
+      fetch('/api/registrations')
         .then((r) => r.json())
         .then((data) => {
-          if (Array.isArray(data)) {
-            setUserRegistrations(data);
-            const hasRegistration = data.some((reg: Registration) => reg.eventId === id);
-            if (hasRegistration) setRegistered(true);
+          const regs = data.registrations || [];
+          // eventId may be a populated object or a string
+          const hasReg = regs.some((reg: any) => {
+            const eid = typeof reg.eventId === 'object' ? reg.eventId?._id?.toString() : reg.eventId?.toString();
+            return eid === id?.toString();
+          });
+          if (hasReg) {
+            setRegistered(true);
+            // Find the registration to get QR code
+            const existingReg = regs.find((reg: any) => {
+              const eid = typeof reg.eventId === 'object' ? reg.eventId?._id?.toString() : reg.eventId?.toString();
+              return eid === id?.toString();
+            });
+            if (existingReg?.qrCode) setQrCode(existingReg.qrCode);
+            if (existingReg?.registrationId) setRegistrationId(existingReg.registrationId);
           }
         });
 

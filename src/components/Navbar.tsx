@@ -9,11 +9,13 @@ interface NavbarProps {
 }
 
 export default function Navbar({ showAdminLinks = true }: NavbarProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const isAdmin = (session?.user)?.role === 'admin';
+  // Don't render auth-dependent UI until session is resolved to prevent flash
+  const sessionReady = status !== 'loading';
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/' });
@@ -38,7 +40,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-2">
 
-              {isAdmin && showAdminLinks && (
+              {sessionReady && isAdmin && showAdminLinks && (
                 <>
                   <Link href="/admin/events/new" className="px-4 py-2 text-sm font-semibold bg-teal-500 text-[#042f2e] rounded-lg hover:bg-teal-400 transition flex items-center gap-2">
                     <Plus size={16} /> New Event
@@ -62,13 +64,18 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                 </>
               )}
 
-              {!isAdmin && session && (
-                <Link href="/my-payments" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg hover:text-white transition flex items-center gap-2">
-                  <CreditCard size={16} /> My Payments
-                </Link>
+              {sessionReady && !isAdmin && session && (
+                <>
+                  <Link href="/my-events" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg hover:text-white transition flex items-center gap-2">
+                    <Calendar size={16} /> My Events
+                  </Link>
+                  <Link href="/my-payments" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg hover:text-white transition flex items-center gap-2">
+                    <CreditCard size={16} /> My Payments
+                  </Link>
+                </>
               )}
 
-              {session ? (
+              {sessionReady && session ? (
                 <div className="flex items-center gap-2 ml-4">
                   {/* User Box */}
                   <div className="flex items-center gap-2 bg-surface border border-border rounded-xl px-3 py-1.5">
@@ -93,7 +100,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                     <LogOut size={14} /> Sign Out
                   </button>
                 </div>
-              ) : (
+              ) : sessionReady ? (
                 <div className="flex gap-2 ml-4">
                   <Link href="/auth/login">
                     <button className="px-5 py-2 text-sm btn-ghost">Login</button>
@@ -102,7 +109,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                     <button className="px-5 py-2 text-sm btn-primary">Sign Up</button>
                   </Link>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Mobile Menu Button */}
@@ -118,7 +125,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
           {showMobileMenu && (
             <div className="md:hidden py-4 border-t border-border">
               <div className="flex flex-col gap-2">
-                {isAdmin && showAdminLinks && (
+                {sessionReady && isAdmin && showAdminLinks && (
                   <>
                     <Link href="/admin/events/new" className="px-4 py-2 text-sm font-semibold text-teal-400 rounded-lg">
                       + New Event
@@ -138,13 +145,18 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                   </>
                 )}
 
-                {!isAdmin && session && (
-                  <Link href="/my-payments" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg">
-                    My Payments
-                  </Link>
+                {sessionReady && !isAdmin && session && (
+                  <>
+                    <Link href="/my-events" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg">
+                      My Events
+                    </Link>
+                    <Link href="/my-payments" className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg">
+                      My Payments
+                    </Link>
+                  </>
                 )}
 
-                {session && (
+                {sessionReady && session && (
                   <button
                     onClick={() => setShowLogoutConfirm(true)}
                     className="px-4 py-2 text-sm font-semibold text-left text-gray-400 rounded-lg hover:text-white"

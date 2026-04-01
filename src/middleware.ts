@@ -20,12 +20,13 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Redirect already-authenticated users away from student auth pages
+  // Redirect already-authenticated students away from student auth pages
+  // Admins visiting /auth/login are handled by the page itself (signs them out)
   if (isAuthRoute && token) {
-    if (token.role === 'admin') {
-      return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+    if (token.role === 'student') {
+      return NextResponse.redirect(new URL('/events', req.url));
     }
-    return NextResponse.redirect(new URL('/events', req.url));
+    // Admin on /auth/login — let the page handle it (will sign them out)
   }
 
   // Redirect already-authenticated admins away from admin login

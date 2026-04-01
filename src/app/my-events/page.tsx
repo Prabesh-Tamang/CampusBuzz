@@ -143,7 +143,9 @@ export default function MyEventsPage() {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-display font-bold text-xl text-white">{reg.event?.title}</h3>
+                          <h3 className="font-display font-bold text-xl text-white">
+                            {reg.eventId?.title || reg.event?.title || 'Event'}
+                          </h3>
                           {reg.checkedIn && (
                             <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/20 px-2 py-1 rounded-full">
                               <HiCheckCircle /> Checked In
@@ -153,17 +155,26 @@ export default function MyEventsPage() {
                         <div className="flex flex-wrap gap-4 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
                             <HiCalendar className="text-pulse-400" />
-                            {reg.event?.date ? format(new Date(reg.event.date), 'MMM d, yyyy') : 'N/A'}
+                            {(reg.eventId?.date || reg.event?.date)
+                              ? format(new Date(reg.eventId?.date || reg.event?.date), 'MMM d, yyyy')
+                              : 'N/A'}
                           </span>
                           <span className="flex items-center gap-1">
                             <HiLocationMarker className="text-pulse-400" />
-                            {reg.event?.venue}
+                            {reg.eventId?.venue || reg.event?.venue || 'N/A'}
                           </span>
                           <span className="flex items-center gap-1">
                             <HiClock className="text-pulse-400" />
                             Registered {format(new Date(reg.createdAt), 'MMM d')}
                           </span>
                         </div>
+                        {reg.registrationId && (
+                          <div className="mt-2">
+                            <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(20,184,166,0.1)', color: '#14b8a6', border: '1px solid rgba(20,184,166,0.2)' }}>
+                              🎫 {reg.registrationId}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <button

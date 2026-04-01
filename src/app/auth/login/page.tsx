@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Zap, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -13,11 +13,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [warming, setWarming] = useState(true);
+
+  // Pre-warm the auth endpoint so the first login isn't slow
+  useEffect(() => {
+    fetch('/api/auth/csrf').finally(() => setWarming(false));
+  }, []);
 
   useEffect(() => {
     if (status === 'authenticated') {
       if ((session?.user as any)?.role === 'admin') {
-        router.push('/admin/dashboard');
+        // Admin is logged in but on student login page — sign them out silently
+        signOut({ redirect: false });
       } else {
         router.push('/events');
       }
@@ -35,27 +42,41 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const res = await signIn('credentials', { 
-        email, 
-        password, 
+      const res = await signIn('credentials', {
+        email,
+        password,
         redirect: false,
+        callbackUrl: '/events',
       });
-      
-      if (res?.error) {
-        toast.error('Invalid access');
+
+      if (!res) {
+        toast.error('No response from server. Please try again.');
         setLoading(false);
-      } else if (res?.ok) {
+        return;
+      }
+
+      if (res.error) {
+        // res.error = 'CredentialsSignin' means wrong password/email
+        toast.error('Invalid email or password');
+        setLoading(false);
+        return;
+      }
+
+      if (res.ok) {
+        // Fetch session to get role
         const sessionRes = await fetch('/api/auth/session');
-        const session = await sessionRes.json();
-        
-        if (session?.user?.role === 'admin') {
-          toast.error('Invalid access');
-          await signOut({ callbackUrl: '/auth/login' });
+        const sessionData = await sessionRes.json();
+
+        if (sessionData?.user?.role === 'admin') {
+          // Admin tried student login — sign out and show error
+          await signOut({ redirect: false });
+          toast.error('Invalid permission');
           setLoading(false);
           return;
         }
-        
+
         toast.success('Welcome back!');
         router.push('/events');
       }
@@ -82,21 +103,37 @@ export default function LoginPage() {
         </div>
 
         <div className="card p-9">
+          {warming && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mb-4 justify-center">
+              <Loader2 size={12} className="animate-spin" />
+              Connecting to server...
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
-              <input className="input w-full" type="email" placeholder="you@college.edu" value={email} onChange={e => setEmail(e.target.value)} required />
+              <input
+                className="input w-full"
+                type="email"
+                placeholder="you@college.edu"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
               <div className="relative">
-                <input 
-                  className="input w-full pr-11" 
-                  type={showPass ? 'text' : 'password'} 
-                  placeholder="Enter password" 
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  required 
+                <input
+                  className="input w-full pr-11"
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -108,16 +145,21 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn-primary w-full text-base py-3.5" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+            <button type="submit" className="btn-primary w-full text-base py-3.5 flex items-center justify-center gap-2" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Signing in...
+                </>
+              ) : 'Sign In'}
             </button>
           </form>
           <p className="text-center mt-6 text-sm text-gray-500">
-            Don't have an account? <Link href="/auth/signup" className="font-bold text-accent no-underline hover:underline">Sign up</Link>
+            Don&apos;t have an account?{' '}
+            <Link href="/auth/signup" className="font-bold text-accent no-underline hover:underline">Sign up</Link>
           </p>
         </div>
 
-        {/* Back to Home — below the card */}
         <div className="mt-6 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm">
             <ArrowLeft size={15} />

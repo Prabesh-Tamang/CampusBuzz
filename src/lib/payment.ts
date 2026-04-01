@@ -236,8 +236,20 @@ export async function verifyEsewaPayment(
 }
 
 export async function completeRegistration(paymentId: string, userId: string, eventId: string): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // Check if registration already exists for this user+event (idempotent)
+  const existingReg = await Registration.findOne({ userId, eventId });
+  if (existingReg) {
+    // Already registered — just link payment if not linked yet
+    await Payment.findByIdAndUpdate(paymentId, {
+      registrationId: existingReg._id,
+      status: 'completed',
+    });
+    console.log('[completeRegistration] Registration already exists, skipping duplicate creation');
+    return;
+  }
+
+  const mongoSession = await mongoose.startSession();
+  mongoSession.startTransaction();
 
   try {
     const payment = await Payment.findById(paymentId);
@@ -245,7 +257,7 @@ export async function completeRegistration(paymentId: string, userId: string, ev
       throw new Error('Payment not completed');
     }
 
-    const event = await Event.findById(eventId).session(session);
+    const event = await Event.findById(eventId).session(mongoSession);
     if (!event || event.registeredCount >= event.capacity) {
       throw new Error('Event is full');
     }
@@ -266,21 +278,19 @@ export async function completeRegistration(paymentId: string, userId: string, ev
       qrCode,
       checkedIn: false,
       paymentId: payment._id,
-    }], { session });
+    }], { session: mongoSession });
 
     await Event.findByIdAndUpdate(
       eventId,
       { $inc: { registeredCount: 1 } },
-      { session }
+      { session: mongoSession }
     );
 
     await Payment.findByIdAndUpdate(paymentId, {
       registrationId: registration[0]._id,
-    }, { session });
+    }, { session: mongoSession });
 
-    await session.commitTransaction();
-
-    // Fire-and-forget: send payment confirmation email after successful commit
+    await mongoSession.commitTransaction();
     const user = await User.findById(userId).lean() as any;
     if (user) {
       sendPaymentConfirmation({
@@ -295,10 +305,10 @@ export async function completeRegistration(paymentId: string, userId: string, ev
       }).catch(err => console.error('[Email] Payment confirmation failed:', err));
     }
   } catch (err) {
-    await session.abortTransaction();
+    await mongoSession.abortTransaction();
     throw err;
   } finally {
-    session.endSession();
+    mongoSession.endSession();
   }
 }
 

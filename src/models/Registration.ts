@@ -31,10 +31,6 @@ const RegistrationSchema = new Schema<IRegistration>(
   { timestamps: true }
 );
 
-// Index for single-lookup performance by registrationId (unique already creates one,
-// but explicit declaration makes intent clear and supports .hint() usage)
-RegistrationSchema.index({ registrationId: 1 });
-
 // Compound unique index to prevent duplicate registrations
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 
