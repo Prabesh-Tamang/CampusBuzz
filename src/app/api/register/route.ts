@@ -8,6 +8,7 @@ import Event from '@/models/Event';
 import User from '@/models/User';
 import QRCode from 'qrcode';
 import { sendRegistrationEmail } from '@/lib/email';
+import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { format } from 'date-fns';
 import crypto from 'crypto';
 
@@ -39,8 +40,6 @@ export async function POST(req: NextRequest) {
 
     const user = await User.findById(userId);
     const registrationId = generateRegistrationId();
-    const qrData = JSON.stringify({ registrationId, eventId, userId });
-    const qrCodeDataUrl = await QRCode.toDataURL(qrData, { width: 300, margin: 2 });
 
     const mongoSession = await mongoose.startSession();
     mongoSession.startTransaction();
@@ -52,12 +51,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Event is full' }, { status: 400 });
       }
 
+      // Option B: no QR yet — QR is generated only after attendance confirmation
       const registration = await Registration.create([{
         userId,
         eventId,
         registrationId,
-        qrCode: qrCodeDataUrl,
+        qrCode: '',          // empty until confirmed
         checkedIn: false,
+        confirmed: false,    // awaiting confirmation 24h before event
       }], { session: mongoSession });
 
       await Event.findByIdAndUpdate(
@@ -68,19 +69,25 @@ export async function POST(req: NextRequest) {
 
       await mongoSession.commitTransaction();
 
+      // Send a "registration received" email (no QR yet)
       void sendRegistrationEmail({
         to: user ? user.email : '',
         name: user ? user.name : '',
         eventName: event.title,
         eventDate: format(event.date, 'PPP'),
         eventVenue: event.venue,
-        qrCodeDataUrl,
+        qrCodeDataUrl: '',   // no QR in this email
         registrationId,
       }).catch((err: unknown) => {
         console.error('[Email] Failed to send registration confirmation:', err);
       });
 
-      return NextResponse.json({ registration: registration[0], qrCode: qrCodeDataUrl }, { status: 201 });
+      // Return registration without QR — UI shows "Pending Confirmation"
+      return NextResponse.json({
+        registration: registration[0],
+        qrCode: null,
+        pendingConfirmation: true,
+      }, { status: 201 });
     } catch (err) {
       await mongoSession.abortTransaction();
       throw err;
@@ -120,6 +127,11 @@ export async function DELETE(req: NextRequest) {
     } finally {
       mongoSession.endSession();
     }
+
+    // Fire-and-forget: promote the top waitlist user now that a spot opened
+    promoteTopWaitlistUser(eventId).catch(err =>
+      console.error('[Waitlist] Promotion after cancel failed:', err)
+    );
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

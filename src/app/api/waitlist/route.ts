@@ -21,6 +21,10 @@ export async function POST(req: Request) {
   if (!event || !event.isActive)
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
 
+  // Paid events use "Notify Me" instead of waitlist
+  if (event.feeType === 'paid')
+    return NextResponse.json({ error: 'Paid events use the Notify Me system instead of waitlist' }, { status: 400 });
+
   if (event.registeredCount < event.capacity)
     return NextResponse.json({ error: 'Event has spots available — register directly' }, { status: 400 });
 

@@ -5,7 +5,10 @@ import dbConnect from '@/lib/mongodb';
 import Event from '@/models/Event';
 import Registration from '@/models/Registration';
 import Payment from '@/models/Payment';
-import { sendCancellationEmail } from '@/lib/email';
+import EventInterest from '@/models/EventInterest';
+import User from '@/models/User';
+import { sendCancellationEmail, sendCapacityIncreaseNotification } from '@/lib/email';
+import { format } from 'date-fns';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -61,6 +64,34 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 
     const event = await Event.findByIdAndUpdate(params.id, body, { new: true });
+
+    // If capacity was increased on a paid event, notify interested users
+    if (
+      body.capacity !== undefined &&
+      body.capacity > currentEvent.capacity &&
+      currentEvent.feeType === 'paid'
+    ) {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      EventInterest.find({ eventId: params.id })
+        .populate('userId', 'email name')
+        .lean()
+        .then(async (interests) => {
+          for (const interest of interests) {
+            const user = interest.userId as any;
+            if (!user?.email) continue;
+            await sendCapacityIncreaseNotification({
+              to: user.email,
+              name: user.name,
+              eventName: event.title,
+              eventDate: format(new Date(event.date), 'PPP'),
+              eventVenue: event.venue,
+              eventUrl: `${appUrl}/events/${params.id}`,
+            }).catch(() => {});
+          }
+        })
+        .catch(err => console.error('[Capacity increase] notification error:', err));
+    }
+
     return NextResponse.json(event);
   } catch (err) {
     console.error(err);
