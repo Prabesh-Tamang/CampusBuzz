@@ -98,6 +98,24 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  const runConfirmations = async (force = false) => {
+    try {
+      const res = await fetch('/api/admin/run-confirmations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force }),
+      })
+      const d = await res.json()
+      if (d.message) {
+        toast(d.message, { icon: 'ℹ️' })
+      } else {
+        toast.success(`${force ? '[Force] ' : ''}Emails: ${d.confirmEmailsSent} sent, ${d.cancelledCount} cancelled, ${d.promotedCount} promoted`)
+      }
+    } catch {
+      toast.error('Failed to run confirmations')
+    }
+  }
+
   const openDeleteModal = (eventId: string, eventTitle: string) => {
     setDeleteModal({ isOpen: true, title: 'Delete Event', itemId: eventId, itemName: eventTitle })
   }
@@ -158,6 +176,12 @@ export default function AdminDashboard() {
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{flaggedCount}</span>
               )}
             </Link>
+            <button onClick={runConfirmations} className="btn-ghost flex items-center gap-2 text-amber-400 hover:text-amber-300">
+              <Clock size={16} /> Run Confirmations
+            </button>
+            <button onClick={() => runConfirmations(true)} className="btn-ghost flex items-center gap-2 text-orange-400 hover:text-orange-300 text-xs">
+              <Clock size={14} /> Force Send All
+            </button>
           </div>
         </div>
 

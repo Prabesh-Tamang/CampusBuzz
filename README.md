@@ -51,6 +51,12 @@ NEXTAUTH_URL=http://localhost:3000
 EMAIL_USER=your-gmail@gmail.com
 EMAIL_PASS=your-gmail-app-password
 ADMIN_EMAIL=admin@youremail.com
+ESEWA_MERCHANT_ID=EPAYTEST
+ESEWA_SECRET_KEY=8gBm/:&EnhH.1/q
+ESEWA_API_URL=https://uat.esewa.com.np
+KHALTI_SECRET_KEY=your-secret-key
+KHALTI_PUBLIC_KEY=your-public-key
+KHALTI_API_URL=https://dev.khalti.com/api/v2
 ```
 
 ### 3. Run Development Server

@@ -43,24 +43,23 @@ export default function AdminEventViewPage() {
   const { data: session, status } = useSession();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [waitlistCount, setWaitlistCount] = useState(0);
+  const [notifyCount, setNotifyCount] = useState(0);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-      return;
-    }
-    if (status === 'authenticated' && (session?.user as any)?.role !== 'admin') {
-      router.push('/events');
-      return;
-    }
+    if (status === 'unauthenticated') { router.push('/admin/login'); return; }
+    if (status === 'authenticated' && (session?.user as any)?.role !== 'admin') { router.push('/events'); return; }
     
     if (status === 'authenticated') {
       fetch(`/api/events/${id}`)
         .then((r) => r.json())
-        .then((data) => {
-          setEvent(data);
-          setLoading(false);
-        });
+        .then((data) => { setEvent(data); setLoading(false); });
+
+      // Fetch waitlist count
+      fetch(`/api/admin/event-stats/${id}`)
+        .then(r => r.json())
+        .then(d => { setWaitlistCount(d.waitlistCount || 0); setNotifyCount(d.notifyCount || 0); })
+        .catch(() => {});
     }
   }, [id, session, status]);
 
@@ -141,7 +140,7 @@ export default function AdminEventViewPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="card p-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <Calendar size={14} /> Date
@@ -190,6 +189,26 @@ export default function AdminEventViewPage() {
               </p>
             )}
           </div>
+          {/* Waitlist count — only for free events */}
+          {event.feeType === 'free' && (
+            <div className="card p-4 border border-amber-500/20">
+              <div className="flex items-center gap-2 text-amber-400 text-sm mb-1">
+                <Clock size={14} /> Waitlist
+              </div>
+              <p className="text-lg font-bold text-amber-400">{waitlistCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">students waiting</p>
+            </div>
+          )}
+          {/* Notify-me count — only for paid events */}
+          {event.feeType === 'paid' && (
+            <div className="card p-4 border border-purple-500/20">
+              <div className="flex items-center gap-2 text-purple-400 text-sm mb-1">
+                <span>🔔</span> Notify Me
+              </div>
+              <p className="text-lg font-bold text-purple-400">{notifyCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">interested students</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

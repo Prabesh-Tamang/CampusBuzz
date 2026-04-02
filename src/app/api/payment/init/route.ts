@@ -33,6 +33,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Free events do not require payment' }, { status: 400 });
     }
 
+    // Guard: event must have capacity
+    if (event.registeredCount >= event.capacity) {
+      return NextResponse.json({ error: 'Event is full — use Notify Me to be alerted when spots open' }, { status: 400 });
+    }
+
     // Guard: student must not already have a completed payment for this event
     const existingPayment = await Payment.findOne({
       userId: session.user.id,

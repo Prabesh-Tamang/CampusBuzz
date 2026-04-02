@@ -62,6 +62,7 @@ export default function EventDetailPage() {
   const [waitlistInfo, setWaitlistInfo] = useState<WaitlistStatus | null>(null);
   const [userRegistrations, setUserRegistrations] = useState<Registration[]>([]);
   const [showPayment, setShowPayment] = useState(false);
+  const [interested, setInterested] = useState(false); // paid event "Notify Me"
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -101,6 +102,12 @@ export default function EventDetailPage() {
             setWaitlistInfo({ position: data.position, queueLength: data.queueLength });
           }
         })
+        .catch(() => {});
+
+      // Check paid event interest
+      fetch(`/api/event-interest?eventId=${id}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.interested) setInterested(true); })
         .catch(() => {});
     }
   }, [id, session]);
@@ -181,6 +188,39 @@ export default function EventDetailPage() {
     setShowPayment(false);
     setRegistered(true);
     toast.success("Payment successful! Check your email for QR code.");
+  }
+
+  async function handleNotifyMe() {
+    if (!session) { router.push("/auth/login"); return; }
+    setRegistering(true);
+    try {
+      const res = await fetch("/api/event-interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setInterested(true);
+      toast.success("We'll notify you when spots open up!");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setRegistering(false);
+    }
+  }
+
+  async function handleRemoveInterest() {
+    if (!session) return;
+    try {
+      await fetch("/api/event-interest", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: id }),
+      });
+      setInterested(false);
+      toast.success("Removed from notify list");
+    } catch { /* silent */ }
   }
 
   if (loading)
@@ -377,73 +417,34 @@ export default function EventDetailPage() {
             <div className="card" style={{ padding: 28, marginBottom: 20 }}>
               {registered ? (
                 <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{
-                      width: 56,
-                      height: 56,
-                      background: "rgba(20,184,166,0.15)",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 16px",
-                    }}
-                  >
+                  <div style={{ width: 56, height: 56, background: "rgba(20,184,166,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                     <CheckCircle size={28} color="var(--accent)" />
                   </div>
-                  <h3
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 700,
-                      margin: "0 0 8px",
-                      color: "var(--accent)",
-                    }}
-                  >
-                    You're In! 🎉
+                  <h3 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "var(--accent)" }}>
+                    You're Registered! 🎉
                   </h3>
-                  <p
-                    style={{
-                      color: "var(--text-muted)",
-                      fontSize: 13,
-                      margin: "0 0 20px",
-                    }}
-                  >
+                  <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "0 0 12px" }}>
                     Registration ID:{" "}
-                    <strong
-                      style={{
-                        color: "var(--text)",
-                        fontFamily: "Space Mono, monospace",
-                        fontSize: 12,
-                      }}
-                    >
+                    <strong style={{ color: "var(--text)", fontFamily: "monospace", fontSize: 12 }}>
                       {registrationId}
                     </strong>
                   </p>
-                  {qrCode && (
-                    <div
-                      style={{
-                        background: "white",
-                        borderRadius: 12,
-                        padding: 16,
-                        display: "inline-block",
-                      }}
-                    >
-                      <img
-                        src={qrCode}
-                        alt="QR Code"
-                        style={{ width: 160, height: 160 }}
-                      />
+                  {qrCode ? (
+                    <>
+                      <div style={{ background: "white", borderRadius: 12, padding: 16, display: "inline-block" }}>
+                        <img src={qrCode} alt="QR Code" style={{ width: 160, height: 160 }} />
+                      </div>
+                      <p style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 12 }}>
+                        Show this QR at entry.
+                      </p>
+                    </>
+                  ) : (
+                    <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: 16, marginTop: 8 }}>
+                      <p style={{ color: "#f59e0b", fontSize: 13, margin: 0 }}>
+                        ⏰ QR code will be sent to your email after you confirm attendance 24h before the event.
+                      </p>
                     </div>
                   )}
-                  <p
-                    style={{
-                      color: "var(--text-muted)",
-                      fontSize: 12,
-                      marginTop: 12,
-                    }}
-                  >
-                    Show this QR at entry. Also sent to your email.
-                  </p>
                 </div>
               ) : (
                 <>
@@ -549,73 +550,68 @@ export default function EventDetailPage() {
 
                   {registered ? (
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        color: 'var(--accent)',
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 16 }}>
                         <CheckCircle size={20} /> Registered
                       </div>
                     </div>
-                  ) : waitlisted && waitlistInfo ? (
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 8,
-                        color: '#f59e0b',
-                        fontWeight: 700,
-                        fontSize: 16,
-                        marginBottom: 12,
-                      }}>
-                        <Clock3 size={20} /> On Waitlist
+
+                  ) : event?.feeType === 'paid' && spotsLeft <= 0 ? (
+                    // PAID + FULL → Notify Me
+                    interested ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
+                          🔔 You'll be notified when spots open
+                        </div>
+                        <button onClick={handleRemoveInterest} className="btn-ghost" style={{ width: '100%', fontSize: 13 }}>
+                          Remove notification
+                        </button>
                       </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 12px' }}>
-                        You are <strong style={{ color: 'var(--text)' }}>#{waitlistInfo.position}</strong> in the waitlist
-                        <br />
-                        <span style={{ fontSize: 12 }}>{waitlistInfo.queueLength} students waiting</span>
-                      </p>
+                    ) : (
                       <button
-                        onClick={handleLeaveWaitlist}
-                        className="btn-ghost"
-                        style={{ width: '100%', fontSize: 14 }}
+                        onClick={handleNotifyMe}
+                        disabled={registering}
+                        className="btn-secondary"
+                        style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                       >
-                        Leave Waitlist
+                        🔔 {registering ? 'Saving...' : 'Notify Me When Available'}
                       </button>
-                    </div>
+                    )
+
+                  ) : event?.feeType === 'free' && spotsLeft <= 0 ? (
+                    // FREE + FULL → Waitlist
+                    waitlisted && waitlistInfo ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#f59e0b', fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
+                          <Clock3 size={20} /> On Waitlist
+                        </div>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 12px' }}>
+                          You are <strong style={{ color: 'var(--text)' }}>#{waitlistInfo.position}</strong> in queue
+                          <br /><span style={{ fontSize: 12 }}>{waitlistInfo.queueLength} students waiting</span>
+                        </p>
+                        <button onClick={handleLeaveWaitlist} className="btn-ghost" style={{ width: '100%', fontSize: 14 }}>
+                          Leave Waitlist
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleJoinWaitlist}
+                        disabled={registering}
+                        className="btn-secondary"
+                        style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                      >
+                        <Clock3 size={18} /> {registering ? 'Joining...' : 'Join Waitlist'}
+                      </button>
+                    )
+
                   ) : (
+                    // SPOTS AVAILABLE → Register / Buy Ticket
                     <button
-                      onClick={spotsLeft > 0 ? handleRegister : handleJoinWaitlist}
+                      onClick={handleRegister}
                       disabled={registering}
-                      className={spotsLeft > 0 ? "btn-primary" : "btn-secondary"}
-                      style={{
-                        width: "100%",
-                        fontSize: 16,
-                        padding: "14px 24px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                      }}
-                      data-testid={spotsLeft > 0 ? "register-btn" : "join-waitlist-btn"}
+                      className="btn-primary"
+                      style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                     >
-                      {registering ? (
-                        spotsLeft > 0 ? "Processing..." : "Joining..."
-                      ) : spotsLeft > 0 ? (
-                        <>
-                          {event?.feeType === 'paid' ? <CreditCard size={18} /> : <Ticket size={18} />}
-                          {event?.feeType === 'paid' ? 'Buy Ticket' : 'Register Now'}
-                        </>
-                      ) : (
-                        <>
-                          <Clock3 size={18} /> Join Waitlist
-                        </>
-                      )}
+                      {registering ? 'Processing...' : event?.feeType === 'paid' ? <><CreditCard size={18} /> Buy Ticket</> : <><Ticket size={18} /> Register Now</>}
                     </button>
                   )}
 
