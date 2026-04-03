@@ -24,6 +24,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
   const [showBell, setShowBell] = useState(false);
   const [notifEntries, setNotifEntries] = useState<NotifEntry[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const bellRef = useRef<HTMLDivElement>(null);
   const isAdmin = session?.user?.role === 'admin';
   const sessionReady = status !== 'loading';
@@ -31,6 +32,12 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
 
   useEffect(() => {
     if (!session || isAdmin) return;
+    // Load dismissed IDs from localStorage
+    try {
+      const stored = localStorage.getItem('bell_dismissed');
+      if (stored) setDismissedIds(new Set(JSON.parse(stored)));
+    } catch { /* ignore */ }
+
     Promise.all([
       fetch('/api/waitlist/my').then(r => r.json()).catch(() => ({ entries: [] })),
       fetch('/api/event-interest/my').then(r => r.json()).catch(() => ({ entries: [] })),
@@ -75,7 +82,10 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
       }));
 
       // Promoted entries go first (most important)
-      setNotifEntries([...promoted, ...waitlist, ...notify]);
+      const all = [...promoted, ...waitlist, ...notify];
+      // Filter out dismissed entries
+      const stored = (() => { try { return new Set(JSON.parse(localStorage.getItem('bell_dismissed') || '[]')); } catch { return new Set(); } })();
+      setNotifEntries(all.filter((e: NotifEntry) => !stored.has(e._id)));
     });
   }, [session, isAdmin]);
 
@@ -175,7 +185,13 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                               </p>
                             </div>
                             {notifEntries.length > 0 && (
-                              <button onClick={() => setNotifEntries([])} className="text-xs px-3 py-1.5 rounded-lg text-gray-400 hover:text-white transition-colors" style={{ background: '#1e293b' }}>
+                              <button onClick={() => {
+                                const ids = notifEntries.map(e => e._id);
+                                const newDismissed = new Set([...dismissedIds, ...ids]);
+                                setDismissedIds(newDismissed);
+                                try { localStorage.setItem('bell_dismissed', JSON.stringify([...newDismissed])); } catch { /* ignore */ }
+                                setNotifEntries([]);
+                              }} className="text-xs px-3 py-1.5 rounded-lg text-gray-400 hover:text-white transition-colors" style={{ background: '#1e293b' }}>
                                 Clear all
                               </button>
                             )}
