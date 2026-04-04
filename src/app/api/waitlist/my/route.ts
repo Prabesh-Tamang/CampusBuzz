@@ -13,13 +13,24 @@ export async function GET(req: NextRequest) {
   await dbConnect();
   const userId = session.user.id;
 
-  const entries = await Waitlist.find({ userId })
+  const rawEntries = await Waitlist.find({ userId })
     .populate('eventId', 'title date venue capacity registeredCount feeType feeAmount')
-    .sort({ createdAt: -1 })
+    .sort({ priorityScore: 1 }) // lowest score = highest priority first
     .lean();
 
+  // Deduplicate by eventId — keep only the entry with the lowest priorityScore per event
+  const seen = new Set<string>();
+  const uniqueEntries = rawEntries.filter(entry => {
+    const eid = (entry.eventId as any)?._id?.toString() || entry.eventId.toString();
+    if (seen.has(eid)) return false;
+    seen.add(eid);
+    return true;
+  });
+
   // Compute position for each entry
-  const enriched = await Promise.all(entries.map(async (entry) => {
+  const enriched = await Promise.all(uniqueEntries.map(async (entry) => {
+    const eid = (entry.eventId as any)?._id?.toString() || entry.eventId.toString();
+
     const position = await Waitlist.countDocuments({
       eventId: entry.eventId,
       priorityScore: { $lt: entry.priorityScore },
@@ -29,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     return {
       ...entry,
-      eventId: (entry.eventId as any)?._id?.toString() || entry.eventId.toString(),
+      eventId: eid,
       event: entry.eventId,
       position,
       queueLength,

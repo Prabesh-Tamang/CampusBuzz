@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   Calendar, QrCode, Plus, AlertTriangle, Edit2, Trash2, Eye, 
-  Users, CheckCircle, TrendingUp, Clock, DollarSign
+  Users, CheckCircle, TrendingUp, Clock, DollarSign, IndianRupeeIcon
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
                       <td className="py-4">
                         {event.feeType === 'paid' ? (
                           <span className="inline-flex items-center gap-1 text-amber-400">
-                            <DollarSign size={14} /> {event.feeAmount}
+                            Rs. {event.feeAmount} 
                           </span>
                         ) : (
                           <span className="text-green-400">Free</span>

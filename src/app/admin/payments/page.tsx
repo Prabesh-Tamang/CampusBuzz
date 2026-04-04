@@ -91,7 +91,7 @@ export default function AdminPaymentsPage() {
       <div className="pb-16 px-4 max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           {/* Header */}
-          <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-3 mb-8 mt-7">
             <div className="w-14 h-14 rounded-2xl bg-purple-600/20 flex items-center justify-center">
               <CreditCard className="w-7 h-7 text-purple-400" />
             </div>

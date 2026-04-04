@@ -43,6 +43,13 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
       fetch('/api/event-interest/my').then(r => r.json()).catch(() => ({ entries: [] })),
       fetch('/api/registrations').then(r => r.json()).catch(() => ({ registrations: [] })),
     ]).then(([wl, ni, regs]) => {
+      // Get all registered event IDs to filter out waitlist entries for already-registered events
+      const registeredEventIds = new Set(
+        (regs.registrations || []).map((r: any) =>
+          typeof r.eventId === 'object' ? String(r.eventId?._id) : String(r.eventId)
+        )
+      );
+
       const waitlistEventIds = new Set((wl.entries || []).map((e: any) => String(e.eventId)));
 
       // Promoted = has a registration with qrCode (confirmed) created in last 48h

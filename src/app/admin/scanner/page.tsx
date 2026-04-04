@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh } from 'react-icons/hi'
+import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh, HiCheck } from 'react-icons/hi'
 
 export default function ScannerPage() {
   const { data: session, status } = useSession()
@@ -60,17 +60,29 @@ export default function ScannerPage() {
   const processQR = async (qrData: string) => {
     setLoading(true)
     try {
+      // QR data is JSON: {"registrationId":"CP-...","eventId":"...","userId":"..."}
+      // Extract registrationId — also handle plain CP-... strings
+      let registrationId = qrData.trim()
+      if (registrationId.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(registrationId)
+          registrationId = parsed.registrationId || registrationId
+        } catch {
+          // not valid JSON — use as-is
+        }
+      }
+
       const res = await fetch('/api/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrData }),
+        body: JSON.stringify({ registrationId }),
       })
       const data = await res.json()
       if (!res.ok) {
-        setResult({ success: false, message: data.error, student: data.student })
+        setResult({ success: false, message: data.error, checkedInAt: data.checkedInAt })
       } else {
         setResult({ success: true, ...data })
-        toast.success(`✅ ${data.student?.name} checked in!`)
+        if (data.success) toast.success(` ✅ ${data.registration?.attendeeName} checked in!`)
       }
     } catch {
       toast.error('Failed to process QR code')
@@ -125,20 +137,28 @@ export default function ScannerPage() {
           )}
 
           {/* Manual Input */}
-          <div className="gradient-border p-6 mb-6">
-            <h2 className="font-display font-bold text-lg mb-4">Manual QR Data Entry</h2>
-            <p className="text-gray-400 text-sm mb-4">Paste the QR code data if camera isn't available</p>
-            <form onSubmit={handleManual} className="flex gap-3">
+          <div className="card p-6 mb-6">
+            <h2 className="font-bold text-lg text-white mb-1">Manual Entry</h2>
+            <p className="text-gray-400 text-sm mb-4">Paste the Registration ID</p>
+            <form onSubmit={handleManual} className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder='{"token":"...","eventId":"...","userId":"..."}'
+                placeholder="CP-XXXXXXXXXXXXXXXX"
                 value={manualCode}
                 onChange={e => setManualCode(e.target.value)}
-                className="flex-1 text-sm"
+                className="input w-full font-mono text-sm"
+                style={{ letterSpacing: '0.02em' }}
               />
-              <button type="submit" disabled={loading}
-                className="px-5 py-3 bg-pulse-600 hover:bg-pulse-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex-shrink-0">
-                {loading ? '...' : 'Check In'}
+              <button
+                type="submit"
+                disabled={loading || !manualCode.trim()}
+                className="w-full py-3 bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
+                ) : (
+                  '✅ Check In'
+                )}
               </button>
             </form>
           </div>
@@ -167,21 +187,25 @@ export default function ScannerPage() {
                   </div>
                 </div>
 
-                {result.student && (
+                {result.registration && (
                   <div className="bg-dark-card rounded-xl p-4">
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <span className="text-gray-400">Name:</span>
-                      <span className="text-white font-semibold">{result.student.name}</span>
+                      <span className="text-white font-semibold">{result.registration.attendeeName}</span>
                       <span className="text-gray-400">Email:</span>
-                      <span className="text-white">{result.student.email}</span>
-                      {result.student.college && <>
-                        <span className="text-gray-400">College:</span>
-                        <span className="text-white">{result.student.college}</span>
-                      </>}
-                      {result.event && <>
-                        <span className="text-gray-400">Event:</span>
-                        <span className="text-white">{result.event.title}</span>
-                      </>}
+                      <span className="text-white">{result.registration.attendeeEmail}</span>
+                      <span className="text-gray-400">Event:</span>
+                      <span className="text-white">{result.registration.eventTitle}</span>
+                      <span className="text-gray-400">Reg ID:</span>
+                      <span className="text-white font-mono text-xs">{result.registration.registrationId}</span>
+                      {result.anomalyScore !== null && result.anomalyScore !== undefined && (
+                        <>
+                          <span className="text-gray-400">Risk Score:</span>
+                          <span className={`font-semibold ${result.anomalyScore >= 0.8 ? 'text-red-400' : result.anomalyScore >= 0.6 ? 'text-amber-400' : 'text-green-400'}`}>
+                            {result.anomalyScore.toFixed(3)} {result.anomalyScore >= 0.8 ? '🚫 High' : result.anomalyScore >= 0.6 ? '⚠️ Medium' : '✅ Low'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

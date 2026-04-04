@@ -75,9 +75,9 @@ export default function AdminEventsPage() {
             </h1>
             <p className="text-muted-foreground mt-1">{events.length} total events</p>
           </div>
-          <Link href="/admin/events/new" className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+          {/* <Link href="/admin/events/new" className="btn-primary flex items-center gap-2 self-start sm:self-auto">
             <Plus size={16} /> New Event
-          </Link>
+          </Link> */}
         </div>
 
         {/* Search */}
@@ -88,7 +88,7 @@ export default function AdminEventsPage() {
             placeholder="Search events..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input pl-10 w-full max-w-sm"
+            className="input w-full max-w-sm"
           />
         </div>
 
@@ -136,7 +136,8 @@ export default function AdminEventsPage() {
                       <td className="px-6 py-4">
                         {event.feeType === 'paid' ? (
                           <span className="inline-flex items-center gap-1 text-amber-400 text-sm">
-                            <DollarSign size={13} /> {event.feeAmount}
+                            Rs. {event.feeAmount}
+                            {/* <DollarSign size={13} /> {event.feeAmount} */}
                           </span>
                         ) : (
                           <span className="text-green-400 text-sm">Free</span>
