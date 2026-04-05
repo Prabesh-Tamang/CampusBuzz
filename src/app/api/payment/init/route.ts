@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Guard: event must exist and be a paid event
-    const event = await Event.findById(eventId).lean();
+    const event: any = await Event.findById(eventId).lean();
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       eventId,
       status: 'completed',
-    }).lean();
+    }).lean() as any;
     if (existingPayment) {
       return NextResponse.json({ error: 'Already registered for this event' }, { status: 409 });
     }

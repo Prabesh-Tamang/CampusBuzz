@@ -80,7 +80,7 @@ export async function initializePayment(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        return_url: `${appUrl}/api/payment/khalti/callback`,
+        return_url: `${appUrl}/payment/verify?provider=khalti`,
         website_url: appUrl,
         amount: amount * 100, // paisa
         purchase_order_id: purchaseOrderId,
@@ -146,7 +146,7 @@ export async function initializePayment(
         productName: purchaseOrderName,
         merchantId: ESEWA_MERCHANT_ID,
         merchantSecret: ESEWA_SECRET_KEY,
-        merchantCallbackUrl: `${appUrl}/api/payment/esewa/callback`,
+        merchantCallbackUrl: `${appUrl}/payment/verify`,
       },
     };
   }

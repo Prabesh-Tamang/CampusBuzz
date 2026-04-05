@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { eventId } = await req.json();
   const userId = session.user.id;
 
-  const event = await Event.findById(eventId).lean();
+  const event: any = await Event.findById(eventId).lean();
   if (!event || !event.isActive)
     return NextResponse.json({ error: 'Event not found' }, { status: 404 });
 

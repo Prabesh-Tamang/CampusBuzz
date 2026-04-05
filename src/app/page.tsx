@@ -69,8 +69,14 @@ export default function HomePage() {
   const { data: session, status } = useSession();
   const [popularEvents, setPopularEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsData, setStatsData] = useState<{ val: string, label: string }[]>(stats);
 
   useEffect(() => {
+    fetch("/api/stats")
+      .then(r => r.json())
+      .then(d => { if (d.stats) setStatsData(d.stats); })
+      .catch(() => {});
+
     fetch("/api/events")
       .then((r) => r.json())
       .then((data) => {
@@ -129,7 +135,7 @@ export default function HomePage() {
 
         {/* Stats bar */}
         <div className="mx-auto mt-20 grid max-w-[800px] grid-cols-2 overflow-hidden rounded-2xl bg-border md:grid-cols-4 gap-[1px]">
-          {stats.map((s) => (
+          {statsData.map((s) => (
             <div key={s.label} className="bg-surface px-5 py-6 text-center">
               <div className="text-3xl font-extrabold leading-none text-accent">
                 {s.val}

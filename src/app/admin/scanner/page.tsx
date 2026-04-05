@@ -78,11 +78,21 @@ export default function ScannerPage() {
         body: JSON.stringify({ registrationId }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        setResult({ success: false, message: data.error, checkedInAt: data.checkedInAt })
-      } else {
+      if (res.ok) {
         setResult({ success: true, ...data })
-        if (data.success) toast.success(` ✅ ${data.registration?.attendeeName} checked in!`)
+        if (data.success) toast.success(`✅ ${data.registration?.attendeeName} checked in!`)
+      } else {
+        // Distinguish event-ended from generic denial
+        setResult({
+          success: false,
+          eventEnded: data.eventEnded || false,
+          blocked: data.blocked || false,
+          message: data.message || data.error || 'Check-in failed',
+          checkedInAt: data.checkedInAt,
+          registration: data.registration || null,
+          anomalyScore: data.anomalyScore ?? null,
+        })
+        if (data.eventEnded) toast.error('⏰ Event has already ended')
       }
     } catch {
       toast.error('Failed to process QR code')
@@ -170,52 +180,93 @@ export default function ScannerPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className={`gradient-border p-6 border-2 ${
-                  result.success ? 'border-green-500/50' : 'border-red-500/50'
-                }`}
+                className="overflow-hidden rounded-2xl shadow-2xl bg-surface"
               >
-                <div className="flex items-center gap-3 mb-4">
-                  {result.success
-                    ? <HiCheckCircle className="text-4xl text-green-400" />
-                    : <HiXCircle className="text-4xl text-red-400" />
-                  }
-                  <div>
-                    <h3 className={`font-display font-bold text-xl ${result.success ? 'text-green-400' : 'text-red-400'}`}>
-                      {result.success ? 'Check-in Successful!' : 'Check-in Failed'}
-                    </h3>
-                    <p className="text-gray-400 text-sm">{result.message}</p>
+                {/* Status Banner — tristate: approved / event-ended / denied */}
+                <div className={`p-6 text-center ${
+                  result.success ? 'bg-green-500' :
+                  result.eventEnded ? 'bg-orange-500' :
+                  'bg-red-500'
+                }`}>
+                  <div className="flex justify-center mb-2">
+                    {result.success
+                      ? <HiCheckCircle className="text-6xl text-white drop-shadow-md" />
+                      : result.eventEnded
+                        ? <span className="text-6xl">⏰</span>
+                        : <HiXCircle className="text-6xl text-white drop-shadow-md" />}
                   </div>
+                  <h3 className="font-display font-extrabold text-3xl text-white drop-shadow-md tracking-tight">
+                    {result.success ? 'CHECK-IN APPROVED' : result.eventEnded ? 'EVENT EXPIRED' : 'ACCESS DENIED'}
+                  </h3>
+                  <p className="text-white/90 text-sm font-medium mt-1 uppercase tracking-wider">{result.message}</p>
                 </div>
 
-                {result.registration && (
-                  <div className="bg-dark-card rounded-xl p-4">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <span className="text-gray-400">Name:</span>
-                      <span className="text-white font-semibold">{result.registration.attendeeName}</span>
-                      <span className="text-gray-400">Email:</span>
-                      <span className="text-white">{result.registration.attendeeEmail}</span>
-                      <span className="text-gray-400">Event:</span>
-                      <span className="text-white">{result.registration.eventTitle}</span>
-                      <span className="text-gray-400">Reg ID:</span>
-                      <span className="text-white font-mono text-xs">{result.registration.registrationId}</span>
-                      {result.anomalyScore !== null && result.anomalyScore !== undefined && (
-                        <>
-                          <span className="text-gray-400">Risk Score:</span>
-                          <span className={`font-semibold ${result.anomalyScore >= 0.8 ? 'text-red-400' : result.anomalyScore >= 0.6 ? 'text-amber-400' : 'text-green-400'}`}>
-                            {result.anomalyScore.toFixed(3)} {result.anomalyScore >= 0.8 ? '🚫 High' : result.anomalyScore >= 0.6 ? '⚠️ Medium' : '✅ Low'}
-                          </span>
-                        </>
+                <div className="p-6">
+                  {result.registration ? (
+                    <div className="space-y-4">
+                      {/* Name & Event */}
+                      <div className="text-center pb-4 border-b border-border">
+                        <h4 className="text-3xl font-extrabold text-white mb-1">{result.registration.attendeeName}</h4>
+                        <p className={`text-lg font-medium ${ result.eventEnded ? 'text-orange-400' : 'text-teal-400' }`}>
+                          {result.registration.eventTitle}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                        <div className="bg-surface2 p-3 rounded-xl border border-border">
+                          <span className="text-gray-400 block text-xs uppercase tracking-wider mb-1">Email</span>
+                          <span className="text-white font-medium break-all">{result.registration.attendeeEmail}</span>
+                        </div>
+                        <div className="bg-surface2 p-3 rounded-xl border border-border">
+                          <span className="text-gray-400 block text-xs uppercase tracking-wider mb-1">Registration ID</span>
+                          <span className="text-white font-mono text-sm">{result.registration.registrationId}</span>
+                        </div>
+                      </div>
+
+                      {/* Anomaly Badge — show for any score > 0.1 now that heuristics fire */}
+                      {result.anomalyScore !== null && result.anomalyScore !== undefined && result.anomalyScore > 0.1 && (
+                        <div className={`mt-4 p-4 rounded-xl border flex items-center justify-between ${
+                          result.anomalyScore >= 0.8 ? 'bg-red-500/10 border-red-500/30' :
+                          result.anomalyScore >= 0.6 ? 'bg-amber-500/10 border-amber-500/30' :
+                          'bg-yellow-500/10 border-yellow-500/30'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">⚠️</span>
+                            <div>
+                              <span className="block text-white font-bold">
+                                {result.anomalyScore >= 0.8 ? 'High Risk — Verify ID' :
+                                 result.anomalyScore >= 0.6 ? 'Anomaly Detected' :
+                                 'Low-level Flag'}
+                              </span>
+                              <span className="text-xs text-gray-400">Please verify identity manually</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-xl font-bold ${
+                              result.anomalyScore >= 0.8 ? 'text-red-400' :
+                              result.anomalyScore >= 0.6 ? 'text-amber-400' :
+                              'text-yellow-400'
+                            }`}>
+                              {(result.anomalyScore * 100).toFixed(0)}%
+                            </div>
+                            <span className="text-xs text-gray-400 uppercase">Risk Score</span>
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="py-8 text-center text-gray-400">
+                      Please verify the registration manually.
+                    </div>
+                  )}
 
-                <button
-                  onClick={() => { setResult(null); setManualCode('') }}
-                  className="mt-4 w-full py-2.5 glass hover:bg-white/10 text-white rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2"
-                >
-                  <HiRefresh /> Scan Another
-                </button>
+                  <button
+                    onClick={() => { setResult(null); setManualCode('') }}
+                    className="mt-6 w-full py-4 bg-teal-600 hover:bg-teal-500 text-white rounded-xl text-lg font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <HiRefresh size={22} /> SCAN NEXT ATTENDEE
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

@@ -49,14 +49,14 @@ export async function POST(req: NextRequest) {
       isActive: true,
       isCancelled: { $ne: true },
       date: { $gt: now },
-    }).lean();
+    }).lean() as any[];
 
     for (const event of upcomingFreeEvents) {
       const regs = await Registration.find({
         eventId: event._id,
         confirmed: false,
         confirmToken: { $exists: false },
-      }).lean();
+      }).lean() as any[];
 
       for (const reg of regs) {
         const user = await User.findById(reg.userId).select('email name').lean() as any;
@@ -89,14 +89,14 @@ export async function POST(req: NextRequest) {
       isActive: true,
       isCancelled: { $ne: true },
       date: { $gte: confirmWindowStart, $lte: confirmWindowEnd },
-    }).lean();
+    }).lean() as any[];
 
     for (const event of eventsNeedingConfirmation) {
       const regs = await Registration.find({
         eventId: event._id,
         confirmed: false,
         confirmToken: { $exists: false },
-      }).lean();
+      }).lean() as any[];
 
       for (const reg of regs) {
         const user = await User.findById(reg.userId).select('email name').lean() as any;
@@ -127,14 +127,14 @@ export async function POST(req: NextRequest) {
       isActive: true,
       isCancelled: { $ne: true },
       date: { $gte: cancelWindowStart, $lte: cancelWindowEnd },
-    }).lean();
+    }).lean() as any[];
 
     for (const event of eventsStartingSoon) {
       const unconfirmed = await Registration.find({
         eventId: event._id,
         confirmed: false,
         confirmToken: { $exists: true },
-      }).lean();
+      }).lean() as any[];
 
       for (const reg of unconfirmed) {
         await Registration.deleteOne({ _id: reg._id });

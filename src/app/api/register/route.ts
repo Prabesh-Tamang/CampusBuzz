@@ -147,7 +147,7 @@ export async function GET(req: NextRequest) {
 
     await dbConnect();
     const userId = (session.user as { id: string }).id;
-    const registrations = await Registration.find({ userId }).populate('eventId').lean();
+    const registrations: any = await Registration.find({ userId }).populate('eventId').lean();
     return NextResponse.json(registrations);
   } catch (err) {
     console.error(err);

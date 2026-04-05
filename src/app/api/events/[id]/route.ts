@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     await dbConnect();
-    const event = await Event.findById(params.id).lean();
+    const event = (await Event.findById(params.id).lean()) as any;
     if (!event) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(event);
   } catch (err) {
@@ -75,7 +75,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       EventInterest.find({ eventId: params.id })
         .populate('userId', 'email name')
         .lean()
-        .then(async (interests) => {
+        .then(async (interests: any[]) => {
           for (const interest of interests) {
             const user = interest.userId as any;
             if (!user?.email) continue;
@@ -144,7 +144,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     Registration.find({ eventId: params.id })
       .populate('userId', 'email name')
       .lean()
-      .then((registrations) => {
+      .then((registrations: any[]) => {
         for (const reg of registrations) {
           const user = reg.userId as unknown as { email: string; name: string } | null;
           if (user?.email) {

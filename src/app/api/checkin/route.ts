@@ -8,6 +8,31 @@ import { extractFeatures } from '@/lib/ml/checkinFeatures';
 import { getModel, isModelReady, recordCheckin } from '@/lib/ml/modelManager';
 import { ANOMALY_WARN_THRESHOLD, ANOMALY_BLOCK_THRESHOLD } from '@/lib/constants';
 
+/**
+ * Rule-based heuristic anomaly score used when the ML model hasn't
+ * collected enough training data (< 20 check-ins).
+ * Returns a 0-1 score where higher = more suspicious.
+ */
+function heuristicAnomalyScore(params: {
+  hourOfDay: number;
+  minutesRelativeToStart: number; // negative = scanning BEFORE event starts
+  daysSinceReg: number;
+}): number {
+  let score = 0;
+
+  // Scanning well before the event starts is highly suspicious
+  if (params.minutesRelativeToStart < -60) score += 0.5;
+  else if (params.minutesRelativeToStart < 0) score += 0.25;
+
+  // Scanning at unusual hours (e.g. 1am-6am)
+  if (params.hourOfDay >= 1 && params.hourOfDay < 6) score += 0.3;
+
+  // Registered less than 5 minutes ago and scanning right away
+  if (params.daysSinceReg < 0.003) score += 0.25; // < ~5 minutes
+
+  return Math.min(score, 1.0);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get('x-forwarded-for') ?? 'unknown';
@@ -28,17 +53,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'registrationId required' }, { status: 400 });
     }
 
-    // First, fetch the registration (with populated fields) to compute anomaly score
-    // and to check if it exists at all
+    // Fetch registration with full event details (including endDate)
     const existing = await Registration.findOne({ registrationId })
       .populate('userId', 'name email')
-      .populate('eventId', 'title date venue category');
+      .populate('eventId', 'title date endDate venue category');
 
     if (!existing) {
       return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 });
     }
 
-    // If already checked in, return early before attempting atomic update
+    // ─── FIX: Block check-in for events that have already ended ──────────────
+    const event = existing.eventId as any;
+    const now = new Date();
+    if (event?.endDate && new Date(event.endDate) < now) {
+      return NextResponse.json({
+        success: false,
+        message: `This event ended on ${new Date(event.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Check-in is no longer allowed.`,
+        eventEnded: true,
+        registration: {
+          attendeeName: (existing.userId as any)?.name || 'Student',
+          attendeeEmail: (existing.userId as any)?.email || '',
+          eventTitle: event.title || 'Event',
+          registrationId: existing.registrationId,
+        },
+      }, { status: 400 });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // If already checked in, return early
     if (existing.checkedIn) {
       return NextResponse.json({
         error: 'Already checked in',
@@ -47,13 +89,13 @@ export async function POST(req: NextRequest) {
     }
 
     const checkinTime = new Date();
-    const event = existing.eventId as any;
 
     let anomalyScore: number | null = null;
     let flagged = false;
     let blocked = false;
 
     if (isModelReady()) {
+      // ── ML path: Isolation Forest ──────────────────────────────────────────
       try {
         const ifoModel = await getModel();
         const features = await extractFeatures({
@@ -71,9 +113,27 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error('[IsolationForest] Scoring failed:', err);
       }
+    } else {
+      // ── Fallback path: rule-based heuristics ──────────────────────────────
+      try {
+        const daysSinceReg = (checkinTime.getTime() - existing.createdAt.getTime()) / 86_400_000;
+        const minutesRelativeToStart = (checkinTime.getTime() - new Date(event.date).getTime()) / 60_000;
+        const rawScore = heuristicAnomalyScore({
+          hourOfDay: checkinTime.getHours(),
+          minutesRelativeToStart,
+          daysSinceReg,
+        });
+        if (rawScore > 0) {
+          anomalyScore = Math.round(rawScore * 1000) / 1000;
+          flagged  = anomalyScore >= ANOMALY_WARN_THRESHOLD;
+          blocked  = anomalyScore >= ANOMALY_BLOCK_THRESHOLD;
+        }
+      } catch (err) {
+        console.error('[Heuristic] Scoring failed:', err);
+      }
     }
 
-    // Atomic update: only succeeds if checkedIn is still false (prevents race condition)
+    // Atomic update: only succeeds if checkedIn is still false
     const updated = await Registration.findOneAndUpdate(
       { registrationId, checkedIn: false },
       {
@@ -87,12 +147,11 @@ export async function POST(req: NextRequest) {
       { new: true }
     );
 
-    // If findOneAndUpdate returned null, another request already checked in this registration
     if (!updated) {
       const alreadyCheckedIn = await Registration.findOne({ registrationId }).lean();
       return NextResponse.json({
         error: 'Already checked in',
-        checkedInAt: alreadyCheckedIn?.checkedInAt,
+        checkedInAt: (alreadyCheckedIn as any)?.checkedInAt,
       }, { status: 400 });
     }
 
@@ -104,6 +163,12 @@ export async function POST(req: NextRequest) {
         blocked: true,
         anomalyScore,
         message: 'Verification issue detected. Please see the event organiser.',
+        registration: {
+          attendeeName: (existing.userId as any)?.name || 'Student',
+          attendeeEmail: (existing.userId as any)?.email || '',
+          eventTitle: event.title || 'Event',
+          registrationId: existing.registrationId,
+        },
       }, { status: 200 });
     }
 
@@ -112,8 +177,8 @@ export async function POST(req: NextRequest) {
       warning: flagged,
       anomalyScore,
       registration: {
-        attendeeName: existing.userId?.name || 'Student',
-        attendeeEmail: existing.userId?.email || '',
+        attendeeName: (existing.userId as any)?.name || 'Student',
+        attendeeEmail: (existing.userId as any)?.email || '',
         eventTitle: event.title || 'Event',
         registrationId: existing.registrationId,
       },
@@ -123,3 +188,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
+

@@ -14,10 +14,12 @@ import {
   Tag,
   Edit2,
   Eye,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+import toast from "react-hot-toast";
 
-interface Event {
+interface EventData {
   _id: string;
   title: string;
   description: string;
@@ -34,6 +36,8 @@ interface Event {
   feeAmount: number;
   isActive: boolean;
   registrationDeadline?: string;
+  isCancelled?: boolean;
+  cancelReason?: string;
   createdAt: string;
 }
 
@@ -41,10 +45,34 @@ export default function AdminEventViewPage() {
   const { id } = useParams();
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [notifyCount, setNotifyCount] = useState(0);
+  const [eventStats, setEventStats] = useState<any>(null);
+  
+  const [cancelModal, setCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCancelEvent = async () => {
+    if (!cancelReason.trim()) { toast.error("Reason required"); return; }
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/admin/events/${id}/cancel`, {
+         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: cancelReason })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Event cancelled! ${data.refundCount} refunds initiated.`);
+      setCancelModal(false);
+      setEvent(prev => prev ? { ...prev, isCancelled: true, cancelReason } : prev);
+    } catch(err: any) {
+      toast.error(err.message || "Failed to cancel event");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/admin/login'); return; }
@@ -59,6 +87,12 @@ export default function AdminEventViewPage() {
       fetch(`/api/admin/event-stats/${id}`)
         .then(r => r.json())
         .then(d => { setWaitlistCount(d.waitlistCount || 0); setNotifyCount(d.notifyCount || 0); })
+        .catch(() => {});
+        
+      // Fetch new event stats
+      fetch(`/api/admin/events/${id}/stats`)
+        .then(r => r.json())
+        .then(d => { setEventStats(d); })
         .catch(() => {});
     }
   }, [id, session, status]);
@@ -211,6 +245,35 @@ export default function AdminEventViewPage() {
           )}
         </div>
 
+        {/* Detailed Stats Panel */}
+        <div className="card p-6 mb-8">
+          <h3 className="text-lg font-bold text-white mb-4">Detailed Analytics</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-surface2 p-4 rounded-xl">
+              <p className="text-sm text-muted-foreground mb-1">Total Registrations</p>
+              <p className="text-2xl font-bold text-white">{eventStats?.totalRegistrations || 0}</p>
+            </div>
+            <div className="bg-surface2 p-4 rounded-xl border-l-2 border-teal-500">
+              <p className="text-sm text-muted-foreground mb-1">Check-ins</p>
+              <p className="text-2xl font-bold text-teal-400">{eventStats?.checkIns || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {eventStats?.totalRegistrations ? Math.round(((eventStats.checkIns) / eventStats.totalRegistrations) * 100) : 0}% check-in rate
+              </p>
+            </div>
+            {event.feeType === 'paid' && (
+              <div className="bg-surface2 p-4 rounded-xl border-l-2 border-amber-500">
+                <p className="text-sm text-muted-foreground mb-1">Revenue</p>
+                <p className="text-2xl font-bold text-amber-400">Rs. {eventStats?.revenue || 0}</p>
+              </div>
+            )}
+            <div className="bg-surface2 p-4 rounded-xl border-l-2 border-red-500">
+              <p className="text-sm text-muted-foreground mb-1">Anomalies Detected</p>
+              <p className="text-2xl font-bold text-red-400">{eventStats?.anomalyCount || 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">Flagged for review</p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -335,11 +398,63 @@ export default function AdminEventViewPage() {
                 >
                   <Eye size={16} /> View Public Page
                 </Link>
+                {!event.isCancelled && !isEnded && (
+                  <button
+                    onClick={() => setCancelModal(true)}
+                    className="btn-ghost w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <XCircle size={16} /> Cancel Event
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface border border-border rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <h2 className="text-xl font-bold text-white mb-2">Cancel Event</h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              Are you sure you want to cancel <strong className="text-white">{event.title}</strong>? 
+              This will notify all registered students and initiate refunds if it is a paid event. This action cannot be undone.
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Cancellation Reason
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Due to unexpected weather conditions..."
+                className="w-full bg-surface2 border border-border rounded-xl p-3 text-white focus:outline-none focus:border-red-500 min-h-[100px] resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCancelModal(false)}
+                disabled={cancelling}
+                className="px-5 py-2.5 rounded-xl font-semibold text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleCancelEvent}
+                disabled={cancelling || !cancelReason.trim()}
+                className="px-5 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-500/50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors flex items-center gap-2"
+              >
+                {cancelling ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Cancelling...</>
+                ) : 'Cancel Event'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

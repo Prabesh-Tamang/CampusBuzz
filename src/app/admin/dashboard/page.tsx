@@ -176,7 +176,7 @@ export default function AdminDashboard() {
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{flaggedCount}</span>
               )}
             </Link>
-            <button onClick={runConfirmations} className="btn-ghost flex items-center gap-2 text-amber-400 hover:text-amber-300">
+            <button onClick={() => runConfirmations()} className="btn-ghost flex items-center gap-2 text-amber-400 hover:text-amber-300">
               <Clock size={16} /> Run Confirmations
             </button>
             <button onClick={() => runConfirmations(true)} className="btn-ghost flex items-center gap-2 text-orange-400 hover:text-orange-300 text-xs">
@@ -482,11 +482,13 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          event.isCancelled ? 'bg-red-500/20 text-red-400' :
                           event.isActive === false ? 'bg-gray-500/20 text-gray-400' :
                           new Date(event.date) > new Date() ? 'bg-green-500/20 text-green-400' :
                           'bg-amber-500/20 text-amber-400'
                         }`}>
-                          {event.isActive === false ? 'Hidden' :
+                          {event.isCancelled ? 'Cancelled' :
+                           event.isActive === false ? 'Hidden' :
                            new Date(event.date) > new Date() ? 'Upcoming' : 'Past'}
                         </span>
                       </td>

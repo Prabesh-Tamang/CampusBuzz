@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     if (category && category !== 'All') query.category = category;
     if (search) query.title = { $regex: search, $options: 'i' };
 
-    const events = await Event.find(query).sort({ date: 1 }).lean();
+    const events: any = await Event.find(query).sort({ date: 1 }).lean();
     return NextResponse.json(events);
   } catch (err) {
     console.error(err);

@@ -25,11 +25,12 @@ export async function GET(req: NextRequest) {
       allEvents,
     ] = await Promise.all([
       Event.countDocuments(),
-      Event.countDocuments({ date: { $gt: now }, isActive: true }),
+      Event.countDocuments({ date: { $gt: now }, isActive: true, isCancelled: { $ne: true } }),
       User.countDocuments({ role: 'student' }),
       Registration.countDocuments(),
       Registration.countDocuments({ checkedIn: true }),
-      Event.find({ isActive: true }).sort({ date: -1 }).lean(),
+      // Show ALL events to admin (including inactive/cancelled) so they can manage everything
+      Event.find({}).sort({ date: -1 }).lean(),
     ]);
 
     return NextResponse.json({

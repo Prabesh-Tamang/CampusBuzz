@@ -7,7 +7,7 @@ export interface IPayment extends Document {
   amount: number;
   provider: 'esewa' | 'khalti';
   transactionId?: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'refund_pending';
   purchaseOrderId?: string;
   purchaseOrderName: string;
   metadata?: Record<string, unknown>;
@@ -27,7 +27,7 @@ const PaymentSchema = new Schema<IPayment>(
     transactionId: { type: String },
     status: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
+      enum: ['pending', 'completed', 'failed', 'refunded', 'refund_pending'],
       default: 'pending',
     },
     purchaseOrderId: { type: String },
