@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh, HiCheck } from 'react-icons/hi'
+import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh, HiCheck, HiClock, HiCamera } from 'react-icons/hi'
 
 export default function ScannerPage() {
   const { data: session, status } = useSession()
@@ -129,9 +129,9 @@ export default function ScannerPage() {
               <p className="text-gray-400 mb-6">Click below to start the camera scanner</p>
               <button
                 onClick={() => { setResult(null); setScanning(true) }}
-                className="px-8 py-4 bg-pulse-600 hover:bg-pulse-500 text-white font-bold rounded-xl transition-all glow-blue"
+                className="px-8 py-4 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-3 w-full max-w-sm mx-auto shadow-lg shadow-teal-500/20"
               >
-                📷 Start Camera Scanner
+                <HiCamera size={24} /> Start Camera Scanner
               </button>
             </div>
           ) : (
@@ -151,14 +151,19 @@ export default function ScannerPage() {
             <h2 className="font-bold text-lg text-white mb-1">Manual Entry</h2>
             <p className="text-gray-400 text-sm mb-4">Paste the Registration ID</p>
             <form onSubmit={handleManual} className="flex flex-col gap-3">
-              <input
-                type="text"
-                placeholder="CP-XXXXXXXXXXXXXXXX"
-                value={manualCode}
-                onChange={e => setManualCode(e.target.value)}
-                className="input w-full font-mono text-sm"
-                style={{ letterSpacing: '0.02em' }}
-              />
+              <div className="relative group">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-md bg-surface2 flex items-center justify-center border border-border group-focus-within:border-teal-500/50 group-focus-within:bg-teal-500/10 transition-colors">
+                  <HiQrcode size={16} className="text-muted-foreground group-focus-within:text-teal-400 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="CP-XXXXXXXXXXXXXXXX"
+                  value={manualCode}
+                  onChange={e => setManualCode(e.target.value)}
+                  className="input w-full font-mono text-sm pl-14 h-12 bg-surface/50 border-2 focus:border-teal-500 transition-all placeholder:text-muted-foreground/50"
+                  style={{ letterSpacing: '0.05em' }}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={loading || !manualCode.trim()}
@@ -167,7 +172,7 @@ export default function ScannerPage() {
                 {loading ? (
                   <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
                 ) : (
-                  '✅ Check In'
+                  <><HiCheck size={20} /> Check In</>
                 )}
               </button>
             </form>
@@ -182,23 +187,33 @@ export default function ScannerPage() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="overflow-hidden rounded-2xl shadow-2xl bg-surface"
               >
-                {/* Status Banner — tristate: approved / event-ended / denied */}
-                <div className={`p-6 text-center ${
-                  result.success ? 'bg-green-500' :
-                  result.eventEnded ? 'bg-orange-500' :
-                  'bg-red-500'
+                {/* Status Banner */}
+                <div className={`p-8 text-center border-b ${
+                  result.success ? 'bg-green-500/10 border-green-500/20' :
+                  result.eventEnded ? 'bg-orange-500/10 border-orange-500/20' :
+                  'bg-red-500/10 border-red-500/20'
                 }`}>
-                  <div className="flex justify-center mb-2">
-                    {result.success
-                      ? <HiCheckCircle className="text-6xl text-white drop-shadow-md" />
-                      : result.eventEnded
-                        ? <span className="text-6xl">⏰</span>
-                        : <HiXCircle className="text-6xl text-white drop-shadow-md" />}
+                  <div className="flex justify-center mb-5">
+                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg ${
+                      result.success ? 'bg-green-500/20 text-green-400 shadow-green-500/10 border border-green-500/30' :
+                      result.eventEnded ? 'bg-orange-500/20 text-orange-400 shadow-orange-500/10 border border-orange-500/30' :
+                      'bg-red-500/20 text-red-400 shadow-red-500/10 border border-red-500/30'
+                    }`}>
+                      {result.success
+                        ? <HiCheckCircle size={40} />
+                        : result.eventEnded
+                          ? <HiClock size={40} />
+                          : <HiXCircle size={40} />}
+                    </div>
                   </div>
-                  <h3 className="font-display font-extrabold text-3xl text-white drop-shadow-md tracking-tight">
+                  <h3 className={`font-display font-extrabold text-2xl md:text-3xl tracking-tight mb-2 ${
+                    result.success ? 'text-green-400' :
+                    result.eventEnded ? 'text-orange-400' :
+                    'text-red-400'
+                  }`}>
                     {result.success ? 'CHECK-IN APPROVED' : result.eventEnded ? 'EVENT EXPIRED' : 'ACCESS DENIED'}
                   </h3>
-                  <p className="text-white/90 text-sm font-medium mt-1 uppercase tracking-wider">{result.message}</p>
+                  <p className="text-muted-foreground text-sm font-semibold uppercase tracking-widest">{result.message}</p>
                 </div>
 
                 <div className="p-6">

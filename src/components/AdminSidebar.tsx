@@ -35,17 +35,17 @@ export default function AdminSidebar({ userName, userEmail }: AdminSidebarProps)
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:flex flex-col w-64 bg-surface border-r border-border min-h-screen fixed left-0 top-0">
         {/* Logo */}
-        <div className="p-6 border-b border-border">
-          <Link href="/admin/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
-              <Zap size={20} className="text-teal-950 fill-teal-950" />
+        <div className="px-5 py-5 border-b border-border">
+          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+            <div className="w-9 h-9 shrink-0 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
+              <Zap size={18} className="text-teal-950 fill-teal-950" />
             </div>
-            <div>
-              <span className="text-lg font-extrabold text-white">Campus</span>
-              <span className="text-lg font-extrabold text-teal-400">Buzz</span>
-              <div className="flex items-center gap-1.5 -mt-0.5">
-                <Shield size={10} className="text-teal-400" />
-                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Admin</span>
+            <div className="min-w-0">
+              <span className="text-base font-extrabold text-white">Campus</span>
+              <span className="text-base font-extrabold text-teal-400">Buzz</span>
+              <div className="flex items-center gap-1 -mt-0.5">
+                <Shield size={9} className="text-teal-400/70" />
+                <span className="text-[9px] font-bold text-teal-400/70 uppercase tracking-widest">Admin</span>
               </div>
             </div>
           </Link>
@@ -102,7 +102,7 @@ export default function AdminSidebar({ userName, userEmail }: AdminSidebarProps)
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-border px-4 h-16 flex items-center justify-between">
         <Link href="/admin/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 shrink-0 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
             <Zap size={16} className="text-teal-950 fill-teal-950" />
           </div>
           <span className="text-base font-extrabold text-white">Campus<span className="text-teal-400">Buzz</span></span>

@@ -99,8 +99,16 @@ export default function AdminEventViewPage() {
 
   if (loading || status === 'loading')
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen">
+        <div className="max-w-[1000px] mx-auto px-6 py-12">
+          <div className="w-40 h-4 bg-surface2 animate-pulse rounded mb-6" />
+          <div className="w-96 h-10 bg-surface2 animate-pulse rounded-lg mb-8" />
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            {[...Array(6)].map((_, i) => <div key={i} className="h-24 bg-surface2 animate-pulse rounded-2xl" />)}
+          </div>
+          <div className="h-64 bg-surface2 animate-pulse rounded-2xl mb-6" />
+          <div className="h-40 bg-surface2 animate-pulse rounded-2xl" />
+        </div>
       </div>
     );
 
@@ -381,33 +389,19 @@ export default function AdminEventViewPage() {
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="card p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
-              <div className="space-y-2">
-                <Link
-                  href={`/admin/events/${event._id}/edit`}
-                  className="btn-ghost w-full justify-start"
+            {/* Cancel Event - only show if active and not ended */}
+            {!event.isCancelled && !isEnded && (
+              <div className="card p-6">
+                <h3 className="text-lg font-bold text-white mb-3">Danger Zone</h3>
+                <p className="text-sm text-muted-foreground mb-4">Cancelling will notify all registrants and initiate refunds for paid events.</p>
+                <button
+                  onClick={() => setCancelModal(true)}
+                  className="w-full px-4 py-2.5 text-sm font-semibold rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 flex items-center justify-center gap-2 transition-colors"
                 >
-                  <Edit2 size={16} /> Edit Event
-                </Link>
-                <Link
-                  href={`/events/${event._id}`}
-                  target="_blank"
-                  className="btn-ghost w-full justify-start"
-                >
-                  <Eye size={16} /> View Public Page
-                </Link>
-                {!event.isCancelled && !isEnded && (
-                  <button
-                    onClick={() => setCancelModal(true)}
-                    className="btn-ghost w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                  >
-                    <XCircle size={16} /> Cancel Event
-                  </button>
-                )}
+                  <XCircle size={16} /> Cancel Event
+                </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

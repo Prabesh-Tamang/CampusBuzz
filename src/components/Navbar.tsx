@@ -138,7 +138,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 no-underline flex-shrink-0">
-              <div className="w-9 h-9 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <div className="w-9 h-9 shrink-0 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
                 <Zap size={18} className="text-teal-950 fill-teal-950" />
               </div>
               <span className="text-xl font-extrabold tracking-tight text-white">

@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Calendar, Plus, Edit2, Trash2, Eye, DollarSign, Search } from 'lucide-react'
+import { Calendar, Plus, Edit2, Trash2, Eye, DollarSign, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DeleteModal from '@/components/DeleteModal'
 
@@ -16,6 +16,12 @@ export default function AdminEventsPage() {
   const [search, setSearch] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, itemId: '', itemName: '' })
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/admin/login'); return }
@@ -60,10 +66,19 @@ export default function AdminEventsPage() {
   )
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen">
+      <div className="max-w-[1200px] mx-auto px-6 py-12">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="w-48 h-10 bg-surface2 animate-pulse rounded-lg" />
+        </div>
+        <div className="w-full max-w-sm h-12 bg-surface2 animate-pulse rounded-lg mb-6" />
+        <div className="h-96 bg-surface2 animate-pulse rounded-2xl" />
+      </div>
     </div>
   )
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const currentEvents = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen">
@@ -88,7 +103,7 @@ export default function AdminEventsPage() {
             placeholder="Search events..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="input w-full max-w-sm"
+            className="input w-full max-w-sm pl-11"
           />
         </div>
 
@@ -106,7 +121,7 @@ export default function AdminEventsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.length === 0 ? (
+                {currentEvents.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center">
                       <Calendar size={40} className="text-muted-foreground mx-auto mb-3 opacity-40" />
@@ -117,7 +132,7 @@ export default function AdminEventsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((event: any) => (
+                  currentEvents.map((event: any) => (
                     <tr key={event._id} className="hover:bg-surface2 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -192,6 +207,45 @@ export default function AdminEventsPage() {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between p-6 border-t border-border">
+              <div className="text-sm text-muted-foreground">
+                Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} events
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`w-8 h-8 rounded-lg text-sm font-semibold transition ${
+                        currentPage === i + 1 
+                          ? 'bg-teal-500 text-[#042f2e]' 
+                          : 'text-muted-foreground hover:bg-surface2 hover:text-white'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

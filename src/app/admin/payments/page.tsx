@@ -13,7 +13,9 @@ import {
   RefreshCcw, 
   Filter,
   Download,
-  DollarSign
+  DollarSign,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded'
@@ -34,6 +36,13 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
   const [providerFilter, setProviderFilter] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filter, providerFilter])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
@@ -81,8 +90,20 @@ export default function AdminPaymentsPage() {
   })
 
   if (loading) return (
-    <div className="min-h-screen grid-bg flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-pulse-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen">
+      <div className="pb-16 px-4 max-w-7xl mx-auto">
+        <div className="flex items-center gap-3 mb-8 mt-7">
+          <div className="w-14 h-14 bg-surface2 animate-pulse rounded-2xl" />
+          <div>
+            <div className="w-48 h-7 bg-surface2 animate-pulse rounded-lg mb-2" />
+            <div className="w-64 h-4 bg-surface2 animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-surface2 animate-pulse rounded-2xl" />)}
+        </div>
+        <div className="h-96 bg-surface2 animate-pulse rounded-2xl" />
+      </div>
     </div>
   )
 
@@ -188,40 +209,40 @@ export default function AdminPaymentsPage() {
           )}
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-6">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-gray-400" />
-              <span className="text-sm text-gray-400">Status:</span>
-              <select 
-                value={filter} 
-                onChange={e => setFilter(e.target.value)}
-                className="bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-pulse-500"
-              >
-                <option value="all">All</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-                <option value="refunded">Refunded</option>
-              </select>
+          <div className="flex flex-wrap items-center gap-3 bg-surface border border-border rounded-lg p-2 mb-6 w-fit">
+            <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
+              <Filter size={16} className="text-muted-foreground" />
+              <span className="text-sm font-semibold text-muted-foreground">Filters</span>
             </div>
+            <select 
+              value={filter} 
+              onChange={e => setFilter(e.target.value)}
+              className="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-surface">All Status</option>
+              <option value="completed" className="bg-surface">Completed</option>
+              <option value="pending" className="bg-surface">Pending</option>
+              <option value="failed" className="bg-surface">Failed</option>
+              <option value="refunded" className="bg-surface">Refunded</option>
+            </select>
             
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Provider:</span>
-              <select 
-                value={providerFilter} 
-                onChange={e => setProviderFilter(e.target.value)}
-                className="bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-pulse-500"
-              >
-                <option value="all">All</option>
-                <option value="esewa">eSewa</option>
-                <option value="khalti">Khalti</option>
-              </select>
-            </div>
+            <select 
+              value={providerFilter} 
+              onChange={e => setProviderFilter(e.target.value)}
+              className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+            >
+              <option value="all" className="bg-surface">All Providers</option>
+              <option value="esewa" className="bg-surface">eSewa</option>
+              <option value="khalti" className="bg-surface">Khalti</option>
+            </select>
           </div>
 
-          {/* Payments Table */}
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
+          {(() => {
+            const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
+            const currentPayments = filteredPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+            return (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
@@ -235,14 +256,14 @@ export default function AdminPaymentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPayments.length === 0 ? (
+                  {currentPayments.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                         No payments found
                       </td>
                     </tr>
                   ) : (
-                    filteredPayments.map((payment: any, index: number) => {
+                    currentPayments.map((payment: any, index: number) => {
                       const config = statusConfig[payment.status as PaymentStatus] || statusConfig.pending
                       const StatusIcon = config.icon
                       
@@ -314,7 +335,49 @@ export default function AdminPaymentsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between p-6 border-t border-border">
+                <div className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredPayments.length)} of {filteredPayments.length} payments
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 rounded-lg text-sm font-semibold transition ${
+                          currentPage === i + 1 
+                            ? 'bg-teal-500 text-[#042f2e]' 
+                            : 'text-muted-foreground hover:bg-surface2 hover:text-white'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+          );
+        })()}
         </motion.div>
       </div>
     </div>

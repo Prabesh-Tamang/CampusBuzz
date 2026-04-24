@@ -142,8 +142,20 @@ export default function EditEventPage() {
   }
 
   if (fetching) return (
-    <div className="min-h-screen grid-bg flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-pulse-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen">
+      <div className="max-w-[900px] mx-auto px-6 py-12">
+        <div className="w-32 h-4 bg-surface2 animate-pulse rounded mb-4" />
+        <div className="w-48 h-10 bg-surface2 animate-pulse rounded-lg mb-2" />
+        <div className="w-40 h-4 bg-surface2 animate-pulse rounded mb-8" />
+        <div className="card p-8 space-y-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i}>
+              <div className="w-28 h-3 bg-surface2 animate-pulse rounded mb-3" />
+              <div className="h-12 bg-surface2 animate-pulse rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 

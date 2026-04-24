@@ -99,7 +99,7 @@ export default function LoginPage() {
             <span className="text-2xl font-extrabold text-white">Campus<span className="text-accent">Buzz</span></span>
           </Link>
           <h1 className="text-3xl font-extrabold text-white mb-2">Welcome back</h1>
-          <p className="text-gray-500 text-sm">Sign in to your account</p>
+          <p className="text-muted-foreground text-sm">Sign in to your account</p>
         </div>
 
         <div className="card p-9">
@@ -110,9 +110,9 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">Email</label>
               <input
                 className="input w-full"
                 type="email"
@@ -124,7 +124,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
+              <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">Password</label>
               <div className="relative">
                 <input
                   className="input w-full pr-11"
@@ -138,7 +138,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition p-1"
                   aria-label={showPass ? 'Hide password' : 'Show password'}
                 >
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -154,7 +154,7 @@ export default function LoginPage() {
               ) : 'Sign In'}
             </button>
           </form>
-          <p className="text-center mt-6 text-sm text-gray-500">
+          <p className="text-center mt-6 text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href="/auth/signup" className="font-bold text-accent no-underline hover:underline">Sign up</Link>
           </p>

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   Calendar, QrCode, Plus, AlertTriangle, Edit2, Trash2, Eye, 
-  Users, CheckCircle, TrendingUp, Clock, DollarSign, IndianRupeeIcon
+  Users, CheckCircle, TrendingUp, Clock, DollarSign, IndianRupeeIcon, ChevronLeft, ChevronRight, Filter
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -51,6 +51,17 @@ export default function AdminDashboard() {
     itemId: '',
     itemName: ''
   })
+  const [currentPage, setCurrentPage] = useState(1)
+  const [filterDate, setFilterDate] = useState('all')
+  const [filterFee, setFilterFee] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterReg, setFilterReg] = useState('all')
+  const itemsPerPage = 10
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterDate, filterFee, filterStatus, filterReg])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
@@ -142,8 +153,17 @@ export default function AdminDashboard() {
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen">
+      <div className="max-w-[1200px] mx-auto px-6 py-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+          <div className="w-64 h-12 bg-surface2 animate-pulse rounded-lg" />
+          <div className="w-48 h-10 bg-surface2 animate-pulse rounded-lg" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+          {[...Array(5)].map((_, i) => <div key={i} className="h-32 bg-surface2 animate-pulse rounded-2xl" />)}
+        </div>
+        <div className="h-96 bg-surface2 animate-pulse rounded-2xl mb-10" />
+      </div>
     </div>
   )
 
@@ -156,30 +176,24 @@ export default function AdminDashboard() {
       <div className="max-w-[1200px] mx-auto px-6 py-12">
 
         {/* Header */}
-        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white">
-              Admin <span className="text-accent">Dashboard</span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              Admin <span className="text-teal-400">Dashboard</span>
             </h1>
-            <p className="text-muted-foreground mt-1">Welcome back, {session?.user?.name}</p>
+            <p className="text-sm text-muted-foreground mt-1">Welcome back, {session?.user?.name}</p>
           </div>
-          <div className="flex gap-3">
-            <Link href="/admin/events/new" className="btn-primary flex items-center gap-2">
-              <Plus size={16} /> New Event
-            </Link>
-            <Link href="/admin/scanner" className="btn-ghost flex items-center gap-2">
-              <QrCode size={16} /> Scanner
-            </Link>
-            <Link href="/admin/flagged" className="btn-ghost flex items-center gap-2 relative">
-              <AlertTriangle size={16} /> Flagged
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/admin/flagged" className="px-4 py-2.5 text-sm font-semibold rounded-lg border border-border text-white hover:border-teal-500 hover:text-teal-400 flex items-center gap-2 transition-colors relative">
+              <AlertTriangle size={15} /> Flagged
               {flaggedCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{flaggedCount}</span>
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{flaggedCount}</span>
               )}
             </Link>
-            <button onClick={() => runConfirmations()} className="btn-ghost flex items-center gap-2 text-amber-400 hover:text-amber-300">
-              <Clock size={16} /> Run Confirmations
+            <button onClick={() => runConfirmations()} className="px-4 py-2.5 text-sm font-semibold rounded-lg text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 flex items-center gap-2 transition-colors">
+              <Clock size={15} /> Run Confirmations
             </button>
-            <button onClick={() => runConfirmations(true)} className="btn-ghost flex items-center gap-2 text-orange-400 hover:text-orange-300 text-xs">
+            <button onClick={() => runConfirmations(true)} className="px-4 py-2.5 text-xs font-semibold rounded-lg text-orange-400 bg-orange-400/10 hover:bg-orange-400/20 flex items-center gap-2 transition-colors">
               <Clock size={14} /> Force Send All
             </button>
           </div>
@@ -408,33 +422,115 @@ export default function AdminDashboard() {
 
         {/* All Events Table */}
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-white">All Events</h2>
-            <span className="text-sm text-muted-foreground">{stats?.recentEvents?.length || 0} events</span>
-          </div>
-          {!stats?.recentEvents?.length ? (
-            <div className="text-center py-12">
-              <Calendar size={48} className="text-muted-foreground mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground mb-4">No events yet.</p>
-              <Link href="/admin/events/new" className="btn-primary inline-flex items-center gap-2">
-                <Plus size={16} /> Create Event
-              </Link>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-white">All Events</h2>
+              <span className="text-sm text-muted-foreground">{stats?.recentEvents?.length || 0} total events</span>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-[13px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                    <th className="pb-3">Event</th>
-                    <th className="pb-3">Date</th>
-                    <th className="pb-3">Fee</th>
-                    <th className="pb-3">Registrations</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {stats.recentEvents.map((event: any) => (
+            {stats?.recentEvents?.length ? (
+              <div className="flex flex-wrap items-center gap-3 bg-surface border border-border rounded-lg p-2">
+                <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
+                  <Filter size={16} className="text-muted-foreground" />
+                  <span className="text-sm font-semibold text-muted-foreground">Filters</span>
+                </div>
+                <select 
+                  className="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+                  value={filterDate} onChange={(e) => setFilterDate(e.target.value)}
+                >
+                  <option value="all" className="bg-surface">All Dates</option>
+                  <option value="upcoming" className="bg-surface">Upcoming</option>
+                  <option value="past" className="bg-surface">Past</option>
+                </select>
+                <select 
+                  className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+                  value={filterFee} onChange={(e) => setFilterFee(e.target.value)}
+                >
+                  <option value="all" className="bg-surface">Any Fee</option>
+                  <option value="free" className="bg-surface">Free</option>
+                  <option value="paid" className="bg-surface">Paid</option>
+                </select>
+                <select 
+                  className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+                  value={filterReg} onChange={(e) => setFilterReg(e.target.value)}
+                >
+                  <option value="all" className="bg-surface">All Capacity</option>
+                  <option value="available" className="bg-surface">Available</option>
+                  <option value="full" className="bg-surface">Full</option>
+                </select>
+                <select 
+                  className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+                  value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="all" className="bg-surface">Any Status</option>
+                  <option value="active" className="bg-surface">Active</option>
+                  <option value="cancelled" className="bg-surface">Cancelled</option>
+                  <option value="hidden" className="bg-surface">Hidden</option>
+                </select>
+              </div>
+            ) : null}
+          </div>
+
+          {(() => {
+            if (!stats?.recentEvents?.length) {
+              return (
+                <div className="text-center py-12">
+                  <Calendar size={48} className="text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <p className="text-muted-foreground mb-4">No events yet.</p>
+                  <Link href="/admin/events/new" className="btn-primary inline-flex items-center gap-2">
+                    <Plus size={16} /> Create Event
+                  </Link>
+                </div>
+              )
+            }
+
+            const filteredEvents = stats.recentEvents.filter((event: any) => {
+              let match = true;
+              if (filterFee !== 'all') {
+                if (filterFee === 'free' && event.feeType !== 'free') match = false;
+                if (filterFee === 'paid' && event.feeType !== 'paid') match = false;
+              }
+              if (filterStatus !== 'all') {
+                if (filterStatus === 'cancelled' && !event.isCancelled) match = false;
+                if (filterStatus === 'hidden' && event.isActive !== false) match = false;
+                if (filterStatus === 'active' && (event.isCancelled || event.isActive === false)) match = false;
+              }
+              if (filterDate !== 'all') {
+                const isPast = new Date(event.date) < new Date();
+                if (filterDate === 'upcoming' && isPast) match = false;
+                if (filterDate === 'past' && !isPast) match = false;
+              }
+              if (filterReg !== 'all') {
+                const isFull = event.registeredCount >= event.capacity;
+                if (filterReg === 'full' && !isFull) match = false;
+                if (filterReg === 'available' && isFull) match = false;
+              }
+              return match;
+            });
+
+            const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
+            const currentEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-[13px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
+                      <th className="pb-3">Event</th>
+                      <th className="pb-3">Date</th>
+                      <th className="pb-3">Fee</th>
+                      <th className="pb-3">Registrations</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {currentEvents.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                          No events match your filters.
+                        </td>
+                      </tr>
+                    ) : currentEvents.map((event: any) => (
                     <tr key={event._id} className="text-muted-foreground hover:bg-surface2 transition-colors">
                       <td className="py-4">
                         <div className="flex items-center gap-3">
@@ -522,8 +618,49 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredEvents.length)} of {filteredEvents.length} events
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }).map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i + 1)}
+                          className={`w-8 h-8 rounded-lg text-sm font-semibold transition ${
+                            currentPage === i + 1 
+                              ? 'bg-teal-500 text-[#042f2e]' 
+                              : 'text-muted-foreground hover:bg-surface2 hover:text-white'
+                          }`}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg bg-surface border border-border text-white hover:bg-surface2 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          );
+        })()}
         </div>
       </div>
 
