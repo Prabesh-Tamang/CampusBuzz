@@ -63,7 +63,11 @@ export async function POST(req: NextRequest) {
         if (!user?.email) continue;
 
         const token = crypto.randomBytes(32).toString('hex');
-        await Registration.findByIdAndUpdate(reg._id, { confirmToken: token });
+        await Registration.findByIdAndUpdate(reg._id, {
+          confirmToken: token,
+          confirmationEmailSent: true,
+          confirmTokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        });
 
         const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;
         await sendAttendanceConfirmation({
@@ -103,7 +107,11 @@ export async function POST(req: NextRequest) {
         if (!user?.email) continue;
 
         const token = crypto.randomBytes(32).toString('hex');
-        await Registration.findByIdAndUpdate(reg._id, { confirmToken: token });
+        await Registration.findByIdAndUpdate(reg._id, {
+          confirmToken: token,
+          confirmationEmailSent: true,
+          confirmTokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        });
 
         const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;
         await sendAttendanceConfirmation({

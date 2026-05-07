@@ -25,8 +25,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
   }
 
+  // Guard: admin must have sent the confirmation email first
+  if (!registration.confirmationEmailSent) {
+    return NextResponse.json({
+      error: 'Confirmation not available yet. Wait for admin to send your confirmation email.',
+      code: 'CONFIRMATION_NOT_SENT',
+    }, { status: 403 });
+  }
+
   if (registration.confirmed) {
-    return NextResponse.json({ error: 'Already confirmed', qrCode: registration.qrCode }, { status: 200 });
+    return NextResponse.json({ error: 'Already confirmed.' }, { status: 409 });
   }
 
   // Generate QR code

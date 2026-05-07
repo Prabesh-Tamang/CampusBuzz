@@ -62,6 +62,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 });
     }
 
+    // Block check-in for unconfirmed registrations
+    if (!existing.confirmed) {
+      return NextResponse.json({
+        error: 'Registration not confirmed. Student must confirm attendance via email first.',
+        code: 'NOT_CONFIRMED',
+      }, { status: 400 });
+    }
+
     // ─── FIX: Block check-in for events that have already ended ──────────────
     const event = existing.eventId as any;
     const now = new Date();

@@ -172,7 +172,6 @@ describe('Middleware RBAC routing logic — pure function', () => {
 
 describe('Middleware function — integration with mocked next-auth/jwt and next/server', () => {
   // Import the real middleware after mocks are set up
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { middleware } = require('../middleware') as {
     middleware: (req: ReturnType<typeof makeRequest>) => Promise<unknown>;
   };

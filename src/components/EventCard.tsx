@@ -1,8 +1,10 @@
 'use client'
 import Link from 'next/link'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
-import { HiCalendar, HiLocationMarker, HiUserGroup, HiClock } from 'react-icons/hi'
+import { HiCalendar, HiLocationMarker, HiUserGroup } from 'react-icons/hi'
+import { Share2 } from 'lucide-react'
 
 const categoryColors: Record<string, string> = {
   Technical: 'bg-blue-500/20 text-blue-300',
@@ -23,6 +25,24 @@ export default function EventCard({ event, index = 0 }: EventCardProps) {
   const spotsLeft = event.capacity - event.registeredCount
   const isFull = spotsLeft <= 0
   const fillPercent = Math.min((event.registeredCount / event.capacity) * 100, 100)
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const url = `${window.location.origin}/events/${event._id}`
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: event.title, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2500)
+      }
+    } catch {
+      // silent
+    }
+  }
 
   return (
     <motion.div
@@ -42,9 +62,21 @@ export default function EventCard({ event, index = 0 }: EventCardProps) {
             <span className={`badge ${categoryColors[event.category] || categoryColors.Other}`}>
               {event.category}
             </span>
-            {isFull && (
-              <span className="badge bg-red-500/20 text-red-400">Full</span>
-            )}
+            <div className="flex items-center gap-2">
+              {isFull && (
+                <span className="badge bg-red-500/20 text-red-400">Full</span>
+              )}
+              <button
+                onClick={handleShare}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-500 hover:text-white transition-colors"
+                title={copied ? 'Link copied!' : 'Share event'}
+              >
+                {copied
+                  ? <span className="text-teal-400 text-xs px-0.5">✓</span>
+                  : <Share2 size={13} />
+                }
+              </button>
+            </div>
           </div>
 
           {/* Title */}

@@ -5,6 +5,9 @@ import Navbar from '@/components/Navbar'
 import { Search, Calendar, MapPin, Users, DollarSign, Filter, Ticket, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { EventCardSkeleton } from '@/components/ui/Skeleton'
+import EmptyState from '@/components/ui/EmptyState'
+import { CalendarX } from 'lucide-react'
 
 const categories = ['All', 'Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Other']
 
@@ -261,25 +264,25 @@ export default function EventsPage() {
 
             {/* Events Grid */}
             {loading ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="card overflow-hidden animate-pulse">
-                    <div className="h-36 bg-surface2" />
-                    <div className="p-5">
-                      <div className="h-6 w-3/4 bg-surface2 rounded mb-3" />
-                      <div className="h-4 w-full bg-surface2 rounded mb-2" />
-                      <div className="h-4 w-2/3 bg-surface2 rounded mb-4" />
-                      <div className="h-4 w-1/2 bg-surface2 rounded" />
-                    </div>
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <EventCardSkeleton key={i} />
                 ))}
               </div>
             ) : events.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-xl text-muted-foreground">No events found.</p>
-              </div>
+              <EmptyState
+                icon={CalendarX}
+                title="No events found"
+                description={
+                  search || (category && category !== 'All')
+                    ? 'No events match your search. Try a different term or category.'
+                    : 'No upcoming events at the moment. Check back soon.'
+                }
+                actionLabel={search || (category && category !== 'All') ? 'Clear filters' : undefined}
+                onAction={() => { setSearch(''); setCategory('All'); }}
+              />
             ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {events.map(event => (
                   <Link key={event._id} href={`/events/${event._id}`} className="flex">
                     <div className="card p-0 cursor-pointer overflow-hidden group flex flex-col w-full">

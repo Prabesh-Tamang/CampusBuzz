@@ -277,6 +277,7 @@ export async function completeRegistration(paymentId: string, userId: string, ev
       registrationId,
       qrCode,
       checkedIn: false,
+      confirmed: true,        // paid = auto-confirmed, payment is the confirmation
       paymentId: payment._id,
     }], { session: mongoSession });
 

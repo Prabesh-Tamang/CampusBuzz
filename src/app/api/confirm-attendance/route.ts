@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
+import mongoose from 'mongoose';
 import Registration from '@/models/Registration';
 import User from '@/models/User';
 import Event from '@/models/Event';
 import QRCode from 'qrcode';
 import { sendRegistrationEmail } from '@/lib/email';
+import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { format } from 'date-fns';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -24,6 +26,36 @@ export async function GET(req: NextRequest) {
   const registration = await Registration.findOne({ confirmToken: token });
   if (!registration) {
     return NextResponse.redirect(new URL('/my-events?confirm=invalid', APP_URL));
+  }
+
+  // Check token expiry
+  if (registration.confirmTokenExpiry && new Date() > registration.confirmTokenExpiry) {
+    // Token expired — free the spot atomically
+    const dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
+    try {
+      await Registration.deleteOne({ _id: registration._id }, { session: dbSession });
+      await Event.findByIdAndUpdate(
+        registration.eventId,
+        { $inc: { registeredCount: -1 } },
+        { session: dbSession }
+      );
+      await dbSession.commitTransaction();
+    } catch (txErr) {
+      await dbSession.abortTransaction();
+      console.error('[confirm-attendance] Expiry cleanup failed:', txErr);
+    } finally {
+      dbSession.endSession();
+    }
+
+    // Promote waitlist after freeing spot
+    void promoteTopWaitlistUser(registration.eventId.toString()).catch(err =>
+      console.error('[Waitlist] Promotion after token expiry failed:', err)
+    );
+
+    return NextResponse.redirect(
+      new URL('/my-events?confirm=expired', process.env.NEXTAUTH_URL ?? 'http://localhost:3000')
+    );
   }
 
   if (registration.confirmed) {

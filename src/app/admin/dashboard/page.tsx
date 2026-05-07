@@ -14,6 +14,8 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts'
 import DeleteModal from '@/components/DeleteModal'
+import AlgorithmInsights from '@/components/admin/AlgorithmInsights'
+import { StatCardSkeleton } from '@/components/ui/Skeleton'
 
 const CHART_COLORS = ['#14b8a6', '#f43f5e', '#f59e0b', '#a78bfa', '#3b82f6', '#ef4444', '#6b7280']
 
@@ -160,7 +162,7 @@ export default function AdminDashboard() {
           <div className="w-48 h-10 bg-surface2 animate-pulse rounded-lg" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
-          {[...Array(5)].map((_, i) => <div key={i} className="h-32 bg-surface2 animate-pulse rounded-2xl" />)}
+          {Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)}
         </div>
         <div className="h-96 bg-surface2 animate-pulse rounded-2xl mb-10" />
       </div>
@@ -249,9 +251,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Algorithm Insights Widget */}
+        <div className="mb-6">
+          <AlgorithmInsights />
+        </div>
+
         {/* Charts */}
-        {analytics && (
-          <>
+        {analytics && (          <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* Registration Trend */}
               <div className="card p-6">

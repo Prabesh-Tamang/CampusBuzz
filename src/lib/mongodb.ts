@@ -76,6 +76,13 @@ async function dbConnect() {
         console.error('[Reconcile] Startup reconciliation failed:', err)
       );
 
+      // Train the Isolation Forest model on startup using existing check-in data
+      import('@/lib/ml/modelManager').then(({ trainModel }) => {
+        trainModel().catch(err =>
+          console.error('[IsolationForest] Startup training failed:', err)
+        );
+      }).catch(() => {});
+
       return mongooseInstance;
     });
   }

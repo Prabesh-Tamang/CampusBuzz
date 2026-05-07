@@ -109,7 +109,7 @@ export default function AdminEventsPage() {
 
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="text-left text-[13px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                   <th className="px-6 py-4">Event</th>

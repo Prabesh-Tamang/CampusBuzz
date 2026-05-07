@@ -86,6 +86,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
               eventDate: format(new Date(event.date), 'PPP'),
               eventVenue: event.venue,
               eventUrl: `${appUrl}/events/${params.id}`,
+              eventId: params.id,
+              feeAmount: event.feeAmount ?? 0,
             }).catch(() => {});
           }
         })

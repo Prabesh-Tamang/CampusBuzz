@@ -111,7 +111,6 @@ export async function getRecommendations(
     date: { $gte: new Date() },
   }).lean();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const eventMap = new Map(events.map(e => [(e._id as any).toString(), e]));
 
   return sorted

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image, ArrowLeft, Building } from 'lucide-react'
+import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image as ImageIcon, ArrowLeft, Building } from 'lucide-react'
 
 const categories = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other']
 
@@ -52,6 +52,7 @@ export default function NewEventPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          imageUrl: form.image,   // map form field → model field
           capacity: Number(form.capacity),
           feeAmount: Number(form.feeAmount),
           tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -323,6 +324,18 @@ export default function NewEventPage() {
                 className="input w-full pl-10"
               />
             </div>
+            {form.image && (
+              <div className="mt-3 rounded-xl overflow-hidden border border-border" style={{ maxHeight: 160 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={form.image}
+                  alt="Event image preview"
+                  className="w-full object-cover"
+                  style={{ maxHeight: 160 }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Actions */}

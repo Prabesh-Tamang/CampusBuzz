@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { CreditCard, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import EmptyState from '@/components/ui/EmptyState'
 
 type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded'
 
@@ -66,16 +67,13 @@ export default function PaymentHistoryPage() {
           </div>
 
           {payments.length === 0 ? (
-            <div className="card p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-dark-border mx-auto mb-4 flex items-center justify-center">
-                <CreditCard className="w-8 h-8 text-gray-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No payments yet</h3>
-              <p className="text-gray-400 mb-6">You haven't made any payments for paid events.</p>
-              <Link href="/events" className="btn-primary inline-flex items-center gap-2">
-                Browse Events <ArrowRight size={16} />
-              </Link>
-            </div>
+            <EmptyState
+              icon={CreditCard}
+              title="No payments yet"
+              description="You haven't made any payments for paid events. Browse events to find paid ones."
+              actionLabel="Browse Events"
+              actionHref="/events"
+            />
           ) : (
             <div className="space-y-4">
               {payments.map((payment: any) => {

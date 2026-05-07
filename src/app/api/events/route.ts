@@ -16,6 +16,12 @@ export async function GET(req: NextRequest) {
     if (search) query.title = { $regex: search, $options: 'i' };
 
     const events: any = await Event.find(query).sort({ date: 1 }).lean();
+
+    // Fire-and-forget reminder check — never blocks response
+    void import('@/lib/reminders').then(({ sendPendingReminders }) => {
+      sendPendingReminders();
+    }).catch(() => {});
+
     return NextResponse.json(events);
   } catch (err) {
     console.error(err);

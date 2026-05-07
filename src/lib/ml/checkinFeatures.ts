@@ -1,4 +1,5 @@
 import Registration from '@/models/Registration';
+import mongoose from 'mongoose';
 
 export interface CheckinContext {
   userId: string;
@@ -16,9 +17,12 @@ export async function extractFeatures(ctx: CheckinContext): Promise<number[]> {
   }
 
   const {
-    userId, eventId, eventCategory,
+    userId: userIdStr, eventId, eventCategory,
     eventDate, registrationCreatedAt, checkinTime
   } = ctx;
+
+  // Cast to ObjectId so Mongoose queries match correctly
+  const userId = new mongoose.Types.ObjectId(userIdStr);
 
   const hourOfDay = checkinTime.getHours();
 

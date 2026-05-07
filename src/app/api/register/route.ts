@@ -6,8 +6,9 @@ import mongoose from 'mongoose';
 import Registration from '@/models/Registration';
 import Event from '@/models/Event';
 import User from '@/models/User';
+import Waitlist from '@/models/Waitlist';
 import QRCode from 'qrcode';
-import { sendRegistrationEmail } from '@/lib/email';
+import { sendRegistrationEmail, sendCapacityAlertEmail } from '@/lib/email';
 import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { format } from 'date-fns';
 import crypto from 'crypto';
@@ -69,6 +70,36 @@ export async function POST(req: NextRequest) {
 
       await mongoSession.commitTransaction();
 
+      // Fire-and-forget capacity alert at 80% and 100%
+      void (async () => {
+        try {
+          const updatedEvent = await Event.findById(eventId)
+            .select('title date registeredCount capacity createdBy').lean();
+          if (!updatedEvent) return;
+          const ev = updatedEvent as any;
+          const fill = Math.round((ev.registeredCount / ev.capacity) * 100);
+          if (fill !== 80 && fill !== 100) return;
+          const creator = await User.findById(ev.createdBy).select('email').lean();
+          if (!creator) return;
+          const wlCount = fill >= 100
+            ? await Waitlist.countDocuments({ eventId })
+            : 0;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+          await sendCapacityAlertEmail({
+            adminEmail: (creator as any).email,
+            eventName: ev.title,
+            eventDate: new Date(ev.date).toLocaleDateString('en-NP', { dateStyle: 'full' } as any),
+            registeredCount: ev.registeredCount,
+            capacity: ev.capacity,
+            fillPercent: fill,
+            waitlistCount: wlCount,
+            eventAdminUrl: `${appUrl}/admin/events`,
+          });
+        } catch (err) {
+          console.error('[Capacity Alert]', err);
+        }
+      })();
+
       // Send a "registration received" email (no QR yet)
       void sendRegistrationEmail({
         to: user ? user.email : '',
@@ -82,11 +113,12 @@ export async function POST(req: NextRequest) {
         console.error('[Email] Failed to send registration confirmation:', err);
       });
 
-      // Return registration without QR — UI shows "Pending Confirmation"
+      // Never expose registrationId for unconfirmed free registrations
+      // A student must confirm via email before they can check in
       return NextResponse.json({
-        registration: registration[0],
-        qrCode: null,
+        success: true,
         pendingConfirmation: true,
+        message: 'Registration received. Check your email to confirm your attendance.',
       }, { status: 201 });
     } catch (err) {
       await mongoSession.abortTransaction();

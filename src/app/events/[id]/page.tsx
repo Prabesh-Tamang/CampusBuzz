@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Clock3,
   CreditCard,
+  Share2,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -66,6 +67,7 @@ export default function EventDetailPage() {
   const [userRegistrations, setUserRegistrations] = useState<Registration[]>([]);
   const [showPayment, setShowPayment] = useState(false);
   const [interested, setInterested] = useState(false); // paid event "Notify Me"
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -115,8 +117,26 @@ export default function EventDetailPage() {
     }
   }, [id, session]);
 
-  async function handleRegister() {
-    if (!session) {
+  const handleShare = async () => {
+    const url = `${window.location.origin}/events/${id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: event?.title ?? 'Campus Event',
+          text: `Check out ${event?.title} on CampusBuzz!`,
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      }
+    } catch {
+      // User cancelled share or browser blocked clipboard — silent
+    }
+  };
+
+  async function handleRegister() {    if (!session) {
       router.push("/auth/login");
       return;
     }
@@ -136,9 +156,9 @@ export default function EventDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setRegistered(true);
-      setQrCode(data.qrCode);
-      setRegistrationId(data.registration.registrationId);
-      toast.success("Registered! Check your email for QR code.");
+      setQrCode(data.qrCode || null);
+      setRegistrationId('');
+      toast.success("Registered! Check your email to confirm your attendance.");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -346,6 +366,38 @@ export default function EventDetailPage() {
               {event.title}
             </h1>
 
+            {/* Share button */}
+            <div style={{ marginBottom: 24 }}>
+              <button
+                onClick={handleShare}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: copied ? '#14b8a6' : '#9ca3af',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {copied ? (
+                  <>
+                    <span style={{ fontSize: 14, lineHeight: 1 }}>✓</span>
+                    <span>Link copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 size={13} />
+                    <span>Share</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             <div
               style={{
                 display: "flex",
@@ -452,13 +504,10 @@ export default function EventDetailPage() {
                     <CheckCircle size={28} color="var(--accent)" />
                   </div>
                   <h3 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "var(--accent)" }}>
-                    You're Registered! 🎉
+                    You&apos;re Registered! 🎉
                   </h3>
                   <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "0 0 12px" }}>
-                    Registration ID:{" "}
-                    <strong style={{ color: "var(--text)", fontFamily: "monospace", fontSize: 12 }}>
-                      {registrationId}
-                    </strong>
+                    Check your email for confirmation details.
                   </p>
                   {qrCode ? (
                     <>
@@ -588,7 +637,7 @@ export default function EventDetailPage() {
                           <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
                         </div>
                         <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-                          🔔 You'll be notified when spots open
+                          🔔 You&apos;ll be notified when spots open
                         </div>
                         <button onClick={handleRemoveInterest} className="btn-ghost" style={{ width: '100%', fontSize: 13 }}>
                           Remove notification

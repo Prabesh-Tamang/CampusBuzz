@@ -13,6 +13,8 @@ export interface IRegistration extends Document {
   paymentId?: mongoose.Types.ObjectId;
   confirmed: boolean;          // attendance confirmed (for free events)
   confirmToken?: string;       // token sent in confirmation email
+  confirmationEmailSent: boolean; // admin has sent the confirmation email
+  confirmTokenExpiry?: Date;   // token expiry (48h after admin sends)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +33,8 @@ const RegistrationSchema = new Schema<IRegistration>(
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment' },
     confirmed: { type: Boolean, default: false },
     confirmToken: { type: String },
+    confirmationEmailSent: { type: Boolean, default: false },
+    confirmTokenExpiry: { type: Date },
   },
   { timestamps: true }
 );

@@ -43,7 +43,7 @@ export default function DeleteModal({
             
             <h3 className="text-xl font-bold text-white text-center mb-2">{title}</h3>
             <p className="text-muted-foreground text-center mb-6">
-              Are you sure you want to {deleteText.toLowerCase()} "{itemName}"? This action cannot be undone.
+              Are you sure you want to {deleteText.toLowerCase()} &quot;{itemName}&quot;? This action cannot be undone.
             </p>
             
             <div className="flex gap-3">

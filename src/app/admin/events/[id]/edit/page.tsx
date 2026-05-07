@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image, ArrowLeft } from 'lucide-react'
+import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image as ImageIcon, ArrowLeft } from 'lucide-react'
 
 const categories = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other']
 
@@ -383,7 +383,7 @@ export default function EditEventPage() {
               Event Image URL
             </label>
             <div className="relative">
-              <Image size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <ImageIcon size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input 
                 type="url" 
                 placeholder="https://..."
@@ -424,7 +424,7 @@ export default function EditEventPage() {
           >
             <h3 className="text-xl font-bold text-white mb-2">Delete Event?</h3>
             <p className="text-muted-foreground mb-6">
-              Are you sure you want to delete "{form.title}"? 
+              Are you sure you want to delete &quot;{form.title}&quot;?
               {form.capacity > 0 && ' This event has registrations and will be hidden from users.'}
             </p>
             <div className="flex gap-3">

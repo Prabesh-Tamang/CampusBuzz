@@ -1,0 +1,191 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { Brain, Users, Clock, Shield, RefreshCw } from 'lucide-react';
+
+interface AlgorithmStats {
+  collaborativeFiltering: {
+    usersInMatrix: number;
+    totalRegistrations: number;
+    cacheSize: number;
+    status: 'active' | 'warming_up';
+  };
+  waitlist: {
+    studentsWaiting: number;
+    eventsWithWaitlist: number;
+    status: 'active';
+  };
+  isolationForest: {
+    trainedOnSamples: number;
+    flaggedToday: number;
+    blockedToday: number;
+    totalCheckins: number;
+    status: 'active' | 'warming_up';
+    minSamplesNeeded: number;
+  };
+}
+
+function StatusDot({ status }: { status: 'active' | 'warming_up' }) {
+  return (
+    <span className={`flex items-center gap-1 text-xs ${
+      status === 'active' ? 'text-teal-400' : 'text-amber-400'
+    }`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${
+        status === 'active' ? 'bg-teal-400 animate-pulse' : 'bg-amber-400'
+      }`} />
+      {status === 'active' ? 'Active' : 'Warming up'}
+    </span>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+      <span className="text-xs text-gray-500">{label}</span>
+      <span className="text-xs font-medium text-gray-300">{value}</span>
+    </div>
+  );
+}
+
+export default function AlgorithmInsights() {
+  const [stats, setStats] = useState<AlgorithmStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/algorithm-stats');
+      if (!res.ok) return;
+      setStats(await res.json());
+      setLastUpdated(new Date());
+    } catch {
+      // Non-critical widget — fail silently
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  if (loading) {
+    return (
+      <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
+        <div className="animate-pulse space-y-3">
+          <div className="h-4 bg-white/10 rounded w-40" />
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-3 bg-white/5 rounded" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) return null;
+
+  const { collaborativeFiltering: cf, waitlist: wl, isolationForest: ifo } = stats;
+
+  return (
+    <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Brain size={16} className="text-teal-400" />
+          <h3 className="text-sm font-medium text-white">Algorithm Insights</h3>
+        </div>
+        <button
+          onClick={fetchStats}
+          className="text-gray-600 hover:text-gray-400 transition-colors"
+          title="Refresh stats"
+        >
+          <RefreshCw size={13} />
+        </button>
+      </div>
+
+      <div className="space-y-5">
+        {/* Collaborative Filtering */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Users size={13} className="text-purple-400" />
+              <span className="text-xs font-medium text-gray-300">Collaborative Filtering</span>
+            </div>
+            <StatusDot status={cf.status} />
+          </div>
+          <div className="bg-white/[0.02] rounded-lg p-3">
+            <Row label="Users in matrix" value={cf.usersInMatrix} />
+            <Row label="Total registrations" value={cf.totalRegistrations} />
+            <Row label="Cached results" value={`${cf.cacheSize} users`} />
+          </div>
+          {cf.status === 'warming_up' && (
+            <p className="text-xs text-amber-400/70 mt-1.5">
+              Needs 2+ students with registrations to activate
+            </p>
+          )}
+        </div>
+
+        <div className="border-t border-white/5" />
+
+        {/* Waitlist */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Clock size={13} className="text-amber-400" />
+              <span className="text-xs font-medium text-gray-300">Min-Heap Waitlist</span>
+            </div>
+            <StatusDot status={wl.status} />
+          </div>
+          <div className="bg-white/[0.02] rounded-lg p-3">
+            <Row label="Students waiting" value={wl.studentsWaiting} />
+            <Row label="Events with waitlist" value={wl.eventsWithWaitlist} />
+          </div>
+        </div>
+
+        <div className="border-t border-white/5" />
+
+        {/* Isolation Forest */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Shield size={13} className="text-red-400" />
+              <span className="text-xs font-medium text-gray-300">Isolation Forest</span>
+            </div>
+            <StatusDot status={ifo.status} />
+          </div>
+          <div className="bg-white/[0.02] rounded-lg p-3">
+            <Row label="Trained on" value={`${ifo.trainedOnSamples} check-ins`} />
+            <Row label="Flagged today" value={ifo.flaggedToday} />
+            <Row label="Blocked today" value={ifo.blockedToday} />
+            <Row label="Total check-ins" value={ifo.totalCheckins} />
+          </div>
+          {ifo.status === 'warming_up' && (
+            <div className="mt-2">
+              <div className="flex justify-between text-xs text-amber-400/70 mb-1">
+                <span>Training progress</span>
+                <span>{ifo.trainedOnSamples} / {ifo.minSamplesNeeded}</span>
+              </div>
+              <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{
+                    width: `${Math.min(
+                      (ifo.trainedOnSamples / ifo.minSamplesNeeded) * 100, 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {lastUpdated && (
+        <p className="text-xs text-gray-700 mt-4 text-right">
+          Updated {lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
+    </div>
+  );
+}

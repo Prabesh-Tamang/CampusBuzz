@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 import { AlertTriangle, CheckCircle, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface FlaggedEntry {
   _id: string;
@@ -91,14 +92,15 @@ export default function AdminFlaggedPage() {
       </div>
 
       {flagged.length === 0 ? (
-        <div className="card p-12 text-center">
-          <CheckCircle size={48} className="text-accent mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">No suspicious check-ins</h3>
-          <p className="text-muted-foreground">All clear — no flagged activity detected</p>
-        </div>
+        <EmptyState
+          icon={ShieldCheck}
+          title="No flagged check-ins"
+          description="All check-ins are within normal parameters. The Isolation Forest model has not detected any suspicious activity."
+        />
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-border bg-dark-card">
                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Student</th>
@@ -146,6 +148,7 @@ export default function AdminFlaggedPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
