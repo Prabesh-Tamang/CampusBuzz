@@ -33,6 +33,13 @@ export async function POST(req: NextRequest) {
     }, { status: 403 });
   }
 
+  if (registration.confirmTokenExpiry && new Date() > registration.confirmTokenExpiry) {
+    return NextResponse.json({
+      error: 'Your confirmation window has expired. Please contact the event organiser.',
+      code: 'CONFIRMATION_EXPIRED',
+    }, { status: 403 });
+  }
+
   if (registration.confirmed) {
     return NextResponse.json({ error: 'Already confirmed.' }, { status: 409 });
   }

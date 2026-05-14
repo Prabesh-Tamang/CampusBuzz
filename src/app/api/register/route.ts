@@ -10,6 +10,7 @@ import Waitlist from '@/models/Waitlist';
 import QRCode from 'qrcode';
 import { sendRegistrationEmail, sendCapacityAlertEmail } from '@/lib/email';
 import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
+import { updateStudentReliability, getTierBenefits } from '@/lib/ml/reliabilityScoring';
 import { format } from 'date-fns';
 import crypto from 'crypto';
 
@@ -42,6 +43,19 @@ export async function POST(req: NextRequest) {
     const user = await User.findById(userId);
     const registrationId = generateRegistrationId();
 
+    const userTier = ((user as any)?.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
+
+    if (userTier === 'unreliable') {
+      return NextResponse.json({
+        error: 'Your account has been flagged with low reliability. Attend more events and maintain consistent check-ins to restore registration privileges.',
+        code: 'UNRELIABLE_TIER',
+      }, { status: 403 });
+    }
+
+    const isLastMinute = event.date.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+    const tierBenefits = getTierBenefits(userTier);
+    const confirmTokenExpiry = new Date(Date.now() + tierBenefits.confirmationWindowHours * 60 * 60 * 1000);
+
     const mongoSession = await mongoose.startSession();
     mongoSession.startTransaction();
 
@@ -60,6 +74,8 @@ export async function POST(req: NextRequest) {
         qrCode: '',          // empty until confirmed
         checkedIn: false,
         confirmed: false,    // awaiting confirmation 24h before event
+        isLastMinute,
+        confirmTokenExpiry,
       }], { session: mongoSession });
 
       await Event.findByIdAndUpdate(
@@ -112,6 +128,11 @@ export async function POST(req: NextRequest) {
       }).catch((err: unknown) => {
         console.error('[Email] Failed to send registration confirmation:', err);
       });
+
+      // Fire-and-forget reliability scoring update
+      void updateStudentReliability(userId).catch(err =>
+        console.error('[Reliability] Update after registration failed:', err)
+      );
 
       // Never expose registrationId for unconfirmed free registrations
       // A student must confirm via email before they can check in

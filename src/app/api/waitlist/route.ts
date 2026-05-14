@@ -6,8 +6,9 @@ import Event from '@/models/Event';
 import Registration from '@/models/Registration';
 import Waitlist from '@/models/Waitlist';
 import {
-  joinWaitlist, leaveWaitlist, getPosition, getHeap
+  joinWaitlist, leaveWaitlist, getPosition, getHeap, invalidateHeap
 } from '@/lib/algorithms/waitlistManager';
+import { updateStudentReliability, maybeRetrain } from '@/lib/ml/reliabilityScoring';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -69,6 +70,19 @@ export async function DELETE(req: Request) {
   const entry = await Waitlist.findOne({ userId, eventId });
   if (!entry) return NextResponse.json({ error: 'Not on waitlist' }, { status: 404 });
 
-  await leaveWaitlist(userId, eventId);
+  const wasPromoted = await Registration.findOne({ userId, eventId, promotedFromWaitlist: true }).lean();
+
+  if (wasPromoted) {
+    await Waitlist.updateOne({ userId, eventId }, { $set: { abandonedAt: new Date() } });
+    invalidateHeap(eventId);
+  } else {
+    await leaveWaitlist(userId, eventId);
+  }
+
+  void updateStudentReliability(userId).catch(err =>
+    console.error('[Reliability] Update after waitlist leave failed:', err)
+  );
+  maybeRetrain();
+
   return NextResponse.json({ success: true });
 }

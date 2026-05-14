@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Brain, Users, Clock, Shield, RefreshCw } from 'lucide-react';
+import { Brain, Users, Clock, Shield, RefreshCw, Trophy } from 'lucide-react';
 
 interface AlgorithmStats {
   collaborativeFiltering: {
@@ -22,6 +22,18 @@ interface AlgorithmStats {
     totalCheckins: number;
     status: 'active' | 'warming_up';
     minSamplesNeeded: number;
+  };
+  reliability: {
+    trained: boolean;
+    trainingCount: number;
+    tierDistribution: {
+      champion: number;
+      regular: number;
+      new: number;
+      unreliable: number;
+    };
+    averageScore: number | null;
+    status: 'active' | 'warming_up';
   };
 }
 
@@ -46,6 +58,13 @@ function Row({ label, value }: { label: string; value: string | number }) {
     </div>
   );
 }
+
+const TIER_DISPLAY: Record<string, { label: string; color: string; bar: string }> = {
+  champion:   { label: 'Champion',      color: 'text-amber-400',  bar: 'bg-amber-400' },
+  regular:    { label: 'Regular',       color: 'text-teal-400',   bar: 'bg-teal-500' },
+  new:        { label: 'New',           color: 'text-blue-400',   bar: 'bg-blue-500' },
+  unreliable: { label: 'Low History',   color: 'text-orange-400', bar: 'bg-orange-500' },
+};
 
 export default function AlgorithmInsights() {
   const [stats, setStats] = useState<AlgorithmStats | null>(null);
@@ -76,7 +95,7 @@ export default function AlgorithmInsights() {
       <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-white/10 rounded w-40" />
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div key={i} className="h-3 bg-white/5 rounded" />
           ))}
         </div>
@@ -86,7 +105,10 @@ export default function AlgorithmInsights() {
 
   if (!stats) return null;
 
-  const { collaborativeFiltering: cf, waitlist: wl, isolationForest: ifo } = stats;
+  const { collaborativeFiltering: cf, waitlist: wl, isolationForest: ifo, reliability: rel } = stats;
+
+  // Total students for percentage calculation
+  const totalStudents = Object.values(rel.tierDistribution).reduce((a, b) => a + b, 0) || 1;
 
   return (
     <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
@@ -105,42 +127,50 @@ export default function AlgorithmInsights() {
       </div>
 
       <div className="space-y-5">
-        {/* Collaborative Filtering */}
+
+        {/* Reliability Scoring — most prominent since it's new */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Users size={13} className="text-purple-400" />
-              <span className="text-xs font-medium text-gray-300">Collaborative Filtering</span>
+              <Trophy size={13} className="text-amber-400" />
+              <span className="text-xs font-medium text-gray-300">
+                Student Reliability (IF + Decision Tree)
+              </span>
             </div>
-            <StatusDot status={cf.status} />
+            <StatusDot status={rel.status} />
           </div>
+
+          {/* Tier distribution bars with percentages */}
+          <div className="space-y-2 mb-3">
+            {Object.entries(TIER_DISPLAY).map(([tier, display]) => {
+              const count = rel.tierDistribution[tier as keyof typeof rel.tierDistribution] ?? 0;
+              const pct = Math.round((count / totalStudents) * 100);
+              return (
+                <div key={tier}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className={display.color}>{display.label}</span>
+                    <span className="text-gray-500">{count} students ({pct}%)</span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${display.bar}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="bg-white/[0.02] rounded-lg p-3">
-            <Row label="Users in matrix" value={cf.usersInMatrix} />
-            <Row label="Total registrations" value={cf.totalRegistrations} />
-            <Row label="Cached results" value={`${cf.cacheSize} users`} />
+            <Row label="Trained on" value={`${rel.trainingCount} students`} />
+            <Row label="Avg reliability score" value={rel.averageScore !== null ? `${rel.averageScore}/100` : '—'} />
           </div>
-          {cf.status === 'warming_up' && (
+          {rel.status === 'warming_up' && (
             <p className="text-xs text-amber-400/70 mt-1.5">
-              Needs 2+ students with registrations to activate
+              Needs 10+ students with 2+ registrations each to train
             </p>
           )}
-        </div>
-
-        <div className="border-t border-white/5" />
-
-        {/* Waitlist */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Clock size={13} className="text-amber-400" />
-              <span className="text-xs font-medium text-gray-300">Min-Heap Waitlist</span>
-            </div>
-            <StatusDot status={wl.status} />
-          </div>
-          <div className="bg-white/[0.02] rounded-lg p-3">
-            <Row label="Students waiting" value={wl.studentsWaiting} />
-            <Row label="Events with waitlist" value={wl.eventsWithWaitlist} />
-          </div>
         </div>
 
         <div className="border-t border-white/5" />
@@ -150,7 +180,7 @@ export default function AlgorithmInsights() {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Shield size={13} className="text-red-400" />
-              <span className="text-xs font-medium text-gray-300">Isolation Forest</span>
+              <span className="text-xs font-medium text-gray-300">Isolation Forest (Check-in)</span>
             </div>
             <StatusDot status={ifo.status} />
           </div>
@@ -179,6 +209,47 @@ export default function AlgorithmInsights() {
             </div>
           )}
         </div>
+
+        <div className="border-t border-white/5" />
+
+        {/* Waitlist */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Clock size={13} className="text-amber-400" />
+              <span className="text-xs font-medium text-gray-300">Min-Heap Waitlist</span>
+            </div>
+            <StatusDot status={wl.status} />
+          </div>
+          <div className="bg-white/[0.02] rounded-lg p-3">
+            <Row label="Students waiting" value={wl.studentsWaiting} />
+            <Row label="Events with waitlist" value={wl.eventsWithWaitlist} />
+          </div>
+        </div>
+
+        <div className="border-t border-white/5" />
+
+        {/* Collaborative Filtering */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Users size={13} className="text-purple-400" />
+              <span className="text-xs font-medium text-gray-300">Collaborative Filtering</span>
+            </div>
+            <StatusDot status={cf.status} />
+          </div>
+          <div className="bg-white/[0.02] rounded-lg p-3">
+            <Row label="Users in matrix" value={cf.usersInMatrix} />
+            <Row label="Total registrations" value={cf.totalRegistrations} />
+            <Row label="Cached results" value={`${cf.cacheSize} users`} />
+          </div>
+          {cf.status === 'warming_up' && (
+            <p className="text-xs text-amber-400/70 mt-1.5">
+              Needs 2+ students with registrations to activate
+            </p>
+          )}
+        </div>
+
       </div>
 
       {lastUpdated && (

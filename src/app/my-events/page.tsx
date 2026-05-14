@@ -156,6 +156,9 @@ function MyEventsContent() {
           {/* Attendance Stats Card — TASK-08 */}
           <AttendanceStatsCardWrapper />
 
+          {/* Reliability Score Card */}
+          <ReliabilityCardWrapper />
+
           <div className="flex gap-4 mb-6 border-b border-border">
             <button
               onClick={() => setActiveTab('registered')}
@@ -405,6 +408,15 @@ function AttendanceStatsCardWrapper() {
   const [Component, setComponent] = useState<React.ComponentType | null>(null)
   useEffect(() => {
     import('@/components/AttendanceStatsCard').then(m => setComponent(() => m.default))
+  }, [])
+  if (!Component) return null
+  return <div className="mb-6"><Component /></div>
+}
+
+function ReliabilityCardWrapper() {
+  const [Component, setComponent] = useState<React.ComponentType | null>(null)
+  useEffect(() => {
+    import('@/components/ReliabilityCard').then(m => setComponent(() => m.default))
   }, [])
   if (!Component) return null
   return <div className="mb-6"><Component /></div>

@@ -7,6 +7,7 @@ import Registration from '@/models/Registration';
 import User from '@/models/User';
 import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { sendAttendanceConfirmation } from '@/lib/email';
+import { getTierBenefits } from '@/lib/ml/reliabilityScoring';
 import crypto from 'crypto';
 import { format } from 'date-fns';
 
@@ -59,14 +60,17 @@ export async function POST(req: NextRequest) {
       }).lean() as any[];
 
       for (const reg of regs) {
-        const user = await User.findById(reg.userId).select('email name').lean() as any;
+        const user = await User.findById(reg.userId).select('email name engagementTier').lean() as any;
         if (!user?.email) continue;
+
+        const tier = (user.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
+        const benefits = getTierBenefits(tier);
 
         const token = crypto.randomBytes(32).toString('hex');
         await Registration.findByIdAndUpdate(reg._id, {
           confirmToken: token,
           confirmationEmailSent: true,
-          confirmTokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          confirmTokenExpiry: new Date(Date.now() + benefits.confirmationWindowHours * 60 * 60 * 1000),
         });
 
         const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;
@@ -103,14 +107,17 @@ export async function POST(req: NextRequest) {
       }).lean() as any[];
 
       for (const reg of regs) {
-        const user = await User.findById(reg.userId).select('email name').lean() as any;
+        const user = await User.findById(reg.userId).select('email name engagementTier').lean() as any;
         if (!user?.email) continue;
+
+        const tier = (user.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
+        const benefits = getTierBenefits(tier);
 
         const token = crypto.randomBytes(32).toString('hex');
         await Registration.findByIdAndUpdate(reg._id, {
           confirmToken: token,
           confirmationEmailSent: true,
-          confirmTokenExpiry: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          confirmTokenExpiry: new Date(Date.now() + benefits.confirmationWindowHours * 60 * 60 * 1000),
         });
 
         const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;

@@ -15,6 +15,8 @@ export interface IRegistration extends Document {
   confirmToken?: string;       // token sent in confirmation email
   confirmationEmailSent: boolean; // admin has sent the confirmation email
   confirmTokenExpiry?: Date;   // token expiry (48h after admin sends)
+  promotedFromWaitlist: boolean;
+  isLastMinute: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +37,8 @@ const RegistrationSchema = new Schema<IRegistration>(
     confirmToken: { type: String },
     confirmationEmailSent: { type: Boolean, default: false },
     confirmTokenExpiry: { type: Date },
+    promotedFromWaitlist: { type: Boolean, default: false },
+    isLastMinute: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

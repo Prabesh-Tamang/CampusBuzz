@@ -6,6 +6,8 @@ import User from '@/models/User';
 import mongoose from 'mongoose';
 import { sendPromotionEmail } from '@/lib/email';
 import { WAITLIST_HOUR_DISCOUNT_MS } from '@/lib/constants';
+import { getTierBenefits } from '@/lib/ml/reliabilityScoring';
+import type { EngagementTier } from '@/lib/ml/reliabilityScoring';
 import crypto from 'crypto';
 
 export interface WaitlistEntry {
@@ -28,11 +30,25 @@ export async function computePriorityScore(
     userId,
     checkedIn: true,
   });
-  return joinedAt.getTime() - attendanceBonus * WAITLIST_HOUR_DISCOUNT_MS;
+
+  const user = await User.findById(userId).select('engagementTier').lean();
+  const tier = ((user as any)?.engagementTier ?? 'new') as EngagementTier;
+  const benefits = getTierBenefits(tier);
+
+  let score = joinedAt.getTime() - attendanceBonus * WAITLIST_HOUR_DISCOUNT_MS * benefits.waitlistMultiplier;
+  score += benefits.waitlistPenaltyHours * WAITLIST_HOUR_DISCOUNT_MS;
+
+  return score;
 }
 
 export async function buildHeap(eventId: string): Promise<MinHeap<WaitlistEntry>> {
-  const entries = await Waitlist.find({ eventId })
+  const entries = await Waitlist.find({
+    eventId,
+    $or: [
+      { abandonedAt: null },
+      { abandonedAt: { $exists: false } },
+    ],
+  })
     .sort({ priorityScore: 1 })
     .lean();
 
@@ -124,6 +140,7 @@ export async function promoteTopWaitlistUser(eventId: string): Promise<void> {
       registrationId,
       qrCode,
       checkedIn: false,
+      promotedFromWaitlist: true,
     }], { session });
 
     await Event.findByIdAndUpdate(

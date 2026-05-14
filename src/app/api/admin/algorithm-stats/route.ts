@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Registration from '@/models/Registration';
 import Waitlist from '@/models/Waitlist';
+import User from '@/models/User';
 
 export async function GET() {
   try {
@@ -25,6 +26,8 @@ export async function GET() {
       flaggedToday,
       blockedToday,
       totalCheckins,
+      tierDistribution,
+      reliabilityAvg,
     ] = await Promise.all([
       Registration.countDocuments({}),
       Registration.distinct('userId'),
@@ -38,7 +41,20 @@ export async function GET() {
         updatedAt: { $gte: todayStart },
       }),
       Registration.countDocuments({ checkedIn: true }),
+      User.aggregate([
+        { $match: { role: 'student', engagementTier: { $ne: null } } },
+        { $group: { _id: '$engagementTier', count: { $sum: 1 } } },
+      ]),
+      User.aggregate([
+        { $match: { role: 'student', reliabilityScore: { $ne: null } } },
+        { $group: { _id: null, avg: { $avg: '$reliabilityScore' } } },
+      ]),
     ]);
+
+    const tierMap: Record<string, number> = { champion: 0, regular: 0, new: 0, unreliable: 0 };
+    for (const t of tierDistribution) {
+      tierMap[t._id] = t.count;
+    }
 
     // Get cache stats
     const { recommendationCache } = await import('@/lib/recommendations/recommendationCache');
@@ -47,6 +63,10 @@ export async function GET() {
     // Get ML model stats
     const { getModelStats } = await import('@/lib/ml/modelManager');
     const mlStats = getModelStats();
+
+    // Get reliability model stats
+    const { getReliabilityModelStats } = await import('@/lib/ml/reliabilityScoring');
+    const relStats = getReliabilityModelStats();
 
     return NextResponse.json({
       collaborativeFiltering: {
@@ -67,6 +87,13 @@ export async function GET() {
         totalCheckins,
         status: mlStats.trained ? 'active' : 'warming_up',
         minSamplesNeeded: 20,
+      },
+      reliability: {
+        trained: relStats.trained,
+        trainingCount: relStats.trainingCount,
+        tierDistribution: tierMap,
+        averageScore: reliabilityAvg.length > 0 ? Math.round(reliabilityAvg[0].avg) : null,
+        status: relStats.trained ? 'active' : 'warming_up',
       },
     });
   } catch (err) {

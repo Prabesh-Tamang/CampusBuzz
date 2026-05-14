@@ -15,9 +15,14 @@ import {
   Edit2,
   Eye,
   XCircle,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import TierBadge from "@/components/TierBadge";
 
 interface EventData {
   _id: string;
@@ -50,24 +55,28 @@ export default function AdminEventViewPage() {
   const [waitlistCount, setWaitlistCount] = useState(0);
   const [notifyCount, setNotifyCount] = useState(0);
   const [eventStats, setEventStats] = useState<any>(null);
-  
   const [cancelModal, setCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [showRegistrations, setShowRegistrations] = useState(false);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
 
   const handleCancelEvent = async () => {
     if (!cancelReason.trim()) { toast.error("Reason required"); return; }
     setCancelling(true);
     try {
       const res = await fetch(`/api/admin/events/${id}/cancel`, {
-         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: cancelReason })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       toast.success(`Event cancelled! ${data.refundCount} refunds initiated.`);
       setCancelModal(false);
       setEvent(prev => prev ? { ...prev, isCancelled: true, cancelReason } : prev);
-    } catch(err: any) {
+    } catch (err: any) {
       toast.error(err.message || "Failed to cancel event");
     } finally {
       setCancelling(false);
@@ -77,25 +86,44 @@ export default function AdminEventViewPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/admin/login'); return; }
     if (status === 'authenticated' && (session?.user as any)?.role !== 'admin') { router.push('/events'); return; }
-    
+
     if (status === 'authenticated') {
       fetch(`/api/events/${id}`)
-        .then((r) => r.json())
-        .then((data) => { setEvent(data); setLoading(false); });
+        .then(r => r.json())
+        .then(data => { setEvent(data); setLoading(false); });
 
-      // Fetch waitlist count
       fetch(`/api/admin/event-stats/${id}`)
         .then(r => r.json())
         .then(d => { setWaitlistCount(d.waitlistCount || 0); setNotifyCount(d.notifyCount || 0); })
         .catch(() => {});
-        
-      // Fetch new event stats
+
       fetch(`/api/admin/events/${id}/stats`)
         .then(r => r.json())
         .then(d => { setEventStats(d); })
         .catch(() => {});
     }
   }, [id, session, status]);
+
+  const fetchRegistrations = async () => {
+    if (loadingRegistrations) return;
+    setLoadingRegistrations(true);
+    try {
+      const res = await fetch(`/api/admin/events/${id}/registrations`);
+      if (res.ok) {
+        const d = await res.json();
+        setRegistrations(d.registrations || []);
+      }
+    } catch { /* silent */ } finally {
+      setLoadingRegistrations(false);
+    }
+  };
+
+  const toggleRegistrations = () => {
+    if (!showRegistrations && registrations.length === 0) {
+      fetchRegistrations();
+    }
+    setShowRegistrations(prev => !prev);
+  };
 
   if (loading || status === 'loading')
     return (
@@ -117,9 +145,7 @@ export default function AdminEventViewPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-xl text-muted-foreground mb-4">Event not found</p>
-          <Link href="/admin/dashboard" className="btn-primary">
-            Back to Dashboard
-          </Link>
+          <Link href="/admin/dashboard" className="btn-primary">Back to Dashboard</Link>
         </div>
       </div>
     );
@@ -131,10 +157,11 @@ export default function AdminEventViewPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-[1000px] mx-auto px-6 py-12">
+
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            href="/admin/dashboard" 
+          <Link
+            href="/admin/dashboard"
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-white transition mb-4 text-sm"
           >
             <ArrowLeft size={16} /> Back to Dashboard
@@ -142,9 +169,7 @@ export default function AdminEventViewPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <span className={`badge cat-${event.category}`}>
-                  {event.category}
-                </span>
+                <span className={`badge cat-${event.category}`}>{event.category}</span>
                 {event.feeType === 'paid' ? (
                   <span className="badge bg-amber-500/20 text-amber-400">
                     <DollarSign size={12} /> Rs. {event.feeAmount}
@@ -152,29 +177,18 @@ export default function AdminEventViewPage() {
                 ) : (
                   <span className="badge bg-green-500/20 text-green-400">Free</span>
                 )}
-                {isEnded && (
-                  <span className="badge bg-gray-500/20 text-gray-400">Ended</span>
-                )}
-                {!event.isActive && (
-                  <span className="badge bg-red-500/20 text-red-400">Hidden</span>
-                )}
+                {isEnded && <span className="badge bg-gray-500/20 text-gray-400">Ended</span>}
+                {!event.isActive && <span className="badge bg-red-500/20 text-red-400">Hidden</span>}
               </div>
               <h1 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white">
                 {event.title}
               </h1>
             </div>
             <div className="flex gap-2">
-              <Link
-                href={`/admin/events/${event._id}/edit`}
-                className="btn-ghost flex items-center gap-2"
-              >
+              <Link href={`/admin/events/${event._id}/edit`} className="btn-ghost flex items-center gap-2">
                 <Edit2 size={16} /> Edit
               </Link>
-              <Link
-                href={`/events/${event._id}`}
-                target="_blank"
-                className="btn-ghost flex items-center gap-2"
-              >
+              <Link href={`/events/${event._id}`} target="_blank" className="btn-ghost flex items-center gap-2">
                 <Eye size={16} /> View Public
               </Link>
             </div>
@@ -187,9 +201,7 @@ export default function AdminEventViewPage() {
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <Calendar size={14} /> Date
             </div>
-            <p className="text-lg font-bold text-white">
-              {format(new Date(event.date), 'MMM d, yyyy')}
-            </p>
+            <p className="text-lg font-bold text-white">{format(new Date(event.date), 'MMM d, yyyy')}</p>
             <p className="text-xs text-muted-foreground">
               {format(new Date(event.date), 'h:mm a')}
               {event.endDate && ` - ${format(new Date(event.endDate), 'h:mm a')}`}
@@ -205,14 +217,10 @@ export default function AdminEventViewPage() {
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
               <Users size={14} /> Registrations
             </div>
-            <p className="text-lg font-bold text-white">
-              {event.registeredCount}/{event.capacity}
-            </p>
+            <p className="text-lg font-bold text-white">{event.registeredCount}/{event.capacity}</p>
             <div className="mt-2 w-full h-2 bg-surface2 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full ${
-                  fillRate >= 100 ? 'bg-red-500' : fillRate >= 80 ? 'bg-amber-500' : 'bg-teal-500'
-                }`}
+                className={`h-full rounded-full ${fillRate >= 100 ? 'bg-red-500' : fillRate >= 80 ? 'bg-amber-500' : 'bg-teal-500'}`}
                 style={{ width: `${fillRate}%` }}
               />
             </div>
@@ -231,7 +239,6 @@ export default function AdminEventViewPage() {
               </p>
             )}
           </div>
-          {/* Waitlist count — only for free events */}
           {event.feeType === 'free' && (
             <div className="card p-4 border border-amber-500/20">
               <div className="flex items-center gap-2 text-amber-400 text-sm mb-1">
@@ -241,7 +248,6 @@ export default function AdminEventViewPage() {
               <p className="text-xs text-muted-foreground mt-1">students waiting</p>
             </div>
           )}
-          {/* Notify-me count — only for paid events */}
           {event.feeType === 'paid' && (
             <div className="card p-4 border border-purple-500/20">
               <div className="flex items-center gap-2 text-purple-400 text-sm mb-1">
@@ -253,7 +259,7 @@ export default function AdminEventViewPage() {
           )}
         </div>
 
-        {/* Detailed Stats Panel */}
+        {/* Detailed Analytics */}
         <div className="card p-6 mb-8">
           <h3 className="text-lg font-bold text-white mb-4">Detailed Analytics</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -265,7 +271,9 @@ export default function AdminEventViewPage() {
               <p className="text-sm text-muted-foreground mb-1">Check-ins</p>
               <p className="text-2xl font-bold text-teal-400">{eventStats?.checkIns || 0}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {eventStats?.totalRegistrations ? Math.round(((eventStats.checkIns) / eventStats.totalRegistrations) * 100) : 0}% check-in rate
+                {eventStats?.totalRegistrations
+                  ? Math.round((eventStats.checkIns / eventStats.totalRegistrations) * 100)
+                  : 0}% check-in rate
               </p>
             </div>
             {event.feeType === 'paid' && (
@@ -282,6 +290,112 @@ export default function AdminEventViewPage() {
           </div>
         </div>
 
+        {/* ── Registrations Table ─────────────────────────────────────────── */}
+        <div className="card mb-8 overflow-hidden">
+          <button
+            onClick={toggleRegistrations}
+            className="w-full flex items-center justify-between p-6 hover:bg-white/[0.02] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Users size={18} className="text-teal-400" />
+              <h3 className="text-lg font-bold text-white">
+                Registrations
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({event.registeredCount} total)
+                </span>
+              </h3>
+            </div>
+            {showRegistrations ? (
+              <ChevronUp size={18} className="text-muted-foreground" />
+            ) : (
+              <ChevronDown size={18} className="text-muted-foreground" />
+            )}
+          </button>
+
+          {showRegistrations && (
+            <div className="border-t border-border">
+              {loadingRegistrations ? (
+                <div className="p-8 text-center">
+                  <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                </div>
+              ) : registrations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  No registrations yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-border bg-surface2/50">
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Student</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Tier</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Registered</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Check-in</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {registrations.map((reg: any) => {
+                        const user = reg.userId as any;
+                        return (
+                          <tr key={reg._id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-white text-sm">{user?.name || 'Unknown'}</div>
+                              <div className="text-xs text-muted-foreground">{user?.email || ''}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <TierBadge
+                                tier={user?.engagementTier ?? 'new'}
+                                size="sm"
+                                audience="admin"
+                              />
+                            </td>
+                            <td className="px-6 py-4">
+                              {reg.flagged ? (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-400">
+                                  <AlertTriangle size={10} /> Flagged
+                                </span>
+                              ) : reg.confirmed ? (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-teal-500/10 text-teal-400">
+                                  <CheckCircle size={10} /> Confirmed
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-gray-500/10 text-gray-400">
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {reg.createdAt ? format(new Date(reg.createdAt), 'MMM d, h:mm a') : '—'}
+                            </td>
+                            <td className="px-6 py-4">
+                              {reg.checkedIn ? (
+                                <div>
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400">
+                                    <CheckCircle size={10} /> Checked In
+                                  </span>
+                                  {reg.checkedInAt && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {format(new Date(reg.checkedInAt), 'h:mm a')}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Main content + sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -292,13 +406,10 @@ export default function AdminEventViewPage() {
                 background: event.imageUrl
                   ? `url(${event.imageUrl}) center/cover`
                   : `linear-gradient(135deg, ${
-                      event.category === "Technical"
-                        ? "#14b8a6, #0d9488"
-                        : event.category === "Cultural"
-                          ? "#f43f5e, #e11d48"
-                          : event.category === "Sports"
-                            ? "#f59e0b, #d97706"
-                            : "#a78bfa, #7c3aed"
+                      event.category === "Technical" ? "#14b8a6, #0d9488" :
+                      event.category === "Cultural" ? "#f43f5e, #e11d48" :
+                      event.category === "Sports" ? "#f59e0b, #d97706" :
+                      "#a78bfa, #7c3aed"
                     })`,
               }}
             >
@@ -312,9 +423,7 @@ export default function AdminEventViewPage() {
             {/* Description */}
             <div className="card p-6">
               <h3 className="text-lg font-bold text-white mb-4">Description</h3>
-              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {event.description}
-              </p>
+              <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{event.description}</p>
             </div>
 
             {/* Tags */}
@@ -324,11 +433,8 @@ export default function AdminEventViewPage() {
                   <Tag size={18} /> Tags
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {event.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1.5 bg-surface2 border border-border rounded-lg text-sm text-muted-foreground font-medium"
-                    >
+                  {event.tags.map(tag => (
+                    <span key={tag} className="px-3 py-1.5 bg-surface2 border border-border rounded-lg text-sm text-muted-foreground font-medium">
                       #{tag}
                     </span>
                   ))}
@@ -361,18 +467,13 @@ export default function AdminEventViewPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-muted-foreground">Status</span>
-                  <span className={`font-semibold ${
-                    !event.isActive ? 'text-red-400' : 
-                    isEnded ? 'text-gray-400' : 'text-green-400'
-                  }`}>
+                  <span className={`font-semibold ${!event.isActive ? 'text-red-400' : isEnded ? 'text-gray-400' : 'text-green-400'}`}>
                     {!event.isActive ? 'Hidden' : isEnded ? 'Ended' : 'Active'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-border">
                   <span className="text-muted-foreground">Entry Fee</span>
-                  <span className={`font-semibold ${
-                    event.feeType === 'paid' ? 'text-amber-400' : 'text-green-400'
-                  }`}>
+                  <span className={`font-semibold ${event.feeType === 'paid' ? 'text-amber-400' : 'text-green-400'}`}>
                     {event.feeType === 'paid' ? `Rs. ${event.feeAmount}` : 'Free'}
                   </span>
                 </div>
@@ -389,11 +490,13 @@ export default function AdminEventViewPage() {
               </div>
             </div>
 
-            {/* Cancel Event - only show if active and not ended */}
+            {/* Cancel Event */}
             {!event.isCancelled && !isEnded && (
               <div className="card p-6">
                 <h3 className="text-lg font-bold text-white mb-3">Danger Zone</h3>
-                <p className="text-sm text-muted-foreground mb-4">Cancelling will notify all registrants and initiate refunds for paid events.</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Cancelling will notify all registrants and initiate refunds for paid events.
+                </p>
                 <button
                   onClick={() => setCancelModal(true)}
                   className="w-full px-4 py-2.5 text-sm font-semibold rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 flex items-center justify-center gap-2 transition-colors"
@@ -412,22 +515,18 @@ export default function AdminEventViewPage() {
           <div className="bg-surface border border-border rounded-2xl w-full max-w-md p-6 shadow-xl">
             <h2 className="text-xl font-bold text-white mb-2">Cancel Event</h2>
             <p className="text-muted-foreground text-sm mb-4">
-              Are you sure you want to cancel <strong className="text-white">{event.title}</strong>? 
+              Are you sure you want to cancel <strong className="text-white">{event.title}</strong>?
               This will notify all registered students and initiate refunds if it is a paid event. This action cannot be undone.
             </p>
-            
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Cancellation Reason
-              </label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Cancellation Reason</label>
               <textarea
                 value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
+                onChange={e => setCancelReason(e.target.value)}
                 placeholder="e.g. Due to unexpected weather conditions..."
                 className="w-full bg-surface2 border border-border rounded-xl p-3 text-white focus:outline-none focus:border-red-500 min-h-[100px] resize-none"
               />
             </div>
-
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setCancelModal(false)}

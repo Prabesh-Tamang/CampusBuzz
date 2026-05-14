@@ -1,3 +1,4 @@
+// CampusBuzz Seed Script — with tier-distributed students for algorithm demo
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -29,6 +30,8 @@ const UserSchema = new mongoose.Schema({
   password: String,
   role: String,
   college: String,
+  engagementTier: { type: String, enum: ['champion', 'regular', 'new', 'unreliable'], default: 'new' },
+  reliabilityScore: { type: Number, default: null },
 }, { timestamps: true });
 
 const EventSchema = new mongoose.Schema({
@@ -64,6 +67,11 @@ const RegistrationSchema = new mongoose.Schema({
   flagged: { type: Boolean, default: false },
   adminOverride: { type: Boolean, default: false },
   paymentId: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
+  confirmed: { type: Boolean, default: false },
+  promotedFromWaitlist: { type: Boolean, default: false },
+  isLastMinute: { type: Boolean, default: false },
+  confirmationEmailSent: { type: Boolean, default: false },
+  confirmTokenExpiry: Date,
 }, { timestamps: true });
 
 const WaitlistSchema = new mongoose.Schema({
@@ -126,7 +134,7 @@ async function seed() {
     await mongoose.connect(MONGODB_URI);
     console.log("Connected!");
 
-    // Drop all collections for a clean state (Req 15.6)
+    // Drop all collections for a clean state
     await User.deleteMany({});
     await Event.deleteMany({});
     await Registration.deleteMany({});
@@ -134,9 +142,9 @@ async function seed() {
     await Payment.deleteMany({});
     console.log("Cleared existing data");
 
-    // ── Admin users (Req 15.1: at least 2) ──────────────────────────────────
+    // ── Admin users ──────────────────────────────────────────────────────────
     const adminPassword = await bcrypt.hash("Admin@123", 12);
-    const [admin1, admin2] = await User.insertMany([
+    const [admin1] = await User.insertMany([
       {
         name: "Campus Admin",
         email: "admin@campusbuzz.com",
@@ -154,18 +162,48 @@ async function seed() {
     ]);
     console.log("Created 2 admin users");
 
-    // ── Student users (Req 15.1: at least 10) ───────────────────────────────
+    // ── Student users with deliberate tier distribution ──────────────────────
+    // student0 (demo)  → champion tier (high attendance)
+    // student1-3       → champion tier (high attendance)
+    // student4-8       → regular tier (medium attendance)
+    // student9-11      → new tier (few registrations)
+    // student12-14     → unreliable tier (low attendance / bulk registrations)
     const studentPassword = await bcrypt.hash("Student@123", 12);
-    const studentDocs = [
-      { name: "Demo Student", email: "student@campusbuzz.com" },
-      ...Array.from({ length: 13 }, (_, i) => ({
-        name: `Student ${i + 1}`,
-        email: `student${i + 1}@campusbuzz.com`,
-      })),
-    ].map(s => ({ ...s, password: studentPassword, role: "student", college: "CampusBuzz University" }));
+    const studentDefs = [
+      // Demo student — champion
+      { name: "Demo Student",  email: "student@campusbuzz.com",   tier: "champion",   score: 88 },
+      // Champions (student1-3)
+      { name: "Student 1",     email: "student1@campusbuzz.com",  tier: "champion",   score: 92 },
+      { name: "Student 2",     email: "student2@campusbuzz.com",  tier: "champion",   score: 85 },
+      { name: "Student 3",     email: "student3@campusbuzz.com",  tier: "champion",   score: 80 },
+      // Regulars (student4-8)
+      { name: "Student 4",     email: "student4@campusbuzz.com",  tier: "regular",    score: 65 },
+      { name: "Student 5",     email: "student5@campusbuzz.com",  tier: "regular",    score: 60 },
+      { name: "Student 6",     email: "student6@campusbuzz.com",  tier: "regular",    score: 58 },
+      { name: "Student 7",     email: "student7@campusbuzz.com",  tier: "regular",    score: 55 },
+      { name: "Student 8",     email: "student8@campusbuzz.com",  tier: "regular",    score: 52 },
+      // New (student9-11)
+      { name: "Student 9",     email: "student9@campusbuzz.com",  tier: "new",        score: null },
+      { name: "Student 10",    email: "student10@campusbuzz.com", tier: "new",        score: null },
+      { name: "Student 11",    email: "student11@campusbuzz.com", tier: "new",        score: null },
+      // Unreliable (student12-14)
+      { name: "Student 12",    email: "student12@campusbuzz.com", tier: "unreliable", score: 18 },
+      { name: "Student 13",    email: "student13@campusbuzz.com", tier: "unreliable", score: 12 },
+      { name: "Student 14",    email: "student14@campusbuzz.com", tier: "unreliable", score: 15 },
+    ];
 
-    const students = await User.insertMany(studentDocs);
-    console.log(`Created ${students.length} student users`);
+    const students = await User.insertMany(
+      studentDefs.map(s => ({
+        name: s.name,
+        email: s.email,
+        password: studentPassword,
+        role: "student",
+        college: "CampusBuzz University",
+        engagementTier: s.tier,
+        reliabilityScore: s.score,
+      }))
+    );
+    console.log(`Created ${students.length} student users (4 champion, 5 regular, 3 new, 3 unreliable)`);
 
     // ── Events (Req 15.2: 15+ across all 7 categories, free/paid, past/upcoming) ──
     const eventDefs = [
@@ -341,80 +379,163 @@ async function seed() {
     const createdEvents = await Event.insertMany(eventDefs);
     console.log(`Created ${createdEvents.length} events`);
 
-    // ── Registrations (Req 15.3) ─────────────────────────────────────────────
+    // ── Registrations with tier-appropriate attendance patterns ─────────────
+    // Champions (idx 0-3): register for many events, check in to most (≥70%)
+    // Regulars  (idx 4-8): register for several events, check in to ~50-65%
+    // New       (idx 9-11): only 1-2 registrations, no check-ins yet
+    // Unreliable(idx 12-14): register for many events, almost never check in (<25%)
     const now = new Date();
     const freeUpcomingEvents = createdEvents.filter(e =>
-      e.feeType === "free" && e.date > now && e.registeredCount < e.capacity
+      e.feeType === "free" && e.date > now
     );
     const paidUpcomingEvents = createdEvents.filter(e =>
       e.feeType === "paid" && e.date > now
     );
+    const pastEvents = createdEvents.filter(e => e.date <= now);
 
     const registrations = [];
-    let checkedInCount = 0;
+    let totalCheckedIn = 0;
     let anomalyCount = 0;
 
-    for (const student of students) {
-      // Each student registers for 4-6 free upcoming events
-      const shuffled = [...freeUpcomingEvents].sort(() => Math.random() - 0.5);
-      const selected = shuffled.slice(0, Math.min(5, shuffled.length));
+    // Helper: create a registration record
+    function makeReg(userId, eventId, opts = {}) {
+      const {
+        checkedIn = false,
+        confirmed = true,
+        flagged = false,
+        anomalyScore = null,
+        checkedInAt = null,
+      } = opts;
+      return {
+        userId,
+        eventId,
+        registrationId: generateRegId(),
+        qrCode: confirmed ? PLACEHOLDER_QR : "",
+        checkedIn,
+        checkedInAt: checkedIn && !checkedInAt
+          ? new Date(Date.now() - Math.random() * 3600000)
+          : checkedInAt,
+        anomalyScore,
+        flagged,
+        adminOverride: false,
+        confirmed,
+        promotedFromWaitlist: false,
+        isLastMinute: false,
+        confirmationEmailSent: confirmed,
+      };
+    }
 
-      for (const evt of selected) {
-        const isCheckedIn = checkedInCount < 50 && Math.random() > 0.4;
-        if (isCheckedIn) checkedInCount++;
+    // ── Champions (idx 0-3): high attendance ──────────────────────────────
+    for (let i = 0; i <= 3; i++) {
+      const s = students[i];
+      // Register for 6 free upcoming events, check in to 5 (83%)
+      const evts = [...freeUpcomingEvents].sort(() => Math.random() - 0.5).slice(0, 6);
+      evts.forEach((evt, j) => {
+        const ci = j < 5; // check in to first 5
+        if (ci) totalCheckedIn++;
+        registrations.push(makeReg(s._id, evt._id, { checkedIn: ci }));
+      });
+      // Also register for 1 past event (checked in)
+      if (pastEvents.length > 0) {
+        totalCheckedIn++;
+        registrations.push(makeReg(s._id, pastEvents[0]._id, { checkedIn: true }));
+      }
+    }
 
-        let checkedInAt = null;
-        let anomalyScore = null;
-        let flagged = false;
+    // ── Regulars (idx 4-8): medium attendance ─────────────────────────────
+    for (let i = 4; i <= 8; i++) {
+      const s = students[i];
+      const evts = [...freeUpcomingEvents].sort(() => Math.random() - 0.5).slice(0, 5);
+      evts.forEach((evt, j) => {
+        const ci = j < 3; // check in to 3 of 5 (60%)
+        if (ci) totalCheckedIn++;
+        registrations.push(makeReg(s._id, evt._id, { checkedIn: ci }));
+      });
+    }
 
-        if (anomalyCount < 3 && Math.random() > 0.97) {
-          // Anomalous check-in (3 AM, high score)
+    // ── New (idx 9-11): very few registrations, no check-ins ──────────────
+    for (let i = 9; i <= 11; i++) {
+      const s = students[i];
+      const evts = [...freeUpcomingEvents].sort(() => Math.random() - 0.5).slice(0, 2);
+      evts.forEach(evt => {
+        registrations.push(makeReg(s._id, evt._id, { checkedIn: false, confirmed: false, confirmationEmailSent: false }));
+      });
+    }
+
+    // ── Unreliable (idx 12-14): many registrations, almost never check in ──
+    for (let i = 12; i <= 14; i++) {
+      const s = students[i];
+      // Register for 8 events but only check in to 1 (12.5% attendance)
+      const evts = [...freeUpcomingEvents].sort(() => Math.random() - 0.5).slice(0, Math.min(8, freeUpcomingEvents.length));
+      evts.forEach((evt, j) => {
+        const ci = j === 0; // only check in to first one
+        if (ci) totalCheckedIn++;
+        registrations.push(makeReg(s._id, evt._id, { checkedIn: ci }));
+      });
+    }
+
+    // ── 3 anomalous check-ins for IF demo ─────────────────────────────────
+    // Use unreliable students' registrations and mark some as anomalous
+    const anomalousStudents = [students[12], students[13], students[14]];
+    for (const s of anomalousStudents) {
+      if (freeUpcomingEvents.length > anomalyCount) {
+        const evt = freeUpcomingEvents[anomalyCount];
+        const alreadyExists = registrations.find(
+          r => r.userId.toString() === s._id.toString() && r.eventId.toString() === evt._id.toString()
+        );
+        if (!alreadyExists) {
+          const anomAt = new Date(evt.date);
+          anomAt.setHours(3, Math.floor(Math.random() * 60));
+          registrations.push(makeReg(s._id, evt._id, {
+            checkedIn: true,
+            checkedInAt: anomAt,
+            anomalyScore: 0.75 + Math.random() * 0.2,
+            flagged: true,
+          }));
+          totalCheckedIn++;
           anomalyCount++;
-          checkedInAt = new Date(evt.date);
-          checkedInAt.setHours(3, Math.floor(Math.random() * 60));
-          anomalyScore = 0.75 + Math.random() * 0.2;
-          flagged = true;
-        } else if (isCheckedIn) {
-          // Normal check-in: 30-90 min before event start
-          checkedInAt = new Date(evt.date.getTime() - (30 + Math.random() * 60) * 60000);
-          anomalyScore = Math.random() * 0.3; // low score
         }
-
-        registrations.push({
-          userId: student._id,
-          eventId: evt._id,
-          registrationId: generateRegId(),
-          qrCode: PLACEHOLDER_QR,
-          checkedIn: isCheckedIn,
-          checkedInAt,
-          anomalyScore,
-          flagged,
-          adminOverride: false,
-        });
       }
     }
 
     const createdRegistrations = await Registration.insertMany(registrations);
-    console.log(`Created ${createdRegistrations.length} registrations (${checkedInCount} checked in, ${anomalyCount} anomalous)`);
+    console.log(`Created ${createdRegistrations.length} registrations (${totalCheckedIn} checked in, ${anomalyCount} anomalous)`);
 
-    // ── Waitlist entries (Req 15.4) ──────────────────────────────────────────
-    const fullEvents = createdEvents.filter(e => e.registeredCount >= e.capacity && e.date > now);
+    // ── Waitlist entries ─────────────────────────────────────────────────────
+    // Put unreliable + new students on waitlists for full events
+    const fullFreeEvents = createdEvents.filter(e =>
+      e.feeType === "free" && e.registeredCount >= e.capacity && e.date > now
+    );
     const waitlistEntries = [];
-    let wIdx = 0;
 
-    for (const evt of fullEvents) {
-      const slots = Math.floor(Math.random() * 2) + 2; // 2-3 per full event
-      for (let i = 0; i < slots && wIdx < students.length; i++, wIdx++) {
+    // student12, student13 on waitlist for first full free event
+    if (fullFreeEvents.length > 0) {
+      [students[12], students[13]].forEach((s, i) => {
         waitlistEntries.push({
-          eventId: evt._id,
-          userId: students[wIdx]._id,
+          eventId: fullFreeEvents[0]._id,
+          userId: s._id,
           priorityScore: Date.now() - i * 3_600_000,
           joinedAt: new Date(Date.now() - i * 3_600_000),
+          abandonedAt: null,
         });
-      }
+      });
+    }
+    // student14, student9 on waitlist for second full free event (if exists)
+    if (fullFreeEvents.length > 1) {
+      [students[14], students[9]].forEach((s, i) => {
+        waitlistEntries.push({
+          eventId: fullFreeEvents[1]._id,
+          userId: s._id,
+          priorityScore: Date.now() - i * 3_600_000,
+          joinedAt: new Date(Date.now() - i * 3_600_000),
+          abandonedAt: null,
+        });
+      });
     }
 
-    await Waitlist.insertMany(waitlistEntries);
+    if (waitlistEntries.length > 0) {
+      await Waitlist.insertMany(waitlistEntries);
+    }
     console.log(`Created ${waitlistEntries.length} waitlist entries`);
 
     // ── Payment records (Req 15.5) ───────────────────────────────────────────
@@ -453,19 +574,25 @@ async function seed() {
     const createdPayments = await Payment.insertMany(payments);
     console.log(`Created ${createdPayments.length} payment records`);
 
-    // ── Summary (Req 15.7) ───────────────────────────────────────────────────
+    // ── Summary ──────────────────────────────────────────────────────────────
     console.log("\n=== Seed Complete ===");
     console.log(`  Admin users:    2`);
     console.log(`  Student users:  ${students.length}`);
+    console.log(`    Champion:     4 (demo, student1-3)`);
+    console.log(`    Regular:      5 (student4-8)`);
+    console.log(`    New:          3 (student9-11)`);
+    console.log(`    Unreliable:   3 (student12-14)`);
     console.log(`  Events:         ${createdEvents.length} (across all 7 categories)`);
-    console.log(`  Registrations:  ${createdRegistrations.length} (${checkedInCount} checked in, ${anomalyCount} anomalous)`);
+    console.log(`  Registrations:  ${createdRegistrations.length} (${totalCheckedIn} checked in, ${anomalyCount} anomalous)`);
     console.log(`  Waitlist:       ${waitlistEntries.length} entries`);
     console.log(`  Payments:       ${createdPayments.length} (mix of completed/pending/refunded)`);
     console.log("\nLogin credentials:");
     console.log("  admin@campusbuzz.com        / Admin@123");
     console.log("  coordinator@campusbuzz.com  / Admin@123");
-    console.log("  student@campusbuzz.com      / Student@123");
-    console.log("  student1@campusbuzz.com ... student13@campusbuzz.com / Student@123");
+    console.log("  student@campusbuzz.com      / Student@123  (Champion)");
+    console.log("  student1@campusbuzz.com     / Student@123  (Champion)");
+    console.log("  student9@campusbuzz.com     / Student@123  (New)");
+    console.log("  student12@campusbuzz.com    / Student@123  (Unreliable)");
 
     await mongoose.disconnect();
     process.exit(0);

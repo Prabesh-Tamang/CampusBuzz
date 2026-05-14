@@ -83,6 +83,13 @@ async function dbConnect() {
         );
       }).catch(() => {});
 
+      // Train the reliability scoring model on startup
+      import('@/lib/ml/reliabilityScoring').then(({ trainReliabilityModel }) => {
+        trainReliabilityModel().catch(err =>
+          console.error('[Reliability] Startup training failed:', err)
+        );
+      }).catch(() => {});
+
       return mongooseInstance;
     });
   }

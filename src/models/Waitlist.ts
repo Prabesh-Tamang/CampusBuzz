@@ -6,6 +6,7 @@ export interface IWaitlist extends Document {
   userId: mongoose.Types.ObjectId;
   priorityScore: number;
   joinedAt: Date;
+  abandonedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const WaitlistSchema = new Schema<IWaitlist>({
   userId:        { type: Schema.Types.ObjectId, ref: 'User', required: true },
   priorityScore: { type: Number, required: true },
   joinedAt:      { type: Date, required: true, default: Date.now },
+  abandonedAt:   { type: Date, default: null },
 }, { timestamps: true });
 
 WaitlistSchema.index({ eventId: 1, userId: 1 }, { unique: true });

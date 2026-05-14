@@ -68,6 +68,10 @@ export default function EventDetailPage() {
   const [showPayment, setShowPayment] = useState(false);
   const [interested, setInterested] = useState(false); // paid event "Notify Me"
   const [copied, setCopied] = useState(false);
+  const [reliabilityData, setReliabilityData] = useState<{
+    tier: string;
+    confirmationWindowHours: number;
+  } | null>(null);
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -78,6 +82,17 @@ export default function EventDetailPage() {
       });
 
     if (session) {
+      // Fetch student's tier for context below register button
+      fetch('/api/user/reliability')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d) setReliabilityData({
+            tier: d.tier,
+            confirmationWindowHours: d.benefits.confirmationWindowHours,
+          });
+        })
+        .catch(() => {});
+
       fetch('/api/registrations')
         .then((r) => r.json())
         .then((data) => {
@@ -691,14 +706,39 @@ export default function EventDetailPage() {
 
                   ) : (
                     // SPOTS AVAILABLE → Register / Buy Ticket
-                    <button
-                      onClick={handleRegister}
-                      disabled={registering}
-                      className="btn-primary"
-                      style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                    >
-                      {registering ? 'Processing...' : event.feeType === 'paid' ? <><CreditCard size={18} /> Buy Rs.{event.feeAmount}</> : <><Ticket size={18} /> Register Free</>}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleRegister}
+                        disabled={registering}
+                        className="btn-primary"
+                        style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                      >
+                        {registering ? 'Processing...' : event.feeType === 'paid' ? <><CreditCard size={18} /> Buy Rs.{event.feeAmount}</> : <><Ticket size={18} /> Register Free</>}
+                      </button>
+
+                      {/* Tier context — only for free events when logged in */}
+                      {session && event.feeType === 'free' && reliabilityData && (
+                        <p
+                          style={{
+                            textAlign: 'center',
+                            fontSize: 12,
+                            marginTop: 8,
+                            color:
+                              reliabilityData.tier === 'champion'
+                                ? '#fbbf24'
+                                : reliabilityData.tier === 'unreliable'
+                                  ? '#fb923c'
+                                  : '#6b7280',
+                          }}
+                        >
+                          {reliabilityData.tier === 'champion'
+                            ? `🏆 Champion benefit: ${reliabilityData.confirmationWindowHours}h to confirm`
+                            : reliabilityData.tier === 'unreliable'
+                              ? `⚠ You have ${reliabilityData.confirmationWindowHours}h to confirm via email`
+                              : `You have ${reliabilityData.confirmationWindowHours}h to confirm via email`}
+                        </p>
+                      )}
+                    </>
                   )}
 
                   {!session && (

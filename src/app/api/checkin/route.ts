@@ -6,6 +6,7 @@ import Registration from '@/models/Registration';
 import { rateLimit } from '@/lib/rateLimit';
 import { extractFeatures } from '@/lib/ml/checkinFeatures';
 import { getModel, isModelReady, recordCheckin } from '@/lib/ml/modelManager';
+import { updateStudentReliability, maybeRetrain } from '@/lib/ml/reliabilityScoring';
 import { ANOMALY_WARN_THRESHOLD, ANOMALY_BLOCK_THRESHOLD } from '@/lib/constants';
 
 /**
@@ -163,7 +164,14 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!blocked) recordCheckin();
+    if (!blocked) {
+      recordCheckin();
+
+      void updateStudentReliability(existing.userId.toString()).catch(err =>
+        console.error('[Reliability] Update after check-in failed:', err)
+      );
+      maybeRetrain();
+    }
 
     if (blocked) {
       return NextResponse.json({
