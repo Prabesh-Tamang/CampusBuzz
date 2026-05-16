@@ -11,22 +11,12 @@ import {
   Users,
   DollarSign,
   Clock,
-  Image,
   Tag,
-  Image as ImageIcon,
   ArrowLeft,
   Building,
 } from "lucide-react";
-
-const categories = [
-  "Technical",
-  "Cultural",
-  "Sports",
-  "Workshop",
-  "Seminar",
-  "Hackathon",
-  "Other",
-];
+import ImageUpload from '@/components/admin/ImageUpload';
+import { EVENT_CATEGORIES } from '@/lib/constants';
 
 function getMinDateTime() {
   const now = new Date();
@@ -50,7 +40,7 @@ export default function NewEventPage() {
     capacity: 100,
     registrationDeadline: "",
     tags: "",
-    image: "",
+    imageUrl: "",
     organizer: "",
   });
 
@@ -71,7 +61,6 @@ export default function NewEventPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          imageUrl: form.image, // map form field → model field
           capacity: Number(form.capacity),
           feeAmount: Number(form.feeAmount),
           tags: form.tags
@@ -104,7 +93,7 @@ export default function NewEventPage() {
       capacity: 100,
       registrationDeadline: "",
       tags: "",
-      image: "",
+      imageUrl: "",
       organizer: "",
     });
   };
@@ -175,7 +164,7 @@ export default function NewEventPage() {
                   onChange={(e) => set("category", e.target.value)}
                   className="input w-full pl-10"
                 >
-                  {categories.map((c) => (
+                  {EVENT_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -368,41 +357,15 @@ export default function NewEventPage() {
             </div>
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
             <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
-              Event Image URL (optional)
+              Event Image
             </label>
-            <div className="relative">
-              <Image
-                size={14}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="url"
-                placeholder="https://..."
-                value={form.image}
-                onChange={(e) => set("image", e.target.value)}
-                className="input w-full pl-10"
-              />
-            </div>
-            {form.image && (
-              <div
-                className="mt-3 rounded-xl overflow-hidden border border-border"
-                style={{ maxHeight: 160 }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={form.image}
-                  alt="Event image preview"
-                  className="w-full object-cover"
-                  style={{ maxHeight: 160 }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-            )}
+            <ImageUpload
+              value={form.imageUrl}
+              onChange={(url) => setForm(prev => ({ ...prev, imageUrl: url }))}
+            />
           </div>
 
           {/* Actions */}

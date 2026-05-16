@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Ticket,
   CheckCircle,
+  XCircle,
   Clock3,
   CreditCard,
   Share2,
@@ -20,6 +21,7 @@ import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
 import Link from "next/link";
+import TitleSetter from '@/components/TitleSetter';
 
 interface EventData {
   _id: string;
@@ -72,6 +74,7 @@ export default function EventDetailPage() {
     tier: string;
     confirmationWindowHours: number;
   } | null>(null);
+  const [denialInfo, setDenialInfo] = useState<{ flagReason?: string; adminNote?: string } | null>(null);
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -104,13 +107,18 @@ export default function EventDetailPage() {
           });
           if (hasReg) {
             setRegistered(true);
-            // Find the registration to get QR code
             const existingReg = regs.find((reg: any) => {
               const eid = typeof reg.eventId === 'object' ? reg.eventId?._id?.toString() : reg.eventId?.toString();
               return eid === id?.toString();
             });
             if (existingReg?.qrCode) setQrCode(existingReg.qrCode);
             if (existingReg?.registrationId) setRegistrationId(existingReg.registrationId);
+            if (existingReg?.reviewStatus === 'denied') {
+              setDenialInfo({
+                flagReason: existingReg.flagReason,
+                adminNote: existingReg.adminNote,
+              });
+            }
           }
         });
 
@@ -152,7 +160,7 @@ export default function EventDetailPage() {
   };
 
   async function handleRegister() {    if (!session) {
-      router.push("/auth/login");
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/events/${id}`)}`);
       return;
     }
     
@@ -183,7 +191,7 @@ export default function EventDetailPage() {
 
   async function handleJoinWaitlist() {
     if (!session) {
-      router.push("/auth/login");
+      router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/events/${id}`)}`);
       return;
     }
     setRegistering(true);
@@ -229,7 +237,7 @@ export default function EventDetailPage() {
   }
 
   async function handleNotifyMe() {
-    if (!session) { router.push("/auth/login"); return; }
+    if (!session) { router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/events/${id}`)}`); return; }
     setRegistering(true);
     try {
       const res = await fetch("/api/event-interest", {
@@ -309,6 +317,7 @@ export default function EventDetailPage() {
 
   return (
     <div>
+      <TitleSetter title={event?.title || 'Event'} />
       <Navbar />
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px" }}>
         <Link
@@ -513,6 +522,27 @@ export default function EventDetailPage() {
                   <h3 style={{ color: '#f59e0b', fontWeight: 700, margin: '0 0 8px', fontSize: 18 }}>Registration Closed</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: 0 }}>Closed on {format(deadlineDate!, 'MMM d, yyyy')}</p>
                 </div>
+              ) : registered && denialInfo ? (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 56, height: 56, background: "rgba(239,68,68,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                    <XCircle size={28} color="#ef4444" />
+                  </div>
+                  <h3 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "#ef4444" }}>
+                    Check-in Denied ⛔
+                  </h3>
+                  {denialInfo.flagReason && (
+                    <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "0 0 8px" }}>
+                      {denialInfo.flagReason}
+                    </p>
+                  )}
+                  {denialInfo.adminNote && (
+                    <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 16, marginTop: 8 }}>
+                      <p style={{ color: "#f87171", fontSize: 13, margin: 0 }}>
+                        {denialInfo.adminNote}
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : registered ? (
                 <div style={{ textAlign: "center" }}>
                   <div style={{ width: 56, height: 56, background: "rgba(20,184,166,0.15)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
@@ -716,8 +746,8 @@ export default function EventDetailPage() {
                         {registering ? 'Processing...' : event.feeType === 'paid' ? <><CreditCard size={18} /> Buy Rs.{event.feeAmount}</> : <><Ticket size={18} /> Register Free</>}
                       </button>
 
-                      {/* Tier context — only for free events when logged in */}
-                      {session && event.feeType === 'free' && reliabilityData && (
+                      {/* Tier context — show for all events when logged in */}
+                      {session && reliabilityData && (
                         <p
                           style={{
                             textAlign: 'center',

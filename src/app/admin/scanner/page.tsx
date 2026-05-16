@@ -78,11 +78,25 @@ export default function ScannerPage() {
         body: JSON.stringify({ registrationId }),
       })
       const data = await res.json()
+
+      // Handle flagged/blocked response that still returns 200
+      if (data.requiresAdminApproval) {
+        setResult({
+          type: data.blocked ? 'blocked' : 'flagged',
+          message: data.blocked
+            ? '🚫 Access Blocked — Review in Flagged Section'
+            : '⚠ Held for Review — Check Flagged Section',
+          anomalyScore: data.anomalyScore,
+          requiresReview: true,
+        })
+        toast.error(data.blocked ? 'Access blocked — review needed' : 'Flagged — pending admin review')
+        return
+      }
+
       if (res.ok) {
         setResult({ success: true, ...data })
         if (data.success) toast.success(`✅ ${data.registration?.attendeeName} checked in!`)
       } else {
-        // Distinguish event-ended from generic denial
         setResult({
           success: false,
           eventEnded: data.eventEnded || false,

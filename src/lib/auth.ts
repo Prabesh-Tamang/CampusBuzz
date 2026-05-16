@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import dbConnect from './mongodb';
 import User from '@/models/User';
+import { SESSION_CONFIG } from '@/lib/constants';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -51,6 +52,13 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/login',
   },
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    maxAge: SESSION_CONFIG.MAX_AGE_SECONDS,
+    updateAge: 60 * 60,
+  },
+  jwt: {
+    maxAge: SESSION_CONFIG.MAX_AGE_SECONDS,
+  },
   secret: process.env.NEXTAUTH_SECRET,
 };

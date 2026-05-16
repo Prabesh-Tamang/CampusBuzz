@@ -5,7 +5,7 @@ import Event from '@/models/Event';
 import User from '@/models/User';
 import mongoose from 'mongoose';
 import { sendPromotionEmail } from '@/lib/email';
-import { WAITLIST_HOUR_DISCOUNT_MS } from '@/lib/constants';
+import { WAITLIST_CONFIG } from '@/lib/constants';
 import { getTierBenefits } from '@/lib/ml/reliabilityScoring';
 import type { EngagementTier } from '@/lib/ml/reliabilityScoring';
 import crypto from 'crypto';
@@ -35,8 +35,8 @@ export async function computePriorityScore(
   const tier = ((user as any)?.engagementTier ?? 'new') as EngagementTier;
   const benefits = getTierBenefits(tier);
 
-  let score = joinedAt.getTime() - attendanceBonus * WAITLIST_HOUR_DISCOUNT_MS * benefits.waitlistMultiplier;
-  score += benefits.waitlistPenaltyHours * WAITLIST_HOUR_DISCOUNT_MS;
+  let score = joinedAt.getTime() - attendanceBonus * WAITLIST_CONFIG.HOUR_DISCOUNT_MS * benefits.waitlistMultiplier;
+  score += benefits.waitlistPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
 
   return score;
 }

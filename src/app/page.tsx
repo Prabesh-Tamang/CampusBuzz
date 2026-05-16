@@ -16,6 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 import { format } from "date-fns";
+import TitleSetter from "@/components/TitleSetter";
 
 const features = [
   {
@@ -48,13 +49,6 @@ const features = [
   },
 ];
 
-const stats = [
-  { val: "50+", label: "Events Hosted" },
-  { val: "2,000+", label: "Students Registered" },
-  { val: "98%", label: "Check-in Rate" },
-  { val: "15+", label: "Departments" },
-];
-
 interface Event {
   _id: string;
   title: string;
@@ -63,18 +57,23 @@ interface Event {
   category: string;
   capacity: number;
   registeredCount: number;
+  imageUrl?: string;
 }
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const [popularEvents, setPopularEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statsData, setStatsData] = useState<{ val: string, label: string }[]>(stats);
+  const [statsData, setStatsData] = useState<
+    { val: string; label: string }[] | null
+  >(null);
 
   useEffect(() => {
     fetch("/api/stats")
-      .then(r => r.json())
-      .then(d => { if (d.stats) setStatsData(d.stats); })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.stats) setStatsData(d.stats);
+      })
       .catch(() => {});
 
     fetch("/api/events")
@@ -94,6 +93,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Home" />
       <Navbar />
 
       {/* Hero Section */}
@@ -113,7 +113,7 @@ export default function HomePage() {
           </h1>
 
           <p className="mx-auto mb-12 max-w-[560px] text-lg leading-relaxed text-muted-foreground">
-            Discover, register, and attend the best events at your college — all
+            Discover, register, and attend the best events at your college.All
             in one place. QR check-in, live tracking, and instant notifications.
           </p>
 
@@ -135,16 +135,16 @@ export default function HomePage() {
 
         {/* Stats bar */}
         <div className="mx-auto mt-20 grid max-w-[800px] grid-cols-2 overflow-hidden rounded-2xl bg-border md:grid-cols-4 gap-[1px]">
-          {statsData.map((s) => (
-            <div key={s.label} className="bg-surface px-5 py-6 text-center">
-              <div className="text-3xl font-extrabold leading-none text-accent">
-                {s.val}
-              </div>
-              <div className="mt-1.5 text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {s.label}
-              </div>
-            </div>
-          ))}
+          {statsData
+            ? statsData.map((s) => (
+                <StatsCounter key={s.label} val={s.val} label={s.label} />
+              ))
+            : Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-surface px-5 py-6 text-center">
+                  <div className="h-8 w-20 bg-white/5 rounded animate-pulse mx-auto mb-2" />
+                  <div className="h-3 w-24 bg-white/5 rounded animate-pulse mx-auto" />
+                </div>
+              ))}
         </div>
       </section>
 
@@ -195,38 +195,55 @@ export default function HomePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {popularEvents.map((event) => (
-                <Link key={event._id} href={`/events/${event._id}`}>
-                  <div className="card p-6 hover:border-pulse-500/50 transition-all cursor-pointer group">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`badge cat-${event.category}`}>
-                        {event.category}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {event.registeredCount}/{event.capacity} spots filled
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-white mb-3 group-hover:text-accent transition-colors line-clamp-2">
-                      {event.title}
-                    </h3>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-accent" />
-                        {format(new Date(event.date), "MMM d, yyyy")}
+                <Link
+                  key={event._id}
+                  href={`/events/${event._id}`}
+                  className="group block"
+                >
+                  <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden hover:border-teal-500/30 hover:bg-white/[0.05] transition-all duration-200">
+                    {event.imageUrl && (
+                      <div className="h-40 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={event.imageUrl}
+                          alt={event.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          onError={(e) => {
+                            (
+                              e.target as HTMLImageElement
+                            ).parentElement!.style.display = "none";
+                          }}
+                        />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin size={14} className="text-accent" />
-                        {event.venue}
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Popularity
+                    )}
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                          {event.category}
                         </span>
+                        <span className="text-xs text-gray-500">
+                          {event.registeredCount}/{event.capacity}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-3 group-hover:text-teal-300 transition-colors line-clamp-2">
+                        {event.title}
+                      </h3>
+                      <div className="space-y-2 text-sm text-gray-400">
                         <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-dark-border rounded-full overflow-hidden">
+                          <Calendar size={14} className="text-teal-400" />
+                          {format(new Date(event.date), "MMM d, yyyy")}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-teal-400" />
+                          {event.venue}
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">Popularity</span>
+                          <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-accent rounded-full"
+                              className="h-full bg-teal-500 rounded-full"
                               style={{
                                 width: `${(event.registeredCount / event.capacity) * 100}%`,
                               }}
@@ -297,6 +314,46 @@ export default function HomePage() {
           © 2025 CampusBuzz. Built for campus life.
         </p>
       </footer>
+    </div>
+  );
+}
+
+function StatsCounter({ val, label }: { val: string; label: string }) {
+  const [displayed, setDisplayed] = useState("0");
+  const [showPlus, setShowPlus] = useState(false);
+  const num = parseInt(val.replace(/[^0-9]/g, ""));
+  const suffix = val.includes("%") ? "%" : "";
+
+  useEffect(() => {
+    if (!num) {
+      setDisplayed(val);
+      return;
+    }
+    const start = Math.max(0, num - 30);
+    const duration = 800;
+    const stepTime = Math.max(20, duration / num);
+    let current = start;
+    const timer = setInterval(() => {
+      current++;
+      setDisplayed(suffix ? `${current}${suffix}` : String(current));
+      if (current >= num) {
+        clearInterval(timer);
+        setDisplayed(val);
+        if (!suffix) setShowPlus(true);
+      }
+    }, stepTime);
+    return () => clearInterval(timer);
+  }, [num, suffix, val]);
+
+  return (
+    <div className="bg-surface px-5 py-6 text-center">
+      <div className="text-3xl font-extrabold leading-none text-accent">
+        {displayed}
+        {showPlus && "+"}
+      </div>
+      <div className="mt-1.5 text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {label}
+      </div>
     </div>
   );
 }

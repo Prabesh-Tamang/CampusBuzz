@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/events';
   const [form, setForm] = useState({ name: '', email: '', password: '', college: '' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function SignupPage() {
       toast.error('Password must be at least 6 characters');
       return;
     }
-    
+
     setLoading(true);
     try {
       const res = await fetch('/api/auth/signup', {
@@ -30,17 +32,35 @@ export default function SignupPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Signup failed');
       }
-      
-      toast.success('Account created! Please log in.');
-      router.push('/auth/login');
+
+      const { signIn } = await import('next-auth/react');
+      const result = await signIn('credentials', {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+
+      if (result?.ok) {
+        const destination = decodeURIComponent(callbackUrl);
+        router.push(destination);
+        router.refresh();
+
+        setTimeout(() => {
+          toast.success('Account created! Welcome to CampusBuzz.');
+        }, 300);
+      } else {
+        router.push('/auth/login');
+        setTimeout(() => {
+          toast.success('Account created! Please log in.');
+        }, 300);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Signup failed';
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   }
@@ -49,7 +69,6 @@ export default function SignupPage() {
     <div className="grid-bg flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-[440px]">
 
-        {/* Header/Logo Section */}
         <div className="mb-10 text-center">
           <Link href="/" className="mb-6 inline-flex items-center gap-2.5 no-underline">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700">
@@ -63,10 +82,8 @@ export default function SignupPage() {
           <p className="text-sm text-muted-foreground">Join CampusBuzz for free</p>
         </div>
 
-        {/* Form Card */}
         <div className="card p-9 shadow-xl">
           <form onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
-            {/* Full Name */}
             <div>
               <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
                 Full Name
@@ -79,10 +96,10 @@ export default function SignupPage() {
                 value={form.name}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* Email */}
             <div>
               <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
                 College Email
@@ -95,10 +112,10 @@ export default function SignupPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* College Name */}
             <div>
               <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
                 College Name (Optional)
@@ -110,10 +127,10 @@ export default function SignupPage() {
                 className="input w-full"
                 value={form.college}
                 onChange={handleChange}
+                disabled={loading}
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
                 Password
@@ -127,6 +144,7 @@ export default function SignupPage() {
                   value={form.password}
                   onChange={handleChange}
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -139,17 +157,29 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary mt-1 w-full py-3.5 text-base font-semibold disabled:opacity-70"
+              className={`w-full py-3 rounded-xl font-medium text-sm transition-all mt-1
+                ${loading
+                  ? 'bg-teal-600/50 text-white/60 cursor-not-allowed'
+                  : 'bg-teal-500 hover:bg-teal-400 text-white cursor-pointer'
+                }`}
             >
-              {loading ? 'Creating...' : 'Create Account'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Creating account...
+                </span>
+              ) : (
+                'Create Account'
+              )}
             </button>
           </form>
 
-          {/* Footer Link */}
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Link href="/auth/login" className="font-bold text-accent no-underline hover:underline">
@@ -158,7 +188,6 @@ export default function SignupPage() {
           </p>
         </div>
 
-        {/* Back to Home — below the card */}
         <div className="mt-6 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm">
             <ArrowLeft size={15} />
@@ -167,5 +196,17 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid-bg min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SignupForm />
+    </Suspense>
   );
 }

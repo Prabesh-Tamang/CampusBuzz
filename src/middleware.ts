@@ -5,6 +5,15 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = req.nextUrl;
 
+  // Check if token is expired
+  if (token && token.exp) {
+    const isExpired = Date.now() >= (token.exp as number) * 1000;
+    if (isExpired) {
+      const loginUrl = new URL('/auth/login', req.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   const isAdminRoute = pathname.startsWith('/admin') && pathname !== '/admin/login';
   const isAuthRoute = pathname === '/auth/login' || pathname === '/auth/signup';
   const isAdminLoginRoute = pathname === '/admin/login';

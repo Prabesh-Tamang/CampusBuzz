@@ -43,11 +43,15 @@ export default function AdminEventsPage() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (cancelReason?: string) => {
     if (!deleteModal.itemId) return
     setDeletingId(deleteModal.itemId)
     try {
-      const res = await fetch(`/api/events/${deleteModal.itemId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/events/${deleteModal.itemId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancelReason }),
+      })
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
       toast.success('Event cancelled successfully')
@@ -257,6 +261,7 @@ export default function AdminEventsPage() {
         itemName={deleteModal.itemName}
         loading={deletingId === deleteModal.itemId}
         deleteText="Cancel Event"
+        showReasonInput
       />
     </div>
   )

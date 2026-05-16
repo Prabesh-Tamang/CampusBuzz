@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { HiCalendar, HiLocationMarker, HiCheckCircle, HiClock } from 'react-icons/hi'
 import toast from 'react-hot-toast'
+import TitleSetter from '@/components/TitleSetter'
 
 export default function MyEventsPage() {
   return (
@@ -27,7 +28,8 @@ function MyEventsContent() {
   const [registrations, setRegistrations] = useState<any[]>([])
   const [waitlists, setWaitlists] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'registered' | 'waitlisted'>('registered')
+  const defaultTab = searchParams.get('tab') ?? 'registered'
+  const [activeTab, setActiveTab] = useState<'registered' | 'waitlisted'>(defaultTab as 'registered' | 'waitlisted')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [resendingId, setResendingId] = useState<string | null>(null)
 
@@ -143,6 +145,7 @@ function MyEventsContent() {
 
   return (
     <div className="min-h-screen grid-bg">
+      <TitleSetter title="My Events" />
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -161,14 +164,14 @@ function MyEventsContent() {
 
           <div className="flex gap-4 mb-6 border-b border-border">
             <button
-              onClick={() => setActiveTab('registered')}
+              onClick={() => { setActiveTab('registered'); router.push('/my-events?tab=registered', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'registered' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
               Registered ({registrations.length})
               {activeTab === 'registered' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />}
             </button>
             <button
-              onClick={() => setActiveTab('waitlisted')}
+              onClick={() => { setActiveTab('waitlisted'); router.push('/my-events?tab=waitlisted', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'waitlisted' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
               Waitlisted ({waitlists.length})
@@ -208,17 +211,22 @@ function MyEventsContent() {
                                 <HiCheckCircle /> Checked In
                               </span>
                             )}
-                            {!reg.confirmed && !reg.checkedIn && !isPaid && (
+                            {reg.reviewStatus === 'denied' && (
+                              <span className="flex items-center gap-1 text-xs text-red-400 bg-red-500/20 px-2 py-1 rounded-full">
+                                <HiCheckCircle /> Denied
+                              </span>
+                            )}
+                            {!reg.confirmed && !reg.checkedIn && !isPaid && reg.reviewStatus !== 'denied' && (
                               <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/20 px-2 py-1 rounded-full">
                                 <HiClock /> Pending Confirmation
                               </span>
                             )}
-                            {reg.confirmed && !reg.checkedIn && (
+                            {reg.confirmed && !reg.checkedIn && reg.reviewStatus !== 'denied' && (
                               <span className="flex items-center gap-1 text-xs text-teal-400 bg-teal-500/20 px-2 py-1 rounded-full">
                                 <HiCheckCircle /> Confirmed
                               </span>
                             )}
-                            {isPaid && !reg.checkedIn && (
+                            {isPaid && !reg.checkedIn && reg.reviewStatus !== 'denied' && (
                               <span className="flex items-center gap-1 text-xs text-purple-400 bg-purple-500/20 px-2 py-1 rounded-full">
                                 💳 Paid
                               </span>
@@ -242,7 +250,7 @@ function MyEventsContent() {
                           </div>
 
                           {/* Consequence warning for pending confirmation */}
-                          {!reg.confirmed && !reg.checkedIn && !isPaid && (
+                          {!reg.confirmed && !reg.checkedIn && !isPaid && reg.reviewStatus !== 'denied' && (
                             <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
                               <p className="text-amber-400 font-semibold mb-1">⚠️ Confirmation required</p>
                               <p className="text-gray-400">
@@ -250,11 +258,28 @@ function MyEventsContent() {
                               </p>
                             </div>
                           )}
+
+                          {/* Denied info */}
+                          {reg.reviewStatus === 'denied' && (
+                            <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                              <p className="text-red-400 font-semibold mb-1">⛔ Check-in denied</p>
+                              {reg.flagReason && (
+                                <p className="text-gray-400 mb-1">Reason: {reg.flagReason}</p>
+                              )}
+                              {reg.adminNote && (
+                                <p className="text-gray-400">{reg.adminNote}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Action buttons */}
                         <div className="flex flex-col gap-2 flex-shrink-0">
-                          {reg.qrCode ? (
+                          {reg.reviewStatus === 'denied' ? (
+                            <span className="px-4 py-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl block text-center">
+                              Check-in denied
+                            </span>
+                          ) : reg.qrCode ? (
                             <>
                               <button
                                 onClick={() => router.push(`/my-events/checkin/${reg.registrationId}`)}
@@ -262,7 +287,6 @@ function MyEventsContent() {
                               >
                                 📱 Open Ticket
                               </button>
-                              {/* Print ticket link — TASK-10 */}
                               <a
                                 href={`/my-events/ticket/${reg.registrationId}`}
                                 target="_blank"
@@ -279,7 +303,6 @@ function MyEventsContent() {
                             </span>
                           ) : (
                             <>
-                              {/* State 1: Already confirmed */}
                               {reg.confirmed && (
                                 <div className="flex items-center gap-1.5 text-teal-400 text-sm font-medium">
                                   <span>✓</span>
@@ -287,7 +310,6 @@ function MyEventsContent() {
                                 </div>
                               )}
 
-                              {/* State 2: Email not sent yet — greyed out */}
                               {!reg.confirmed && !reg.confirmationEmailSent && (
                                 <div className="relative group">
                                   <button
@@ -304,7 +326,6 @@ function MyEventsContent() {
                                 </div>
                               )}
 
-                              {/* State 3: Email sent, not confirmed yet — active */}
                               {!reg.confirmed && reg.confirmationEmailSent && (
                                 <div className="flex flex-col gap-1.5">
                                   <button

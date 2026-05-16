@@ -1,15 +1,16 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Navbar from '@/components/Navbar'
-import { Search, Calendar, MapPin, Users, DollarSign, Filter, Ticket, ChevronRight } from 'lucide-react'
+import { Search, X, Calendar, MapPin, Users, DollarSign, Ticket, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { EventCardSkeleton } from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
 import { CalendarX } from 'lucide-react'
-
-const categories = ['All', 'Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Other']
+import { EVENT_CATEGORIES, PAGINATION } from '@/lib/constants'
+import TitleSetter from '@/components/TitleSetter'
 
 interface Event {
   _id: string
@@ -22,6 +23,7 @@ interface Event {
   registeredCount: number
   feeType: 'free' | 'paid'
   feeAmount: number
+  imageUrl?: string
 }
 
 interface Registration {
@@ -38,16 +40,41 @@ interface Recommendation {
   reason: string
 }
 
-export default function EventsPage() {
+function EventsContent() {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const isGuest = !session
+
+  const search = searchParams.get('search') ?? ''
+  const category = searchParams.get('category') ?? 'All'
+  const statusFilter = searchParams.get('status') ?? 'upcoming'
+  const feeFilter = searchParams.get('fee') ?? 'all'
+
   const [events, setEvents] = useState<Event[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('All')
-  const [feeFilter, setFeeFilter] = useState<'all' | 'free' | 'paid'>('all')
-  const [showEnded, setShowEnded] = useState(false)
+  const [totalEvents, setTotalEvents] = useState(0)
+  const [searchInput, setSearchInput] = useState(search)
+
+  const updateFilters = useCallback((newSearch: string, newCategory: string, newStatus: string, newFee: string) => {
+    const params = new URLSearchParams()
+    if (newSearch) params.set('search', newSearch)
+    if (newCategory && newCategory !== 'All') params.set('category', newCategory)
+    if (newStatus && newStatus !== 'upcoming') params.set('status', newStatus)
+    if (newFee && newFee !== 'all') params.set('fee', newFee)
+    const query = params.toString()
+    router.push(`${pathname}${query ? `?${query}` : ''}`, { scroll: false })
+  }, [router, pathname])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateFilters(searchInput, category, statusFilter, feeFilter)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   useEffect(() => {
     fetchEvents()
@@ -60,7 +87,7 @@ export default function EventsPage() {
         .catch(() => {})
       fetchRegistrations()
     }
-  }, [session, search, category, feeFilter, showEnded])
+  }, [session, search, category, statusFilter, feeFilter])
 
   async function fetchRegistrations() {
     try {
@@ -77,41 +104,43 @@ export default function EventsPage() {
     const params = new URLSearchParams()
     if (search) params.set('search', search)
     if (category !== 'All') params.set('category', category)
+    if (statusFilter === 'ended') params.set('status', 'ended')
+    if (feeFilter !== 'all') params.set('fee', feeFilter)
 
     const res = await fetch(`/api/events?${params}`)
     const data = await res.json()
     const allEvents: Event[] = Array.isArray(data) ? data : []
-    
-    const now = new Date()
+    setTotalEvents(allEvents.length)
+
     let filtered = allEvents
-    
-    if (!showEnded) {
-      filtered = filtered.filter(e => new Date(e.date) >= now)
-    }
-    
+
     if (feeFilter === 'free') {
       filtered = filtered.filter(e => e.feeType === 'free')
     } else if (feeFilter === 'paid') {
       filtered = filtered.filter(e => e.feeType === 'paid')
     }
-    
-    const sorted = filtered
-      .sort((a, b) => {
-        const aEnded = new Date(a.date) < now
-        const bEnded = new Date(b.date) < now
-        if (aEnded !== bEnded) return aEnded ? 1 : -1
-        return new Date(a.date).getTime() - new Date(b.date).getTime()
-      })
-    
-    setEvents(sorted)
+
+    const now = new Date()
+
+    if (statusFilter !== 'ended') {
+      filtered = filtered
+        .filter(e => new Date(e.date) >= now)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    }
+
+    if (isGuest) {
+      filtered = filtered.slice(0, PAGINATION.LANDING_EVENTS_GUEST)
+    }
+
+    setEvents(filtered)
     setLoading(false)
   }
 
   const getSpots = (e: Event) => e.capacity - e.registeredCount
-  const isEnded = (e: Event) => new Date(e.date) < new Date()
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title={isGuest ? 'Discover Events' : 'Events'} />
       <Navbar />
       <div className="max-w-[1400px] mx-auto px-6 py-12">
         <div className="flex flex-col lg:flex-row gap-8">
@@ -121,150 +150,161 @@ export default function EventsPage() {
             {/* Header */}
             <div className="mb-8">
               <h1 className="text-[clamp(32px,5vw,48px)] font-extrabold tracking-tighter text-white mb-3">
-                All Events
+                {isGuest ? 'Discover Events' : 'All Events'}
               </h1>
               <p className="text-muted-foreground">
-                Browse and register for upcoming campus activities.
+                {isGuest
+                  ? 'Browse upcoming campus activities. Sign up to see more.'
+                  : 'Browse and register for upcoming campus activities.'
+                }
               </p>
             </div>
 
-            {/* Recommendations Strip */}
-            {session && (session.user as { role?: string })?.role !== 'admin' && recommendations.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wide">
+            {/* Status Filter */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => updateFilters(search, category, 'upcoming', feeFilter)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150 border ${
+                  statusFilter === 'upcoming'
+                    ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+                    : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.06] hover:text-gray-200'
+                }`}
+              >
+                Upcoming
+              </button>
+              <button
+                onClick={() => updateFilters(search, category, 'ended', feeFilter)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150 border ${
+                  statusFilter === 'ended'
+                    ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+                    : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.06] hover:text-gray-200'
+                }`}
+              >
+                Past Events
+              </button>
+            </div>
+
+            {/* Search bar */}
+            <div className="relative max-w-md mb-4">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search events..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white/[0.04] border border-white/10
+                           rounded-xl text-white text-sm placeholder-gray-500
+                           focus:outline-none focus:border-teal-500/40 focus:bg-white/[0.06]
+                           transition-all"
+              />
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+              />
+              {searchInput && (
+                <button
+                  onClick={() => { setSearchInput(''); updateFilters('', category, statusFilter, feeFilter) }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500
+                             hover:text-gray-300 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex gap-2 flex-wrap mb-6">
+              {['All', ...EVENT_CATEGORIES].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => updateFilters(search, cat, statusFilter, feeFilter)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all
+                              duration-150 border ${
+                    category === cat
+                      ? 'bg-teal-500/20 text-teal-400 border-teal-500/30 shadow-sm shadow-teal-500/10'
+                      : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.06] hover:text-gray-200 hover:border-white/20'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Fee Filter */}
+            <div className="flex gap-2 flex-wrap mb-8">
+              {(['all', 'free', 'paid'] as const).map((fee) => (
+                <button
+                  key={fee}
+                  onClick={() => updateFilters(search, category, statusFilter, fee)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all
+                              duration-150 border ${
+                    feeFilter === fee
+                      ? fee === 'free'
+                        ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+                        : fee === 'paid'
+                          ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-white/[0.06] text-white border-white/20'
+                      : 'bg-white/[0.03] text-gray-400 border-white/10 hover:bg-white/[0.06] hover:text-gray-200'
+                  }`}
+                >
+                  {fee === 'all' ? 'All Fees' : fee === 'free' ? 'Free' : 'Paid'}
+                </button>
+              ))}
+            </div>
+
+            {/* Recommendations grid */}
+            {session && (session.user as { role?: string })?.role !== 'admin' && recommendations.length > 0 && statusFilter === 'upcoming' && (
+              <section className="mb-8">
+                <h2 className="text-sm font-medium text-teal-400 uppercase tracking-wider mb-4">
                   Recommended for you
                 </h2>
-                <div className="flex gap-4 overflow-x-auto pb-4">
-                  {recommendations.map(({ event: recEvent, reason }) => (
-                    <Link
-                      key={recEvent._id}
-                      href={`/events/${recEvent._id}`}
-                      className="card flex-shrink-0 w-72 p-5 cursor-pointer relative"
-                      data-testid="event-card"
-                    >
-                      <div className="absolute top-3 right-3 opacity-0 hover:opacity-100 transition-opacity">
-                        <span className="text-xs bg-black/60 text-white px-2 py-1 rounded">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {recommendations.slice(0, 3).map(({ event: recEvent, reason }) => (
+                    <div key={recEvent._id} className="relative group">
+                      <Link
+                        href={`/events/${recEvent._id}`}
+                        className="card p-5 cursor-pointer block"
+                      >
+                        <div className="mb-3">
+                          <span className={`badge cat-${recEvent.category}`}>
+                            {recEvent.category}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-white mb-3 line-clamp-2">
+                          {recEvent.title}
+                        </h3>
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-accent" />
+                            {format(new Date(recEvent.date), 'MMM d, yyyy')}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-accent" />
+                            {recEvent.venue}
+                          </div>
+                        </div>
+                      </Link>
+                      <div className="absolute top-3 right-3 z-10">
+                        <span className="text-xs bg-teal-500/20 text-teal-300 border
+                                         border-teal-500/30 px-2 py-0.5 rounded-full">
+                          ✨ For you
+                        </span>
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 p-3 opacity-0
+                                      group-hover:opacity-100 transition-opacity">
+                        <p className="text-xs text-gray-300 bg-black/70 backdrop-blur-sm
+                                      px-3 py-1.5 rounded-lg">
                           {reason}
-                        </span>
+                        </p>
                       </div>
-                      <div className="mb-3">
-                        <span className={`badge cat-${recEvent.category}`}>
-                          {recEvent.category}
-                        </span>
-                      </div>
-                      <h3 className="text-base font-bold text-white mb-3 line-clamp-2">
-                        {recEvent.title}
-                      </h3>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-accent" />
-                          {format(new Date(recEvent.date), 'MMM d, yyyy')}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-accent" />
-                          {recEvent.venue}
-                        </div>
-                      </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
-              </div>
+              </section>
             )}
-
-            {/* Search */}
-            <div className="mb-6">
-              <div className="relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search by name, venue or description..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="input pl-10"
-                />
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="space-y-4 mb-8">
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Filter size={14} />
-                  <span>Category:</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setCategory(cat)}
-                      className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                        category === cat
-                          ? 'bg-accent text-[#042f2e] border-accent'
-                          : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <DollarSign size={14} />
-                  <span>Fee:</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setFeeFilter('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                      feeFilter === 'all'
-                        ? 'bg-gray-600 text-white border-gray-600'
-                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setFeeFilter('free')}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                      feeFilter === 'free'
-                        ? 'bg-green-500/20 text-green-400 border-green-500'
-                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                    }`}
-                  >
-                    Free
-                  </button>
-                  <button
-                    onClick={() => setFeeFilter('paid')}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                      feeFilter === 'paid'
-                        ? 'bg-amber-500/20 text-amber-400 border-amber-500'
-                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                    }`}
-                  >
-                    Paid
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setShowEnded(!showEnded)}
-                    className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
-                      showEnded
-                        ? 'bg-gray-600 text-white border-gray-600'
-                        : 'text-gray-400 border-border hover:text-white hover:border-gray-400'
-                    }`}
-                  >
-                    Show Ended
-                  </button>
-                </div>
-              </div>
-            </div>
 
             {/* Events Grid */}
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <EventCardSkeleton key={i} />
                 ))}
@@ -274,63 +314,69 @@ export default function EventsPage() {
                 icon={CalendarX}
                 title="No events found"
                 description={
-                  search || (category && category !== 'All')
+                  search || category !== 'All'
                     ? 'No events match your search. Try a different term or category.'
                     : 'No upcoming events at the moment. Check back soon.'
                 }
-                actionLabel={search || (category && category !== 'All') ? 'Clear filters' : undefined}
-                onAction={() => { setSearch(''); setCategory('All'); }}
+                actionLabel={search || category !== 'All' ? 'Clear filters' : undefined}
+                onAction={() => { setSearchInput(''); updateFilters('', 'All', statusFilter, 'all') }}
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {events.map(event => (
                   <Link key={event._id} href={`/events/${event._id}`} className="flex">
                     <div className="card p-0 cursor-pointer overflow-hidden group flex flex-col w-full">
-                      {/* Header Banner */}
-                      <div 
-                        className="h-36 relative flex-shrink-0"
-                        style={{
-                          background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
-                                     event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
-                                     event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                     event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
-                                     event.category === 'Seminar' ? 'linear-gradient(135deg, #fb923c, #ea580c)' :
-                                     event.category === 'Hackathon' ? 'linear-gradient(135deg, #ec4899, #db2777)' :
-                                     'linear-gradient(135deg, #60a5fa, #2563eb)'
-                        }}
-                      >
-                        <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
-                          <span className="badge bg-white/20 text-white backdrop-blur-sm">
-                            {event.category}
-                          </span>
-                          {event.feeType === 'paid' ? (
-                            <span className="badge bg-amber-500/40 text-amber-300 backdrop-blur-sm">
-                              Rs. {event.feeAmount}
-                            </span>
-                          ) : (
-                            <span className="badge bg-green-500/40 text-green-300 backdrop-blur-sm">
-                              Free
-                            </span>
-                          )}
+                      {/* Header Banner or Image */}
+                      {event.imageUrl ? (
+                        <div className="h-40 overflow-hidden flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={event.imageUrl}
+                            alt={event.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).parentElement!.style.display = 'none'
+                            }}
+                          />
                         </div>
-                        <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
-                          {isEnded(event) && (
-                            <span className="badge bg-gray-500/40 text-gray-300 backdrop-blur-sm">ENDED</span>
-                          )}
-                          {getSpots(event) <= 10 && getSpots(event) > 0 && (
-                            <span className="badge bg-amber-500/20 text-amber-400 backdrop-blur-sm">
-                              {getSpots(event)} left!
+                      ) : (
+                        <div
+                          className="h-36 relative flex-shrink-0"
+                          style={{
+                            background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
+                                       event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
+                                       event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                       event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
+                                       event.category === 'Seminar' ? 'linear-gradient(135deg, #fb923c, #ea580c)' :
+                                       event.category === 'Hackathon' ? 'linear-gradient(135deg, #ec4899, #db2777)' :
+                                       'linear-gradient(135deg, #60a5fa, #2563eb)'
+                          }}
+                        >
+                          <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+                            <span className="badge bg-white/20 text-white backdrop-blur-sm">
+                              {event.category}
                             </span>
-                          )}
-                          {getSpots(event) <= 0 && (
-                            <span className="badge bg-gray-500/20 text-gray-300 backdrop-blur-sm">FULL</span>
-                          )}
+                            {event.feeType === 'paid' ? (
+                              <span className="badge bg-amber-500/40 text-amber-300 backdrop-blur-sm">
+                                Rs. {event.feeAmount}
+                              </span>
+                            ) : (
+                              <span className="badge bg-green-500/40 text-green-300 backdrop-blur-sm">
+                                Free
+                              </span>
+                            )}
+                          </div>
+                          <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
+                            {getSpots(event) <= 0 && (
+                              <span className="badge bg-gray-500/20 text-gray-300 backdrop-blur-sm">FULL</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      {/* Content — flex-1 so all cards stretch to same height */}
+                      {/* Content */}
                       <div className="p-5 flex flex-col flex-1">
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors line-clamp-2 min-h-[3.5rem]">
+                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors line-clamp-2">
                           {event.title}
                         </h3>
 
@@ -356,7 +402,7 @@ export default function EventsPage() {
                         {/* Progress bar */}
                         <div className="mt-4 pt-4 border-t border-border">
                           <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
-                            <div 
+                            <div
                               className={`h-full rounded-full transition-all ${
                                 getSpots(event) <= 0 ? 'bg-red-500' :
                                 (event.registeredCount / event.capacity) > 0.8 ? 'bg-amber-500' : 'bg-accent'
@@ -369,6 +415,31 @@ export default function EventsPage() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+
+            {/* Guest CTA */}
+            {isGuest && totalEvents > PAGINATION.LANDING_EVENTS_GUEST && (
+              <div className="text-center py-12 border-t border-white/5 mt-8">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {totalEvents - PAGINATION.LANDING_EVENTS_GUEST}+ more events waiting
+                </h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  Sign up to see all events, get personalised recommendations,
+                  and register in seconds.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Link href="/auth/signup"
+                    className="px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-white
+                               text-sm font-medium rounded-xl transition-colors">
+                    Create free account
+                  </Link>
+                  <Link href="/auth/login"
+                    className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300
+                               text-sm font-medium rounded-xl border border-white/10 transition-colors">
+                    Sign in
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -410,8 +481,8 @@ export default function EventsPage() {
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                reg.checkedIn 
-                                  ? 'bg-green-500/20 text-green-400' 
+                                reg.checkedIn
+                                  ? 'bg-green-500/20 text-green-400'
                                   : 'bg-amber-500/20 text-amber-400'
                               }`}>
                                 {reg.checkedIn ? 'Checked In' : 'Registered'}
@@ -425,7 +496,7 @@ export default function EventsPage() {
                         </div>
                       </Link>
                     ))}
-                    
+
                     {registrations.length > 10 && (
                       <Link
                         href="/my-registrations"
@@ -453,5 +524,17 @@ export default function EventsPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <EventsContent />
+    </Suspense>
   )
 }

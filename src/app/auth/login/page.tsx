@@ -1,13 +1,15 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/events';
   const { data: session, status } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [warming, setWarming] = useState(true);
 
-  // Pre-warm the auth endpoint so the first login isn't slow
   useEffect(() => {
     fetch('/api/auth/csrf').finally(() => setWarming(false));
   }, []);
@@ -23,7 +24,6 @@ export default function LoginPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       if ((session?.user as any)?.role === 'admin') {
-        // Admin is logged in but on student login page — sign them out silently
         signOut({ redirect: false });
       } else {
         router.push('/events');
@@ -44,45 +44,38 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await signIn('credentials', {
+      const result = await signIn('credentials', {
         email,
         password,
         redirect: false,
-        callbackUrl: '/events',
       });
 
-      if (!res) {
-        toast.error('No response from server. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      if (res.error) {
-        // res.error = 'CredentialsSignin' means wrong password/email
+      if (!result?.ok || result.error) {
         toast.error('Invalid email or password');
         setLoading(false);
         return;
       }
 
-      if (res.ok) {
-        // Fetch session to get role
-        const sessionRes = await fetch('/api/auth/session');
-        const sessionData = await sessionRes.json();
+      const sessionRes = await fetch('/api/auth/session');
+      const sessionData = await sessionRes.json();
 
-        if (sessionData?.user?.role === 'admin') {
-          // Admin tried student login — sign out and show error
-          await signOut({ redirect: false });
-          toast.error('Invalid permission');
-          setLoading(false);
-          return;
-        }
-
-        toast.success('Welcome back!');
-        router.push('/events');
+      if (sessionData?.user?.role === 'admin') {
+        await signOut({ redirect: false });
+        toast.error('Invalid permission');
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Login failed. Please try again.');
+
+      const destination = decodeURIComponent(callbackUrl);
+      router.push(destination);
+      router.refresh();
+
+      setTimeout(() => {
+        toast.success('Welcome back!');
+      }, 300);
+
+    } catch {
+      toast.error('Something went wrong. Please try again.');
       setLoading(false);
     }
   }
@@ -145,13 +138,26 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn-primary w-full text-base py-3.5 flex items-center justify-center gap-2" disabled={loading}>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-3 rounded-xl font-medium text-sm transition-all
+                ${loading
+                  ? 'bg-teal-600/50 text-white/60 cursor-not-allowed'
+                  : 'bg-teal-500 hover:bg-teal-400 text-white cursor-pointer'
+                }`}
+            >
               {loading ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
                   Signing in...
-                </>
-              ) : 'Sign In'}
+                </span>
+              ) : (
+                'Sign In'
+              )}
             </button>
           </form>
           <p className="text-center mt-6 text-sm text-muted-foreground">
@@ -168,5 +174,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="grid-bg min-h-screen flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

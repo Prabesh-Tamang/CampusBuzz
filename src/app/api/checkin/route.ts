@@ -7,30 +7,19 @@ import { rateLimit } from '@/lib/rateLimit';
 import { extractFeatures } from '@/lib/ml/checkinFeatures';
 import { getModel, isModelReady, recordCheckin } from '@/lib/ml/modelManager';
 import { updateStudentReliability, maybeRetrain } from '@/lib/ml/reliabilityScoring';
-import { ANOMALY_WARN_THRESHOLD, ANOMALY_BLOCK_THRESHOLD } from '@/lib/constants';
+import { generateFlagReason } from '@/lib/ml/flagReasoning';
+import { ML_THRESHOLDS } from '@/lib/constants';
 
-/**
- * Rule-based heuristic anomaly score used when the ML model hasn't
- * collected enough training data (< 20 check-ins).
- * Returns a 0-1 score where higher = more suspicious.
- */
 function heuristicAnomalyScore(params: {
   hourOfDay: number;
-  minutesRelativeToStart: number; // negative = scanning BEFORE event starts
+  minutesRelativeToStart: number;
   daysSinceReg: number;
 }): number {
   let score = 0;
-
-  // Scanning well before the event starts is highly suspicious
   if (params.minutesRelativeToStart < -60) score += 0.5;
   else if (params.minutesRelativeToStart < 0) score += 0.25;
-
-  // Scanning at unusual hours (e.g. 1am-6am)
   if (params.hourOfDay >= 1 && params.hourOfDay < 6) score += 0.3;
-
-  // Registered less than 5 minutes ago and scanning right away
-  if (params.daysSinceReg < 0.003) score += 0.25; // < ~5 minutes
-
+  if (params.daysSinceReg < 0.003) score += 0.25;
   return Math.min(score, 1.0);
 }
 
@@ -54,7 +43,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'registrationId required' }, { status: 400 });
     }
 
-    // Fetch registration with full event details (including endDate)
     const existing = await Registration.findOne({ registrationId })
       .populate('userId', 'name email')
       .populate('eventId', 'title date endDate venue category');
@@ -63,7 +51,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 });
     }
 
-    // Block check-in for unconfirmed registrations
     if (!existing.confirmed) {
       return NextResponse.json({
         error: 'Registration not confirmed. Student must confirm attendance via email first.',
@@ -71,7 +58,6 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // ─── FIX: Block check-in for events that have already ended ──────────────
     const event = existing.eventId as any;
     const now = new Date();
     if (event?.endDate && new Date(event.endDate) < now) {
@@ -87,9 +73,7 @@ export async function POST(req: NextRequest) {
         },
       }, { status: 400 });
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // If already checked in, return early
     if (existing.checkedIn) {
       return NextResponse.json({
         error: 'Already checked in',
@@ -97,17 +81,22 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const checkinTime = new Date();
+    if ((existing as any).reviewStatus === 'denied') {
+      return NextResponse.json({
+        error: 'Registration has been denied by an administrator',
+        code: 'DENIED',
+      }, { status: 400 });
+    }
 
+    // ─── ML Anomaly Scoring ──────────────────────────────────────────────────
+    const checkinTime = new Date();
     let anomalyScore: number | null = null;
-    let flagged = false;
-    let blocked = false;
+    let features: number[] = [];
 
     if (isModelReady()) {
-      // ── ML path: Isolation Forest ──────────────────────────────────────────
       try {
         const ifoModel = await getModel();
-        const features = await extractFeatures({
+        features = await extractFeatures({
           userId: existing.userId.toString(),
           eventId: existing.eventId.toString(),
           eventCategory: event.category,
@@ -115,15 +104,11 @@ export async function POST(req: NextRequest) {
           registrationCreatedAt: existing.createdAt,
           checkinTime,
         });
-
         anomalyScore = Math.round(ifoModel!.anomalyScore(features) * 1000) / 1000;
-        flagged  = anomalyScore >= ANOMALY_WARN_THRESHOLD;
-        blocked  = anomalyScore >= ANOMALY_BLOCK_THRESHOLD;
       } catch (err) {
         console.error('[IsolationForest] Scoring failed:', err);
       }
     } else {
-      // ── Fallback path: rule-based heuristics ──────────────────────────────
       try {
         const daysSinceReg = (checkinTime.getTime() - existing.createdAt.getTime()) / 86_400_000;
         const minutesRelativeToStart = (checkinTime.getTime() - new Date(event.date).getTime()) / 60_000;
@@ -134,69 +119,96 @@ export async function POST(req: NextRequest) {
         });
         if (rawScore > 0) {
           anomalyScore = Math.round(rawScore * 1000) / 1000;
-          flagged  = anomalyScore >= ANOMALY_WARN_THRESHOLD;
-          blocked  = anomalyScore >= ANOMALY_BLOCK_THRESHOLD;
         }
       } catch (err) {
         console.error('[Heuristic] Scoring failed:', err);
       }
     }
 
-    // Atomic update: only succeeds if checkedIn is still false
+    const flagged = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.flagThreshold;
+    const blocked = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.blockThreshold;
+
+    // ─── Handle blocked (score >= 0.80) ──────────────────────────────────────
+    if (blocked) {
+      await Registration.findOneAndUpdate(
+        { registrationId, checkedIn: false },
+        {
+          $set: {
+            checkedIn: false,
+            flagged: true,
+            anomalyScore,
+            flagReason: await generateFlagReason(features, anomalyScore!, 'blocked', registrationId),
+          },
+        }
+      );
+
+      return NextResponse.json({
+        success: false,
+        blocked: true,
+        requiresAdminApproval: true,
+        anomalyScore,
+        studentMessage: 'Verification required. Please wait for the organiser.',
+        code: 'BLOCKED',
+      });
+    }
+
+    // ─── Handle flagged (score 0.65-0.80) — held for admin review ────────────
+    if (flagged) {
+      await Registration.findOneAndUpdate(
+        { registrationId, checkedIn: false },
+        {
+          $set: {
+            checkedIn: false,
+            flagged: true,
+            anomalyScore,
+            flagReason: await generateFlagReason(features, anomalyScore!, 'flagged', registrationId),
+          },
+        }
+      );
+
+      return NextResponse.json({
+        success: false,
+        flagged: true,
+        requiresAdminApproval: true,
+        anomalyScore,
+        studentMessage: 'Verification in progress. Please wait for the organiser.',
+        code: 'FLAGGED_PENDING_REVIEW',
+      });
+    }
+
+    // ─── Normal approval — no flag ───────────────────────────────────────────
     const updated = await Registration.findOneAndUpdate(
       { registrationId, checkedIn: false },
       {
         $set: {
-          checkedIn: !blocked,
-          checkedInAt: blocked ? undefined : checkinTime,
+          checkedIn: true,
+          checkedInAt: checkinTime,
           anomalyScore,
-          flagged,
+          flagged: false,
         },
       },
       { new: true }
-    );
+    ).populate('userId', 'name email').populate('eventId', 'title date venue');
 
     if (!updated) {
-      const alreadyCheckedIn = await Registration.findOne({ registrationId }).lean();
-      return NextResponse.json({
-        error: 'Already checked in',
-        checkedInAt: (alreadyCheckedIn as any)?.checkedInAt,
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Already checked in' }, { status: 400 });
     }
 
-    if (!blocked) {
-      recordCheckin();
-
-      void updateStudentReliability(existing.userId.toString()).catch(err =>
-        console.error('[Reliability] Update after check-in failed:', err)
-      );
-      maybeRetrain();
-    }
-
-    if (blocked) {
-      return NextResponse.json({
-        success: false,
-        blocked: true,
-        anomalyScore,
-        message: 'Verification issue detected. Please see the event organiser.',
-        registration: {
-          attendeeName: (existing.userId as any)?.name || 'Student',
-          attendeeEmail: (existing.userId as any)?.email || '',
-          eventTitle: event.title || 'Event',
-          registrationId: existing.registrationId,
-        },
-      }, { status: 200 });
-    }
+    recordCheckin();
+    void updateStudentReliability(existing.userId.toString()).catch(err =>
+      console.error('[Reliability] Update after check-in failed:', err)
+    );
+    maybeRetrain();
 
     return NextResponse.json({
       success: true,
-      warning: flagged,
+      warning: false,
       anomalyScore,
       registration: {
-        attendeeName: (existing.userId as any)?.name || 'Student',
-        attendeeEmail: (existing.userId as any)?.email || '',
-        eventTitle: event.title || 'Event',
-        registrationId: existing.registrationId,
+        attendeeName: (updated.userId as any).name,
+        eventTitle: (updated.eventId as any).title,
+        registrationId: updated.registrationId,
+        checkedInAt: updated.checkedInAt,
       },
     });
   } catch (err) {

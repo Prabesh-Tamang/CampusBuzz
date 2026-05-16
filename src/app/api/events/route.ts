@@ -11,9 +11,19 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
 
+    const status = searchParams.get('status');
     const query: Record<string, unknown> = { isActive: true };
     if (category && category !== 'All') query.category = category;
     if (search) query.title = { $regex: search, $options: 'i' };
+    if (status === 'ended') {
+      query.date = { $lt: new Date() };
+    } else {
+      query.$or = [
+        { isCancelled: { $ne: true } },
+        { isCancelled: { $exists: false } },
+      ];
+      query.date = { $gte: new Date() };
+    }
 
     const events: any = await Event.find(query).sort({ date: 1 }).lean();
 

@@ -1,7 +1,7 @@
 import { IsolationForest } from './isolationForest';
 import { extractFeatures } from './checkinFeatures';
 import Registration from '@/models/Registration';
-import { MIN_TRAINING_SAMPLES, RETRAIN_INTERVAL } from '@/lib/constants';
+import { ML_THRESHOLDS } from '@/lib/constants';
 
 let model: IsolationForest | null = null;
 let checkinsSinceRetrain = 0;
@@ -32,8 +32,8 @@ export async function trainModel(): Promise<void> {
     }
   }
 
-  if (featureVectors.length < MIN_TRAINING_SAMPLES) {
-    console.warn(`[IsolationForest] Only ${featureVectors.length} valid samples — skipping training (need ${MIN_TRAINING_SAMPLES})`);
+  if (featureVectors.length < ML_THRESHOLDS.checkin.minTrainSamples) {
+    console.warn(`[IsolationForest] Only ${featureVectors.length} valid samples — skipping training (need ${ML_THRESHOLDS.checkin.minTrainSamples})`);
     return;
   }
 
@@ -50,12 +50,12 @@ export async function getModel(): Promise<IsolationForest | null> {
 }
 
 export function isModelReady(): boolean {
-  return model !== null && model.isTrained && trainingCount >= MIN_TRAINING_SAMPLES;
+  return model !== null && model.isTrained && trainingCount >= ML_THRESHOLDS.checkin.minTrainSamples;
 }
 
 export function recordCheckin(): void {
   checkinsSinceRetrain++;
-  if (checkinsSinceRetrain >= RETRAIN_INTERVAL) {
+  if (checkinsSinceRetrain >= ML_THRESHOLDS.checkin.retrainAfter) {
     trainModel().catch(err =>
       console.error('[IsolationForest] Retrain failed:', err)
     );

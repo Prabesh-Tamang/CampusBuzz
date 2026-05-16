@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ShieldCheck, RotateCcw, XCircle, Loader2, User, Calendar, MapPin, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -21,134 +22,329 @@ interface FlaggedEntry {
   };
   registrationId: string;
   anomalyScore: number;
+  flagReason?: string;
+  reviewStatus?: 'pending' | 'approved' | 'denied';
+  adminNote?: string;
+  reviewedAt?: string;
+  checkedIn: boolean;
   createdAt: string;
 }
+
+const STATUS_STYLES = {
+  pending: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400', label: 'Pending' },
+  approved: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', label: 'Approved' },
+  denied: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400', label: 'Denied' },
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Technical: '#14b8a6',
+  Cultural: '#f43f5e',
+  Sports: '#f59e0b',
+  Workshop: '#a78bfa',
+};
 
 export default function AdminFlaggedPage() {
   const { data: session, status } = useSession();
   const [flagged, setFlagged] = useState<FlaggedEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [denyNotes, setDenyNotes] = useState<Record<string, string>>({});
+  const [confirmDenyId, setConfirmDenyId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const fetchFlagged = useCallback(async () => {
+    if (status !== 'authenticated') return;
+    try {
+      const res = await fetch(`/api/admin/flagged?tab=${activeTab}`);
+      const d = await res.json();
+      setFlagged(d.flagged || []);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [status, activeTab]);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetch('/api/admin/flagged')
-        .then(r => r.json())
-        .then(d => {
-          setFlagged(d.flagged || []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status]);
+    setLoading(true);
+    fetchFlagged();
+  }, [fetchFlagged]);
 
-  async function handleOverride(registrationId: string) {
+  async function handleAction(registrationId: string, action: 'approve' | 'deny' | 'reinstate') {
+    setActingId(registrationId);
     try {
       const res = await fetch('/api/admin/flagged', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registrationId }),
+        body: JSON.stringify({
+          registrationId,
+          action,
+          ...(action === 'deny' ? { adminNote: denyNotes[registrationId] || '' } : {}),
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to approve');
+      if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
       setFlagged(prev => prev.filter(f => f.registrationId !== registrationId));
-      toast.success('Check-in approved successfully');
+      setConfirmDenyId(null);
+      setDenyNotes(prev => { const n = { ...prev }; delete n[registrationId]; return n; });
+      toast.success(
+        action === 'approve' ? 'Check-in approved'
+        : action === 'deny' ? 'Check-in denied'
+        : 'Reinstated to pending review'
+      );
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to approve check-in');
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setActingId(null);
     }
   }
 
-  function getScoreBadge(score: number) {
-    if (score < 0.6) return { color: '#22c55e', label: 'Low' };
-    if (score < 0.8) return { color: '#f59e0b', label: 'Medium' };
-    return { color: '#ef4444', label: 'High' };
+  function getScoreInfo(score: number | undefined) {
+    const s = score ?? 0;
+    if (s < 0.6) return { color: '#22c55e', bg: 'rgba(34,197,94,0.12)', label: 'Low Risk', width: 'w-1/3' };
+    if (s < 0.8) return { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', label: 'Medium Risk', width: 'w-2/3' };
+    return { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', label: 'High Risk', width: 'w-full' };
   }
 
+  function getInitials(name: string) {
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  }
+
+  const pendingCount = flagged.filter(f => f.reviewStatus !== 'approved' && f.reviewStatus !== 'denied').length;
+
   if (loading) return (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-8">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-4 mb-2">
         <div className="w-14 h-14 bg-surface2 animate-pulse rounded-2xl" />
         <div>
           <div className="w-52 h-7 bg-surface2 animate-pulse rounded-lg mb-2" />
           <div className="w-72 h-4 bg-surface2 animate-pulse rounded" />
         </div>
       </div>
-      <div className="h-80 bg-surface2 animate-pulse rounded-2xl" />
+      {[1, 2, 3].map(i => (
+        <div key={i} className="h-40 bg-surface2 animate-pulse rounded-2xl" />
+      ))}
     </div>
   );
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-14 h-14 rounded-2xl bg-red-500/20 flex items-center justify-center">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/20 flex items-center justify-center ring-1 ring-red-500/30">
           <AlertTriangle className="w-7 h-7 text-red-400" />
         </div>
         <div>
           <h1 className="text-2xl font-extrabold text-white">
             Flagged <span className="text-accent">Check-ins</span>
           </h1>
-          <p className="text-muted-foreground">Review suspicious activity flagged by the ML model</p>
+          <p className="text-sm text-muted-foreground">Suspicious activity detected by the ML model</p>
         </div>
       </div>
 
+      <div className="flex gap-1 mb-6 p-1 bg-dark-card rounded-xl border border-border w-fit">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'pending' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
+        >
+          Pending Review
+          {pendingCount > 0 && (
+            <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded-full">{pendingCount}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
+        >
+          Review History
+        </button>
+      </div>
+
       {flagged.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="No flagged check-ins"
-          description="All check-ins are within normal parameters. The Isolation Forest model has not detected any suspicious activity."
-        />
+        <div className="mt-16">
+          <EmptyState
+            icon={activeTab === 'pending' ? ShieldCheck : CheckCircle}
+            title={activeTab === 'pending' ? 'No flagged check-ins' : 'No review history'}
+            description={
+              activeTab === 'pending'
+                ? 'All check-ins are within normal parameters. The Isolation Forest model has not detected any suspicious activity.'
+                : 'No previously approved or denied registrations to show.'
+            }
+          />
+        </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-border bg-dark-card">
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Student</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Event</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Score</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Time</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {flagged.map((entry) => {
-                const badge = getScoreBadge(entry.anomalyScore);
-                return (
-                  <tr key={entry._id} className="border-b border-border/50 hover:bg-dark-border/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-white">{entry.userId?.name || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{entry.userId?.email}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-white">{entry.eventId?.title || 'Unknown'}</div>
-                      <div className="text-sm text-gray-500">{entry.eventId?.venue}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span 
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
-                        style={{ background: `${badge.color}20`, color: badge.color }}
+        <div className="space-y-4">
+          {flagged.map((entry, i) => {
+            const score = getScoreInfo(entry.anomalyScore);
+            const isDenied = entry.reviewStatus === 'denied';
+            const isApproved = entry.reviewStatus === 'approved';
+            const isActing = actingId === entry.registrationId;
+            const catColor = CATEGORY_COLORS[entry.eventId?.category] || '#6b7280';
+
+            return (
+              <motion.div
+                key={entry._id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="card p-5 relative overflow-hidden border-l-4"
+                style={{
+                  borderLeftColor: isApproved ? '#22c55e' : isDenied ? '#ef4444' : score.color,
+                }}
+              >
+                {/* Score bar at top */}
+                <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: `${score.bg}` }}>
+                  <div className={`h-full ${score.width} rounded-full transition-all duration-500`} style={{ background: score.color }} />
+                </div>
+
+                <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                  {/* Left: Student Info */}
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+                      style={{ background: `${score.color}20`, color: score.color }}
+                    >
+                      {getInitials(entry.userId?.name || '??')}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white">{entry.userId?.name || 'Unknown'}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold ${activeTab === 'pending' ? 'bg-amber-500/10 text-amber-400' : isApproved ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                          {activeTab === 'pending' ? 'Pending' : isApproved ? 'Approved' : 'Denied'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{entry.userId?.email}</p>
+
+                      {/* Flag reason — styled box */}
+                      {entry.flagReason && (
+                        <div className="mt-2 flex items-start gap-2 p-2.5 rounded-lg text-xs leading-relaxed" style={{ background: `${score.color}10`, border: `1px solid ${score.color}20` }}>
+                          <Zap size={14} className="flex-shrink-0 mt-0.5" style={{ color: score.color }} />
+                          <span style={{ color: score.color }}>
+                            {entry.flagReason}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Admin note on denied */}
+                      {isDenied && entry.adminNote && (
+                        <div className="mt-2 flex items-start gap-2 p-2.5 rounded-lg text-xs leading-relaxed" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                          <XCircle size={14} className="flex-shrink-0 mt-0.5 text-red-400" />
+                          <span className="text-red-400">
+                            <span className="font-semibold">Admin note:</span> {entry.adminNote}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Center: Event + Score */}
+                  <div className="flex flex-col sm:flex-row gap-4 sm:items-center lg:min-w-[280px]">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={13} className="text-gray-500" />
+                        <span className="text-sm font-semibold text-white truncate">{entry.eventId?.title || 'Unknown'}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <MapPin size={11} />
+                          {entry.eventId?.venue || 'N/A'}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] font-semibold"
+                          style={{ background: `${catColor}20`, color: catColor }}
+                        >
+                          {entry.eventId?.category || 'General'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5"
+                        style={{ background: score.bg, color: score.color }}
                       >
-                        <AlertTriangle size={12} /> 
-                        {entry.anomalyScore.toFixed(3)} ({badge.label})
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
+                        <Zap size={13} />
+                        {(entry.anomalyScore ?? 0).toFixed(2)}
+                      </div>
+                      <div
+                        className="px-2 py-1 rounded-lg text-[11px] font-semibold"
+                        style={{ background: score.bg, color: score.color }}
+                      >
+                        {score.label}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div className="flex-shrink-0">
+                    {activeTab === 'pending' ? (
+                      confirmDenyId === entry.registrationId ? (
+                        <div className="flex flex-col gap-2 min-w-[200px]">
+                          <textarea
+                            placeholder="Reason for denying…"
+                            value={denyNotes[entry.registrationId] || ''}
+                            onChange={e => setDenyNotes(prev => ({ ...prev, [entry.registrationId]: e.target.value }))}
+                            rows={2}
+                            className="w-full px-3 py-2 text-xs bg-dark-card border border-red-500/40 rounded-lg text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500 resize-none"
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => { setConfirmDenyId(null); setDenyNotes(prev => { const n = { ...prev }; delete n[entry.registrationId]; return n; }); }}
+                              className="px-3 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+                              disabled={isActing}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleAction(entry.registrationId, 'deny')}
+                              disabled={isActing}
+                              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs rounded-xl border border-red-500/20 transition-colors inline-flex items-center gap-1.5 font-semibold"
+                            >
+                              {isActing ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                              Confirm Deny
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmDenyId(entry.registrationId)}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs rounded-xl border border-red-500/20 transition-colors font-semibold"
+                          >
+                            Deny
+                          </button>
+                          <button
+                            onClick={() => handleAction(entry.registrationId, 'approve')}
+                            disabled={isActing}
+                            className="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white text-xs rounded-xl font-semibold shadow-lg shadow-teal-500/20 transition-all inline-flex items-center gap-1.5"
+                          >
+                            {isActing ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+                            Approve
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex gap-2">
+                        {isDenied && (
+                          <button
+                            onClick={() => handleAction(entry.registrationId, 'reinstate')}
+                            disabled={isActing}
+                            className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs rounded-xl border border-amber-500/20 transition-colors inline-flex items-center gap-1.5 font-semibold"
+                          >
+                            {isActing ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                            Reinstate
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <p className="text-[10px] text-gray-600 mt-2 text-right">
                       {format(new Date(entry.createdAt), 'MMM d, h:mm a')}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleOverride(entry.registrationId)}
-                        className="btn-primary text-sm px-4 py-2 inline-flex items-center gap-2"
-                      >
-                        <ShieldCheck size={14} /> Approve
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
     </div>

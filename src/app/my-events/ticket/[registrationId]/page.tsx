@@ -23,7 +23,6 @@ export default async function TicketPage({
     userId: session.user.id,
   }).lean();
 
-  // Allow access if: confirmed (free event) OR has a paymentId (paid event)
   const reg = registration as any;
   if (!reg || !reg.qrCode || (!reg.confirmed && !reg.paymentId)) {
     notFound();
@@ -34,81 +33,96 @@ export default async function TicketPage({
 
   const ev = event as any;
 
-  return (
-    <>
-      {/* Controls — hidden when printing */}
-      <div className="print:hidden fixed top-4 right-4 z-10 flex gap-3">
-        <PrintButton />
-        <a
-          href="/my-events"
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          Back
-        </a>
+  const ticketContent = (
+    <div className="bg-gradient-to-br from-[#0f2420] to-[#050d0c] border border-teal-500/20 rounded-3xl overflow-hidden shadow-2xl shadow-teal-500/5 print:shadow-none print:border-gray-300">
+      <div className="relative p-6 pb-0 print:p-4 print:pb-0">
+        <div className="absolute inset-0 opacity-5 print:hidden"
+             style={{ backgroundImage: `radial-gradient(circle at 20% 50%, #14b8a6 0%, transparent 50%), radial-gradient(circle at 80% 20%, #0891b2 0%, transparent 50%)` }} />
+
+        <div className="flex items-center gap-2 mb-6 relative print:mb-3">
+          <div className="w-7 h-7 bg-teal-500/20 rounded-lg flex items-center justify-center print:bg-teal-500/50">
+            <span className="text-teal-400 text-sm print:text-teal-700">🎓</span>
+          </div>
+          <span className="text-teal-400 text-sm font-semibold tracking-wide print:text-teal-700">CampusBuzz</span>
+          <div className="ml-auto">
+            <span className="text-xs text-teal-400/60 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full print:text-teal-700 print:border-teal-700/30 print:bg-teal-500/30">ENTRY TICKET</span>
+          </div>
+        </div>
+
+        <div className="mb-3 relative">
+          <span className="text-xs text-teal-300 uppercase tracking-widest font-medium print:text-teal-600">{ev.category}</span>
+        </div>
+
+        <h1 className="text-2xl font-black text-white leading-tight mb-5 relative print:text-gray-900">{ev.title}</h1>
+
+        <div className="space-y-2.5 mb-6 relative print:mb-3">
+          {[
+            { icon: '📅', label: format(new Date(ev.date), 'EEEE, MMMM d yyyy') },
+            { icon: '⏰', label: format(new Date(ev.date), 'h:mm a') },
+            { icon: '📍', label: ev.venue },
+            { icon: '👤', label: session.user.name },
+          ].map(({ icon, label }) => (
+            <div key={label} className="flex items-center gap-3">
+              <span className="text-base w-5">{icon}</span>
+              <span className="text-sm text-gray-300 print:text-gray-700">{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="min-h-screen bg-white flex items-center justify-center p-8 print:p-4 print:flex print:items-start print:justify-center">
-        <div className="w-full max-w-xs border-2 border-gray-200 rounded-2xl overflow-hidden shadow-xl print:shadow-none print:rounded-none print:border-black">
-          {/* Header */}
-          <div className="bg-teal-600 text-white p-6 text-center">
-            <p className="text-xs font-medium opacity-70 mb-1 tracking-widest uppercase">
-              CampusBuzz
-            </p>
-            <h1 className="text-lg font-bold leading-tight">{ev.title}</h1>
-          </div>
+      <div className="relative px-4 py-1">
+        <div className="border-t border-dashed border-teal-500/20 print:border-gray-400" />
+        <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#050d0c] print:bg-white" />
+        <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#050d0c] print:bg-white" />
+      </div>
 
-          {/* Event info */}
-          <div className="p-5 bg-white space-y-3">
-            {[
-              { label: 'Date', value: format(new Date(ev.date), 'MMM d, yyyy') },
-              { label: 'Time', value: format(new Date(ev.date), 'h:mm a') },
-              { label: 'Venue', value: ev.venue },
-              { label: 'Attendee', value: session.user.name ?? 'Student' },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex justify-between text-sm gap-4">
-                <span className="text-gray-500 shrink-0">{label}</span>
-                <span className="font-medium text-gray-900 text-right">{value}</span>
-              </div>
-            ))}
+      <div className="p-6 pt-4 text-center print:p-4 print:pt-2">
+        <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest print:text-gray-600">Scan to enter</p>
+        <div className="inline-block relative">
+          <div className="absolute inset-0 bg-teal-400/10 rounded-2xl blur-xl print:hidden" />
+          <div className="relative bg-white p-3 rounded-2xl shadow-xl print:shadow-none print:border print:border-gray-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={reg.qrCode} alt="Entry QR Code" className="w-44 h-44 block print:w-36 print:h-36" />
           </div>
+        </div>
+        <p className="mt-4 text-xs text-gray-500 font-mono tracking-widest print:text-gray-600">{reg.registrationId}</p>
+        <p className="mt-3 text-xs text-gray-600 leading-relaxed print:text-gray-500">Non-transferable · Valid for one entry only</p>
+      </div>
 
-          {/* Tear line */}
-          <div className="relative border-t-2 border-dashed border-gray-300 mx-4">
-            <div className="absolute -left-7 -top-3.5 w-7 h-7 rounded-full bg-gray-50 border-2 border-gray-200" />
-            <div className="absolute -right-7 -top-3.5 w-7 h-7 rounded-full bg-gray-50 border-2 border-gray-200" />
-          </div>
+      <div className="h-2 bg-gradient-to-r from-teal-600 via-teal-400 to-cyan-400 print:bg-gray-300" />
+    </div>
+  );
 
-          {/* QR Code */}
-          <div className="p-5 bg-white text-center">
-            <p className="text-xs text-gray-400 mb-4">
-              Scan at entrance for check-in
-            </p>
-            <div className="inline-block bg-white p-3 border-2 border-gray-100 rounded-xl shadow-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={reg.qrCode}
-                alt="Entry QR Code"
-                className="w-48 h-48 print:w-44 print:h-44"
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-3 font-mono tracking-wider">
-              {reg.registrationId}
-            </p>
+  return (
+    <>
+      {/* Screen controls */}
+      <div className="print:hidden min-h-screen bg-[#050d0c] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-sm">
+          <div className="flex gap-3 mb-6 justify-center">
+            <PrintButton />
+            <a
+              href="/my-events"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm font-medium border border-white/10 transition-colors"
+            >
+              ← Back
+            </a>
           </div>
+          {ticketContent}
+          <p className="text-center text-xs text-gray-600 mt-4">Save as PDF for offline access 💾</p>
+        </div>
+      </div>
 
-          {/* Footer */}
-          <div className="bg-gray-50 px-5 py-3 text-center border-t border-gray-100">
-            <p className="text-xs text-gray-400">
-              Non-transferable · Valid for one entry only
-            </p>
-          </div>
+      {/* Print version — white background, same ticket */}
+      <div className="hidden print:block print:min-h-screen print:bg-white print:p-4">
+        <div className="w-full max-w-sm mx-auto">
+          {ticketContent}
         </div>
       </div>
 
       <style>{`
         @media print {
-          .print\\:hidden { display: none !important; }
           body { margin: 0; background: white; }
+          @page { margin: 0.5in; }
         }
       `}</style>
     </>

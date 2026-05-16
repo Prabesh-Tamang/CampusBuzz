@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Registration from '@/models/Registration';
 import Event from '@/models/Event';
-import { ANOMALY_BLOCK_THRESHOLD } from '@/lib/constants';
+import { ML_THRESHOLDS } from '@/lib/constants';
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     if (registration.checkedIn) {
       status = registration.flagged && !registration.adminOverride ? 'FLAGGED' : 'CHECKED_IN';
     } else {
-      if (registration.anomalyScore !== undefined && registration.anomalyScore !== null && registration.anomalyScore >= ANOMALY_BLOCK_THRESHOLD && !registration.adminOverride) {
+      if (registration.anomalyScore !== undefined && registration.anomalyScore !== null && registration.anomalyScore >= ML_THRESHOLDS.checkin.blockThreshold && !registration.adminOverride) {
         status = 'BLOCKED';
       } else if (new Date(event.endDate) < now) {
         status = 'QR_EXPIRED';

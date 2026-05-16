@@ -1,7 +1,7 @@
 import Registration from '@/models/Registration';
 import Event, { IEvent } from '@/models/Event';
 import mongoose from 'mongoose';
-import { RECOMMENDATION_TOP_K } from '@/lib/constants';
+import { RECOMMENDATION_CONFIG } from '@/lib/constants';
 
 export interface RecommendationResult {
   event: IEvent;
@@ -60,7 +60,7 @@ function cosineSimilarity(
 
 export async function getRecommendations(
   userId: string,
-  topK = RECOMMENDATION_TOP_K
+  topK = RECOMMENDATION_CONFIG.TOP_K
 ): Promise<RecommendationResult[]> {
   const { userEvents, eventUserCount, totalUsers } = await buildMatrix();
 

@@ -5,9 +5,9 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Calendar, MapPin, Users, DollarSign, Clock, Tag, Image as ImageIcon, ArrowLeft } from 'lucide-react'
-
-const categories = ['Technical', 'Cultural', 'Sports', 'Workshop', 'Seminar', 'Hackathon', 'Other']
+import { Calendar, MapPin, Users, DollarSign, Clock, Tag, ArrowLeft } from 'lucide-react'
+import ImageUpload from '@/components/admin/ImageUpload'
+import { EVENT_CATEGORIES } from '@/lib/constants'
 
 function getMinDateTime() {
   const now = new Date()
@@ -40,7 +40,7 @@ export default function EditEventPage() {
     capacity: 100,
     registrationDeadline: '',
     tags: '',
-    image: '',
+    imageUrl: '',
     organizer: '',
   })
 
@@ -63,7 +63,7 @@ export default function EditEventPage() {
           capacity: data.capacity || 100,
           registrationDeadline: data.registrationDeadline ? formatDateForInput(data.registrationDeadline) : '',
           tags: Array.isArray(data.tags) ? data.tags.join(', ') : '',
-          image: data.imageUrl || '',
+          imageUrl: data.imageUrl || '',
           organizer: data.organizer || '',
         })
       } catch (err: any) {
@@ -108,7 +108,7 @@ export default function EditEventPage() {
           capacity: Number(form.capacity),
           registrationDeadline: form.registrationDeadline ? new Date(form.registrationDeadline) : undefined,
           tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
-          imageUrl: form.image,
+          imageUrl: form.imageUrl,
           organizer: form.organizer,
         }),
       })
@@ -218,7 +218,7 @@ export default function EditEventPage() {
                   onChange={e => set('category', e.target.value)}
                   className="input w-full pl-10"
                 >
-                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  {EVENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
@@ -377,21 +377,15 @@ export default function EditEventPage() {
             </div>
           </div>
 
-          {/* Image URL */}
+          {/* Image Upload */}
           <div>
             <label className="mb-2 block text-[13px] font-bold uppercase tracking-wider text-muted-foreground">
-              Event Image URL
+              Event Image
             </label>
-            <div className="relative">
-              <ImageIcon size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input 
-                type="url" 
-                placeholder="https://..."
-                value={form.image} 
-                onChange={e => set('image', e.target.value)} 
-                className="input w-full pl-10"
-              />
-            </div>
+            <ImageUpload
+              value={form.imageUrl}
+              onChange={(url) => setForm(prev => ({ ...prev, imageUrl: url }))}
+            />
           </div>
 
           {/* Buttons */}
