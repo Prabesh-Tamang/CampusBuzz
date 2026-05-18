@@ -647,31 +647,46 @@ export default function AdminEventViewPage() {
 
       {/* Cancel Confirmation Modal */}
       {cancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface border border-border rounded-2xl w-full max-w-md p-6 shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-2">Cancel Event</h2>
-            <p className="text-muted-foreground text-sm mb-4">
-              Are you sure you want to cancel{" "}
-              <strong className="text-white">{event.title}</strong>? This will
-              notify all registered students and initiate refunds if it is a
-              paid event. This action cannot be undone.
-            </p>
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Cancellation Reason
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="bg-[#0d1f1e] rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-6 pb-4">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-red-500/10 mb-4 mx-auto">
+                <AlertTriangle className="w-7 h-7 text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-white text-center mb-2">Cancel Event</h2>
+              <p className="text-[#8b9fa0] text-sm text-center mb-6">
+                Are you sure you want to cancel{" "}
+                <strong className="text-white">{event.title}</strong>? All registrants will be notified and refunds initiated.
+              </p>
+            </div>
+            <div className="px-6 pb-6">
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-red-400 text-xs font-bold">!</span>
+                  </div>
+                  <p className="text-sm text-[#8b9fa0]">
+                    This action cannot be undone. All registrations will be voided.
+                  </p>
+                </div>
+              </div>
+              <label className="block text-xs font-semibold text-red-400 mb-2">
+                Cancellation reason
               </label>
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Due to unexpected weather conditions..."
-                className="w-full bg-surface2 border border-border rounded-xl p-3 text-white focus:outline-none focus:border-red-500 min-h-[100px] resize-none"
+                placeholder="e.g. Venue unavailable, event postponed..."
+                className="w-full bg-[#142826] border border-[#1e3a38] rounded-xl px-4 py-3
+                           text-white text-sm placeholder-[#4a6663] resize-none
+                           focus:outline-none focus:border-red-500/50 transition-all min-h-[100px]"
               />
             </div>
-            <div className="flex gap-3 justify-end">
+            <div className="px-6 pb-6 flex gap-3 justify-end">
               <button
                 onClick={() => setCancelModal(false)}
                 disabled={cancelling}
-                className="px-5 py-2.5 rounded-xl font-semibold text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl font-semibold text-[#8b9fa0] hover:text-white transition-colors disabled:opacity-50"
               >
                 Go Back
               </button>

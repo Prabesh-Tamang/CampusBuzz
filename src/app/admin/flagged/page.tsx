@@ -47,6 +47,7 @@ export default function AdminFlaggedPage() {
   const { data: session, status } = useSession();
   const [flagged, setFlagged] = useState<FlaggedEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [denyNotes, setDenyNotes] = useState<Record<string, string>>({});
   const [confirmDenyId, setConfirmDenyId] = useState<string | null>(null);
@@ -62,11 +63,11 @@ export default function AdminFlaggedPage() {
       // silent
     } finally {
       setLoading(false);
+      setTabLoading(false);
     }
   }, [status, activeTab]);
 
   useEffect(() => {
-    setLoading(true);
     fetchFlagged();
   }, [fetchFlagged]);
 
@@ -113,16 +114,56 @@ export default function AdminFlaggedPage() {
   const pendingCount = flagged.filter(f => f.reviewStatus !== 'approved' && f.reviewStatus !== 'denied').length;
 
   if (loading) return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4 mb-2">
-        <div className="w-14 h-14 bg-surface2 animate-pulse rounded-2xl" />
+    <div className="p-6">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 bg-surface2/50 animate-pulse rounded-2xl" />
         <div>
-          <div className="w-52 h-7 bg-surface2 animate-pulse rounded-lg mb-2" />
-          <div className="w-72 h-4 bg-surface2 animate-pulse rounded" />
+          <div className="flex gap-2">
+            <div className="w-24 h-7 bg-surface2/60 animate-pulse rounded-lg" />
+            <div className="w-28 h-7 bg-surface2/40 animate-pulse rounded-lg" />
+          </div>
+          <div className="w-72 h-4 bg-surface2/40 animate-pulse rounded mt-2" />
         </div>
       </div>
+      <div className="flex gap-1 mb-6 p-1 bg-surface rounded-xl w-fit">
+        <div className="w-32 h-9 bg-surface2/50 animate-pulse rounded-lg" />
+        <div className="w-28 h-9 bg-surface2/30 animate-pulse rounded-lg" />
+      </div>
       {[1, 2, 3].map(i => (
-        <div key={i} className="h-40 bg-surface2 animate-pulse rounded-2xl" />
+        <div key={i} className="card p-5 mb-4 relative overflow-hidden border-l-4 border-surface2/50">
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-surface2/30">
+            <div className="w-1/3 h-full bg-surface2/50 animate-pulse rounded-full" />
+          </div>
+          <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 bg-surface2/50 animate-pulse rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-28 h-4 bg-surface2/60 animate-pulse rounded" />
+                  <div className="w-14 h-4 bg-surface2/40 animate-pulse rounded-md" />
+                </div>
+                <div className="w-40 h-3 bg-surface2/30 animate-pulse rounded" />
+                <div className="w-full h-10 bg-surface2/30 animate-pulse rounded-lg" />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+              <div className="space-y-1.5">
+                <div className="w-36 h-3.5 bg-surface2/50 animate-pulse rounded" />
+                <div className="w-28 h-3 bg-surface2/30 animate-pulse rounded" />
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-16 h-6 bg-surface2/50 animate-pulse rounded-lg" />
+                <div className="w-20 h-5 bg-surface2/40 animate-pulse rounded-lg" />
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <div className="flex gap-2">
+                <div className="w-16 h-8 bg-surface2/50 animate-pulse rounded-xl" />
+                <div className="w-20 h-8 bg-surface2/60 animate-pulse rounded-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -141,9 +182,9 @@ export default function AdminFlaggedPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 mb-6 p-1 bg-dark-card rounded-xl border border-border w-fit">
+      <div className="flex gap-1 mb-6 p-1 bg-surface rounded-xl border border-border w-fit relative">
         <button
-          onClick={() => setActiveTab('pending')}
+          onClick={() => { if (activeTab !== 'pending') { setActiveTab('pending'); setTabLoading(true); } }}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'pending' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
         >
           Pending Review
@@ -152,11 +193,16 @@ export default function AdminFlaggedPage() {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => { if (activeTab !== 'history') { setActiveTab('history'); setTabLoading(true); } }}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
         >
           Review History
         </button>
+        {tabLoading && (
+          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2">
+            <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
       </div>
 
       {flagged.length === 0 ? (
@@ -284,7 +330,7 @@ export default function AdminFlaggedPage() {
                             value={denyNotes[entry.registrationId] || ''}
                             onChange={e => setDenyNotes(prev => ({ ...prev, [entry.registrationId]: e.target.value }))}
                             rows={2}
-                            className="w-full px-3 py-2 text-xs bg-dark-card border border-red-500/40 rounded-lg text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500 resize-none"
+                            className="w-full px-3 py-2 text-xs bg-surface border border-red-500/40 rounded-lg text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500 resize-none"
                           />
                           <div className="flex gap-2 justify-end">
                             <button

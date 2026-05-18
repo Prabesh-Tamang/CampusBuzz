@@ -77,7 +77,7 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                          <img src={qrCode} alt="QR Code" className="w-40 h-40" />
                       </div>
                     ) : (
-                      <div className="w-48 h-48 flex items-center justify-center bg-dark-card border border-border rounded-xl relative z-10">
+                      <div className="w-48 h-48 flex items-center justify-center bg-surface border border-border rounded-xl relative z-10">
                         <HiQrcode className="text-6xl text-gray-600" />
                       </div>
                     )}

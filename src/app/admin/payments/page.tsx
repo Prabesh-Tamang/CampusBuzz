@@ -93,16 +93,58 @@ export default function AdminPaymentsPage() {
     <div className="min-h-screen">
       <div className="pb-16 px-4 max-w-7xl mx-auto">
         <div className="flex items-center gap-3 mb-8 mt-7">
-          <div className="w-14 h-14 bg-surface2 animate-pulse rounded-2xl" />
+          <div className="w-14 h-14 bg-surface2/50 animate-pulse rounded-2xl" />
           <div>
-            <div className="w-48 h-7 bg-surface2 animate-pulse rounded-lg mb-2" />
-            <div className="w-64 h-4 bg-surface2 animate-pulse rounded" />
+            <div className="w-48 h-7 bg-surface2/60 animate-pulse rounded-lg mb-2" />
+            <div className="w-56 h-4 bg-surface2/40 animate-pulse rounded" />
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-surface2 animate-pulse rounded-2xl" />)}
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="card p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-surface2/50 animate-pulse rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-16 h-3 bg-surface2/40 animate-pulse rounded" />
+                  <div className="w-24 h-5 bg-surface2/60 animate-pulse rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="h-96 bg-surface2 animate-pulse rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="card p-5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="w-12 h-3 bg-surface2/40 animate-pulse rounded" />
+                  <div className="w-28 h-5 bg-surface2/60 animate-pulse rounded" />
+                  <div className="w-20 h-3 bg-surface2/30 animate-pulse rounded" />
+                </div>
+                <div className="w-12 h-12 bg-surface2/50 animate-pulse rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="w-fit h-10 bg-surface2/50 animate-pulse rounded-lg mb-6" />
+        <div className="card overflow-hidden">
+          <div className="h-14 bg-[#142826] flex items-center px-6 gap-8">
+            {[...Array(7)].map((_, i) => (
+              <div key={i} className="w-16 h-3.5 bg-surface2/40 animate-pulse rounded" />
+            ))}
+          </div>
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="px-6 py-4 flex items-center gap-8 border-t border-[#1e3a38]">
+              <div className="w-28 h-3.5 bg-surface2/40 animate-pulse rounded" />
+              <div className="w-24 h-3.5 bg-surface2/40 animate-pulse rounded" />
+              <div className="w-14 h-5 bg-surface2/40 animate-pulse rounded-lg" />
+              <div className="w-20 h-3.5 bg-surface2/40 animate-pulse rounded" />
+              <div className="w-20 h-5 bg-surface2/40 animate-pulse rounded-full" />
+              <div className="w-24 h-3.5 bg-surface2/40 animate-pulse rounded" />
+              <div className="w-16 h-5 bg-surface2/40 animate-pulse rounded-lg" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

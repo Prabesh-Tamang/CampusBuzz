@@ -8,69 +8,79 @@ import { HiCheckCircle, HiArrowRight, HiXCircle } from 'react-icons/hi'
 function VerifyContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [success, setSuccess] = useState(false)
+  const [verificationState, setVerificationState] = useState<'loading' | 'success' | 'failed'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
 
   const eventName = searchParams.get('event')
   
   useEffect(() => {
-    const pidx = searchParams.get('pidx')
-    let provider = searchParams.get('provider') || (pidx ? 'khalti' : searchParams.get('data') ? 'esewa' : null)
-    let data = searchParams.get('data')
-    const status = searchParams.get('status')
-    const purchase_order_id = searchParams.get('purchase_order_id')
-    const transaction_id = searchParams.get('transaction_id')
-    const tidx = searchParams.get('tidx')
+    let cancelled = false
 
-    // Workaround for eSewa broken query params (e.g. ?provider=esewa?data=...)
-    if (provider && provider.includes('esewa?data=')) {
-      data = provider.split('esewa?data=')[1];
-      provider = 'esewa';
-    } else if (provider && provider.includes('?data=')) {
-      data = provider.split('?data=')[1];
-      provider = 'esewa';
+    async function verify() {
+      const pidx = searchParams.get('pidx')
+      let provider = searchParams.get('provider') || (pidx ? 'khalti' : searchParams.get('data') ? 'esewa' : null)
+      let data = searchParams.get('data')
+      const status = searchParams.get('status')
+      const purchase_order_id = searchParams.get('purchase_order_id')
+      const transaction_id = searchParams.get('transaction_id')
+      const tidx = searchParams.get('tidx')
+
+      if (provider && provider.includes('esewa?data=')) {
+        data = provider.split('esewa?data=')[1];
+        provider = 'esewa';
+      } else if (provider && provider.includes('?data=')) {
+        data = provider.split('?data=')[1];
+        provider = 'esewa';
+      }
+
+      if (!provider) {
+        if (searchParams.get('payment') === 'success') {
+          setVerificationState('success')
+        } else {
+          setErrorMsg('Invalid payment verification parameters.')
+          setVerificationState('failed')
+        }
+        return
+      }
+
+      const payload = provider === 'khalti' 
+        ? { provider, pidx, status, purchase_order_id, transaction_id, tidx }
+        : { provider, data }
+
+      const minDuration = new Promise(resolve => setTimeout(resolve, 1500))
+
+      try {
+        const res = await fetch('/api/payment/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const resData = await res.json()
+
+        await minDuration
+        if (cancelled) return
+
+        if (resData.success) {
+          setVerificationState('success')
+        } else {
+          setErrorMsg(resData.error || 'Payment verification failed.')
+          setVerificationState('failed')
+        }
+      } catch (err) {
+        await minDuration
+        if (cancelled) return
+        setErrorMsg('An error occurred during verification.')
+        setVerificationState('failed')
+        console.error(err)
+      }
     }
 
-    if (!provider) {
-      if (searchParams.get('payment') === 'success') {
-        setSuccess(true)
-        setLoading(false)
-      } else {
-        setErrorMsg('Invalid payment verification parameters.')
-        setLoading(false)
-      }
-      return
-    }
+    verify()
 
-    const payload = provider === 'khalti' 
-      ? { provider, pidx, status, purchase_order_id, transaction_id, tidx }
-      : { provider, data }
-
-    fetch('/api/payment/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(resData => {
-      if (resData.success) {
-         setSuccess(true)
-      } else {
-         setErrorMsg(resData.error || 'Payment verification failed.')
-      }
-    })
-    .catch(err => {
-      setErrorMsg('An error occurred during verification.')
-      console.error(err)
-    })
-    .finally(() => {
-      setLoading(false)
-    })
-
+    return () => { cancelled = true }
   }, [searchParams])
 
-  if (loading) {
+  if (verificationState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f172a' }}>
         <div className="text-center">
@@ -93,7 +103,7 @@ function VerifyContent() {
         <div className="rounded-2xl p-8 border"
           style={{ background: '#1e293b', borderColor: '#334155' }}>
           
-          {success ? (
+          {verificationState === 'success' ? (
             <>
               <div className="flex justify-center mb-6">
                 <HiCheckCircle className="w-20 h-20" style={{ color: '#14b8a6' }} />

@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -28,6 +29,13 @@ function MyEventsContent() {
   const [registrations, setRegistrations] = useState<any[]>([])
   const [waitlists, setWaitlists] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Hydrate from cache on mount
+  useEffect(() => {
+    const r = cacheGet<any[]>('my_registrations')
+    const w = cacheGet<any[]>('my_waitlists')
+    if (r) { setRegistrations(r); setWaitlists(w || []); setLoading(false) }
+  }, [])
   const defaultTab = searchParams.get('tab') ?? 'registered'
   const [activeTab, setActiveTab] = useState<'registered' | 'waitlisted'>(defaultTab as 'registered' | 'waitlisted')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -56,10 +64,13 @@ function MyEventsContent() {
     try {
       const res = await fetch('/api/registrations')
       const d = await res.json()
-      setRegistrations(d.registrations || [])
-      setWaitlists(d.waitlists || [])
+      const regs = d.registrations || []
+      const wls = d.waitlists || []
+      setRegistrations(regs)
+      setWaitlists(wls)
+      cacheSet('my_registrations', regs, 30_000)
+      cacheSet('my_waitlists', wls, 30_000)
     } catch {
-      // silent
     } finally {
       setLoading(false)
     }
@@ -130,19 +141,6 @@ function MyEventsContent() {
     }
   }
 
-  if (status === 'loading' || loading) {
-    return (
-      <div className="min-h-screen grid-bg">
-        <Navbar />
-        <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 card rounded-2xl animate-pulse" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen grid-bg">
       <TitleSetter title="My Events" />
@@ -167,19 +165,39 @@ function MyEventsContent() {
               onClick={() => { setActiveTab('registered'); router.push('/my-events?tab=registered', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'registered' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
-              Registered ({registrations.length})
+              Registered ({loading ? '—' : registrations.length})
               {activeTab === 'registered' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />}
             </button>
             <button
               onClick={() => { setActiveTab('waitlisted'); router.push('/my-events?tab=waitlisted', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'waitlisted' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
-              Waitlisted ({waitlists.length})
+              Waitlisted ({loading ? '—' : waitlists.length})
               {activeTab === 'waitlisted' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />}
             </button>
           </div>
 
-          {activeTab === 'registered' ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="card p-6">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1 space-y-3">
+                      <div className="h-6 w-48 bg-white/10 rounded animate-pulse" />
+                      <div className="flex gap-4">
+                        <div className="h-4 w-32 bg-white/10 rounded animate-pulse" />
+                        <div className="h-4 w-24 bg-white/10 rounded animate-pulse" />
+                      </div>
+                      <div className="h-4 w-40 bg-white/10 rounded animate-pulse" />
+                    </div>
+                    <div className="flex-shrink-0">
+                      <div className="h-10 w-28 bg-white/10 rounded-xl animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'registered' ? (
             registrations.length === 0 ? (
               <div className="text-center py-20">
                 <div className="text-6xl mb-4">🎫</div>

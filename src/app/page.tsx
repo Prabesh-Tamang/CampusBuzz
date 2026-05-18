@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { useSession } from "next-auth/react";
+import { useCachedData } from "@/hooks/useCachedData";
 import {
   Zap,
   Calendar,
@@ -62,34 +63,26 @@ interface Event {
 
 export default function HomePage() {
   const { data: session, status } = useSession();
-  const [popularEvents, setPopularEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statsData, setStatsData] = useState<
-    { val: string; label: string }[] | null
-  >(null);
 
-  useEffect(() => {
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.stats) setStatsData(d.stats);
-      })
-      .catch(() => {});
+  const { data: rawStats } = useCachedData<{ stats: { val: string; label: string }[] }>(
+    'landing_stats',
+    () => fetch("/api/stats").then(r => r.json()),
+    { refreshInterval: 30_000 }
+  )
+  const statsData = rawStats?.stats ?? null
 
-    fetch("/api/events")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const upcoming = data
-            .filter((e: Event) => new Date(e.date) >= new Date())
-            .sort((a: Event, b: Event) => b.registeredCount - a.registeredCount)
-            .slice(0, 3);
-          setPopularEvents(upcoming);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const { data: rawEvents } = useCachedData<Event[]>(
+    'landing_events',
+    () => fetch("/api/events").then(r => r.json()),
+    { refreshInterval: 60_000 }
+  )
+
+  const popularEvents: Event[] = Array.isArray(rawEvents)
+    ? rawEvents
+        .filter((e) => new Date(e.date) >= new Date())
+        .sort((a, b) => b.registeredCount - a.registeredCount)
+        .slice(0, 3)
+    : []
 
   return (
     <div className="min-h-screen">
@@ -135,47 +128,19 @@ export default function HomePage() {
 
         {/* Stats bar */}
         <div className="mx-auto mt-20 grid max-w-[800px] grid-cols-2 overflow-hidden rounded-2xl bg-border md:grid-cols-4 gap-[1px]">
-          {statsData
-            ? statsData.map((s) => (
-                <StatsCounter key={s.label} val={s.val} label={s.label} />
-              ))
-            : Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-surface px-5 py-6 text-center">
-                  <div className="h-8 w-20 bg-white/5 rounded animate-pulse mx-auto mb-2" />
-                  <div className="h-3 w-24 bg-white/5 rounded animate-pulse mx-auto" />
-                </div>
-              ))}
+          {(statsData ?? [
+            { val: "0", label: 'Events Hosted' },
+            { val: "0", label: 'Students Registered' },
+            { val: "0%", label: 'Check-in Rate' },
+            { val: "0", label: 'Departments' },
+          ]).map((s) => (
+            <StatsCounter key={s.label} val={s.val} label={s.label} />
+          ))}
         </div>
       </section>
 
       {/* Popular Events Section */}
-      {loading ? (
-        <section className="mx-auto max-w-[1200px] px-6 py-[60px]">
-          <div className="mb-8">
-            <h2 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white mb-1">
-              Trending Events
-            </h2>
-            <p className="text-muted-foreground">
-              Most popular events on campus right now
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="card p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-6 w-20 bg-surface2 rounded animate-pulse" />
-                  <div className="h-4 w-24 bg-surface2 rounded animate-pulse" />
-                </div>
-                <div className="h-7 w-full bg-surface2 rounded animate-pulse mb-3" />
-                <div className="h-4 w-3/4 bg-surface2 rounded animate-pulse mb-2" />
-                <div className="h-4 w-1/2 bg-surface2 rounded animate-pulse mb-4" />
-                <div className="h-2 w-full bg-surface2 rounded animate-pulse mt-6" />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : (
-        popularEvents.length > 0 && (
+      {popularEvents.length > 0 && (
           <section className="mx-auto max-w-[1200px] px-6 py-[60px]">
             <div className="mb-8 flex items-center justify-between">
               <div>
@@ -257,7 +222,6 @@ export default function HomePage() {
               ))}
             </div>
           </section>
-        )
       )}
 
       {/* Features Section */}
@@ -321,29 +285,48 @@ export default function HomePage() {
 function StatsCounter({ val, label }: { val: string; label: string }) {
   const [displayed, setDisplayed] = useState("0");
   const [showPlus, setShowPlus] = useState(false);
-  const num = parseInt(val.replace(/[^0-9]/g, ""));
+  const currentRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setInterval>>();
+
+  const num = parseInt(val.replace(/[^0-9]/g, "")) || 0;
   const suffix = val.includes("%") ? "%" : "";
 
   useEffect(() => {
-    if (!num) {
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const start = currentRef.current;
+    const end = num;
+
+    if (start === end) {
       setDisplayed(val);
+      if (!suffix && end > 0) setShowPlus(true);
+      else setShowPlus(false);
       return;
     }
-    const start = Math.max(0, num - 30);
-    const duration = 800;
-    const stepTime = Math.max(20, duration / num);
+
+    if (end === 0) setShowPlus(false);
+
+    const diff = Math.abs(end - start);
+    const duration = Math.min(500, Math.max(200, diff * 12));
+    const stepTime = Math.max(16, duration / Math.max(1, diff));
+    const dir = end > start ? 1 : -1;
     let current = start;
+
     const timer = setInterval(() => {
-      current++;
-      setDisplayed(suffix ? `${current}${suffix}` : String(current));
-      if (current >= num) {
+      current += dir;
+      const next = dir > 0 ? Math.min(current, end) : Math.max(current, end);
+      currentRef.current = next;
+      setDisplayed(suffix ? `${next}${suffix}` : String(next));
+
+      if (next === end) {
         clearInterval(timer);
-        setDisplayed(val);
-        if (!suffix) setShowPlus(true);
+        if (!suffix && end > 0) setShowPlus(true);
       }
     }, stepTime);
+
+    timerRef.current = timer;
     return () => clearInterval(timer);
-  }, [num, suffix, val]);
+  }, [val, num, suffix]);
 
   return (
     <div className="bg-surface px-5 py-6 text-center">

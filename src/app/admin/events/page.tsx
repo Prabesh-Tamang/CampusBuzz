@@ -1,12 +1,13 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Calendar, Plus, Edit2, Trash2, Eye, DollarSign, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, Plus, Edit2, Trash2, Eye, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DeleteModal from '@/components/DeleteModal'
+import { cacheGet, cacheSet } from '@/lib/client-cache'
 
 export default function AdminEventsPage() {
   const { data: session, status } = useSession()
@@ -14,6 +15,9 @@ export default function AdminEventsPage() {
   const [events, setEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterDate, setFilterDate] = useState('all')
+  const [filterFee, setFilterFee] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, itemId: '', itemName: '' })
   const [currentPage, setCurrentPage] = useState(1)
@@ -21,7 +25,13 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [search])
+  }, [search, filterDate, filterFee, filterStatus])
+
+  // Hydrate from cache on mount
+  useLayoutEffect(() => {
+    const cached = cacheGet<any[]>('admin_events')
+    if (cached) { setEvents(cached); setLoading(false) }
+  }, [])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/admin/login'); return }
@@ -35,7 +45,9 @@ export default function AdminEventsPage() {
     try {
       const res = await fetch('/api/admin/stats')
       const d = await res.json()
-      setEvents(d.recentEvents || [])
+      const data = d.recentEvents || []
+      setEvents(data)
+      cacheSet('admin_events', data, 30_000)
     } catch (err) {
       console.error(err)
     } finally {
@@ -64,19 +76,82 @@ export default function AdminEventsPage() {
     }
   }
 
-  const filtered = events.filter(e =>
-    e.title?.toLowerCase().includes(search.toLowerCase()) ||
-    e.category?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = events.filter(e => {
+    const q = search.toLowerCase()
+    return (
+      e.title?.toLowerCase().includes(q) ||
+      e.category?.toLowerCase().includes(q) ||
+      e.venue?.toLowerCase().includes(q)
+    )
+  }).filter(e => {
+    if (filterDate !== 'all') {
+      const isPast = new Date(e.date) < new Date()
+      if (filterDate === 'upcoming' && isPast) return false
+      if (filterDate === 'past' && !isPast) return false
+    }
+    if (filterFee !== 'all') {
+      if (filterFee === 'free' && e.feeType !== 'free') return false
+      if (filterFee === 'paid' && e.feeType !== 'paid') return false
+    }
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'cancelled' && !e.isCancelled) return false
+      if (filterStatus === 'hidden' && e.isActive !== false) return false
+      if (filterStatus === 'active' && (e.isCancelled || e.isActive === false)) return false
+    }
+    return true
+  })
 
   if (loading) return (
     <div className="min-h-screen">
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="w-48 h-10 bg-surface2 animate-pulse rounded-lg" />
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-24 h-9 bg-surface2 animate-pulse rounded-lg" />
+              <div className="w-20 h-9 bg-surface2/50 animate-pulse rounded-lg" />
+            </div>
+            <div className="w-28 h-4 bg-surface2 animate-pulse rounded mt-2" />
+          </div>
+          <div className="w-28 h-10 bg-surface2 animate-pulse rounded-lg" />
         </div>
-        <div className="w-full max-w-sm h-12 bg-surface2 animate-pulse rounded-lg mb-6" />
-        <div className="h-96 bg-surface2 animate-pulse rounded-2xl" />
+        <div className="w-full max-w-sm h-11 bg-surface2 animate-pulse rounded-xl mb-6" />
+        <div className="flex flex-wrap gap-2 mb-6">
+          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+        </div>
+        <div className="bg-[#0d1f1e] rounded-2xl overflow-hidden">
+          <div className="h-[52px] bg-[#142826] flex items-center px-6 gap-6">
+            <div className="w-20 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-16 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-20 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-12 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-24 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-14 h-4 bg-surface2/50 animate-pulse rounded" />
+            <div className="w-14 h-4 bg-surface2/50 animate-pulse rounded ml-auto" />
+          </div>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="px-6 py-4 flex items-center gap-6 border-t border-[#1e3a38]">
+              <div className="flex items-center gap-3 w-[200px] flex-shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-surface2/60 animate-pulse flex-shrink-0" />
+                <div className="space-y-2">
+                  <div className="w-28 h-3.5 bg-surface2/50 animate-pulse rounded" />
+                  <div className="w-16 h-3 bg-surface2/30 animate-pulse rounded" />
+                </div>
+              </div>
+              <div className="w-20 h-3.5 bg-surface2/50 animate-pulse rounded" />
+              <div className="w-24 h-3.5 bg-surface2/50 animate-pulse rounded" />
+              <div className="w-14 h-5 bg-surface2/50 animate-pulse rounded-full" />
+              <div className="w-20 h-3.5 bg-surface2/50 animate-pulse rounded" />
+              <div className="w-16 h-5 bg-surface2/50 animate-pulse rounded-full" />
+              <div className="flex gap-2 ml-auto">
+                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -94,9 +169,9 @@ export default function AdminEventsPage() {
             </h1>
             <p className="text-muted-foreground mt-1">{events.length} total events</p>
           </div>
-          {/* <Link href="/admin/events/new" className="btn-primary flex items-center gap-2 self-start sm:self-auto">
+          <Link href="/admin/events/new" className="btn-primary flex items-center gap-2 self-start sm:self-auto">
             <Plus size={16} /> New Event
-          </Link> */}
+          </Link>
         </div>
 
         {/* Search */}
@@ -111,6 +186,39 @@ export default function AdminEventsPage() {
           />
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3 bg-surface border border-border rounded-lg p-2 mb-6">
+          <div className="flex items-center gap-2 pl-2 border-r border-border pr-3">
+            <Filter size={16} className="text-muted-foreground" />
+            <span className="text-sm font-semibold text-muted-foreground">Filters</span>
+          </div>
+          <select
+            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+            value={filterDate} onChange={(e) => setFilterDate(e.target.value)}
+          >
+            <option value="all" className="bg-surface">All Dates</option>
+            <option value="upcoming" className="bg-surface">Upcoming</option>
+            <option value="past" className="bg-surface">Past</option>
+          </select>
+          <select
+            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+            value={filterFee} onChange={(e) => setFilterFee(e.target.value)}
+          >
+            <option value="all" className="bg-surface">Any Fee</option>
+            <option value="free" className="bg-surface">Free</option>
+            <option value="paid" className="bg-surface">Paid</option>
+          </select>
+          <select
+            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+            value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="all" className="bg-surface">Any Status</option>
+            <option value="active" className="bg-surface">Active</option>
+            <option value="cancelled" className="bg-surface">Cancelled</option>
+            <option value="hidden" className="bg-surface">Hidden</option>
+          </select>
+        </div>
+
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px]">
@@ -118,6 +226,7 @@ export default function AdminEventsPage() {
                 <tr className="text-left text-[13px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                   <th className="px-6 py-4">Event</th>
                   <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Venue</th>
                   <th className="px-6 py-4">Fee</th>
                   <th className="px-6 py-4">Registrations</th>
                   <th className="px-6 py-4">Status</th>
@@ -127,7 +236,7 @@ export default function AdminEventsPage() {
               <tbody className="divide-y divide-border">
                 {currentEvents.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={7} className="px-6 py-16 text-center">
                       <Calendar size={40} className="text-muted-foreground mx-auto mb-3 opacity-40" />
                       <p className="text-muted-foreground">No events found</p>
                       <Link href="/admin/events/new" className="btn-primary inline-flex items-center gap-2 mt-4">
@@ -151,6 +260,9 @@ export default function AdminEventsPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         {event.date ? format(new Date(event.date), 'MMM d, yyyy') : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground max-w-[160px] truncate">
+                        {event.venue || '—'}
                       </td>
                       <td className="px-6 py-4">
                         {event.feeType === 'paid' ? (

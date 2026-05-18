@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
@@ -24,6 +25,12 @@ export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Hydrate from cache on mount
+  useEffect(() => {
+    const p = cacheGet<any[]>('my_payments')
+    if (p) { setPayments(p); setLoading(false) }
+  }, [])
+
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
     if (status === 'authenticated') {
@@ -35,19 +42,15 @@ export default function PaymentHistoryPage() {
     try {
       const res = await fetch('/api/payment/history')
       const data = await res.json()
-      setPayments(data.payments || [])
+      const p = data.payments || []
+      setPayments(p)
+      cacheSet('my_payments', p, 30_000)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
   }
-
-  if (loading) return (
-    <div className="min-h-screen grid-bg flex items-center justify-center">
-      <div className="w-12 h-12 border-4 border-pulse-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
 
   return (
     <div className="min-h-screen grid-bg">
@@ -66,7 +69,27 @@ export default function PaymentHistoryPage() {
             </div>
           </div>
 
-          {payments.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="card p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white/10 animate-pulse" />
+                      <div className="space-y-2">
+                        <div className="h-5 w-40 bg-white/10 rounded animate-pulse" />
+                        <div className="h-4 w-28 bg-white/10 rounded animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="text-right space-y-2">
+                      <div className="h-6 w-20 bg-white/10 rounded animate-pulse" />
+                      <div className="h-5 w-16 bg-white/10 rounded-full animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : payments.length === 0 ? (
             <EmptyState
               icon={CreditCard}
               title="No payments yet"

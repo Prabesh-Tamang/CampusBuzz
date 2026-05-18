@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
 import { Search, X, Calendar, MapPin, Users, DollarSign, Ticket, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
@@ -56,6 +57,7 @@ function EventsContent() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
+  const [regLoading, setRegLoading] = useState(true)
   const [totalEvents, setTotalEvents] = useState(0)
   const [searchInput, setSearchInput] = useState(search)
 
@@ -76,6 +78,12 @@ function EventsContent() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
+  // Hydrate registrations from cache on mount
+  useEffect(() => {
+    const r = cacheGet<Registration[]>('events_registrations')
+    if (r) { setRegistrations(r); setRegLoading(false) }
+  }, [])
+
   useEffect(() => {
     fetchEvents()
     if (session) {
@@ -95,8 +103,11 @@ function EventsContent() {
       const data = await res.json()
       if (data.registrations && Array.isArray(data.registrations)) {
         setRegistrations(data.registrations)
+        cacheSet('events_registrations', data.registrations, 30_000)
       }
-    } catch {}
+    } catch {} finally {
+      setRegLoading(false)
+    }
   }
 
   async function fetchEvents() {
@@ -460,7 +471,16 @@ function EventsContent() {
                   </div>
                 </div>
 
-                {registrations.length === 0 ? (
+                {regLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-3 bg-surface2 rounded-lg">
+                        <div className="h-4 w-3/4 bg-white/10 rounded animate-pulse mb-2" />
+                        <div className="h-3 w-1/2 bg-white/10 rounded animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                ) : registrations.length === 0 ? (
                   <div className="text-center py-8">
                     <Ticket size={32} className="text-muted-foreground mx-auto mb-3 opacity-50" />
                     <p className="text-sm text-muted-foreground">No registrations yet</p>
