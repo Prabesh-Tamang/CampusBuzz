@@ -9,6 +9,7 @@ import { format } from 'date-fns'
 import { CreditCard, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import EmptyState from '@/components/ui/EmptyState'
+import TitleSetter from '@/components/TitleSetter'
 
 type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded'
 
@@ -54,6 +55,7 @@ export default function PaymentHistoryPage() {
 
   return (
     <div className="min-h-screen grid-bg">
+      <TitleSetter title="My Payments" />
       <Navbar />
       <div className="pt-24 pb-16 px-4 max-w-4xl mx-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -8,6 +8,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts'
+import TitleSetter from '@/components/TitleSetter'
 
 const CHART_COLORS = ['#14b8a6', '#f43f5e', '#f59e0b', '#a78bfa', '#3b82f6']
 
@@ -17,13 +18,7 @@ export default function AdminAnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchAnalytics()
-    }
-  }, [status])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/analytics')
       const data = await res.json()
@@ -33,7 +28,13 @@ export default function AdminAnalyticsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchAnalytics()
+    }
+  }, [status, fetchAnalytics])
 
   if (loading) return (
     <div className="p-6">
@@ -53,6 +54,7 @@ export default function AdminAnalyticsPage() {
 
   return (
     <div className="p-6">
+      <TitleSetter title="Analytics" />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-extrabold text-white">

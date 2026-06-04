@@ -20,19 +20,19 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
   useEffect(() => {
     if (sessionStatus !== 'authenticated') return;
 
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(`/api/register/checkin-status?registrationId=${params.registrationId}`)
-        if (res.ok) {
-          const data = await res.json()
-          setStatus(data.status)
-          if (data.eventTitle) setEventTitle(data.eventTitle)
-          if (data.qrCode) setQrCode(data.qrCode)
+      const fetchStatus = async () => {
+        try {
+          const res = await fetch(`/api/register/checkin-status?registrationId=${params.registrationId}`)
+          if (res.ok) {
+            const data = await res.json()
+            setStatus(data.status)
+            if (data.eventTitle) setEventTitle(data.eventTitle)
+            if (data.qrCode) setQrCode(data.qrCode)
+          }
+        } catch (err) {
+          console.error('Error fetching checkin status:', err)
         }
-      } catch (err) {
-        console.error('Error fetching checkin status:', err)
       }
-    }
 
     fetchStatus()
     const interval = setInterval(fetchStatus, 3000)
@@ -71,11 +71,11 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                   exit={{ opacity: 0, scale: 0.9 }}
                   className="flex flex-col items-center w-full"
                 >
-                  <div className="relative mb-8 mt-4">
-                    {qrCode ? (
-                      <div className="bg-white p-4 rounded-xl shadow-[0_0_30px_rgba(20,184,166,0.15)] relative z-10">
-                         <img src={qrCode} alt="QR Code" className="w-40 h-40" />
-                      </div>
+                    <div className="relative mb-8 mt-4">
+                      {qrCode ? (
+                        <div className="bg-white p-3 rounded-xl shadow-[0_0_30px_rgba(20,184,166,0.15)] relative z-10" style={{ border: '3px solid #14b8a6' }}>
+                           <img src={qrCode} alt="QR Code" className="w-40 h-40" />
+                        </div>
                     ) : (
                       <div className="w-48 h-48 flex items-center justify-center bg-surface border border-border rounded-xl relative z-10">
                         <HiQrcode className="text-6xl text-gray-600" />
@@ -130,6 +130,34 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                 </motion.div>
               )}
 
+              {status === 'FLAGGED_PENDING_REVIEW' && (
+                <motion.div
+                  key="flagged_pending"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="flex flex-col items-center w-full"
+                >
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+                       style={{ background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.3)' }}>
+                    <span className="text-3xl">⚠</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">
+                    Verification Required
+                  </h2>
+                  <p className="text-sm mb-2" style={{ color: '#94a3b8' }}>
+                    Your entry is being reviewed by the organiser.
+                  </p>
+                  <p className="text-sm" style={{ color: '#94a3b8' }}>
+                    Please speak with the event organiser at the entrance.
+                  </p>
+                  <div className="mt-5 px-4 py-2.5 rounded-xl text-xs font-mono"
+                       style={{ background: 'rgba(255,255,255,0.04)', color: '#475569' }}>
+                    Ref: {params.registrationId}
+                  </div>
+                </motion.div>
+              )}
+
               {status === 'BLOCKED' && (
                 <motion.div
                   key="blocked"
@@ -137,16 +165,21 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   className="flex flex-col items-center w-full"
                 >
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 10 }}
-                    className="w-28 h-28 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mb-6 border-4 border-red-500/30"
-                  >
-                    <HiXCircle className="text-7xl" />
-                  </motion.div>
-                  <h3 className="text-2xl font-display font-bold text-red-400 mb-2">Please see organiser</h3>
-                  <p className="text-gray-300 text-sm mb-6">There was an issue verifying your entry automatically.</p>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+                       style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)' }}>
+                    <span className="text-3xl">🚫</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white mb-2">
+                    Entry Not Permitted
+                  </h2>
+                  <p className="text-sm mb-4" style={{ color: '#94a3b8' }}>
+                    Your entry could not be verified. Please speak with the
+                    event organiser for assistance.
+                  </p>
+                  <div className="mt-4 px-4 py-2.5 rounded-xl text-xs font-mono"
+                       style={{ background: 'rgba(255,255,255,0.04)', color: '#475569' }}>
+                    Ref: {params.registrationId}
+                  </div>
                 </motion.div>
               )}
 

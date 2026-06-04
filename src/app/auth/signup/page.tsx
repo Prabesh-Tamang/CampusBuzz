@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import TitleSetter from '@/components/TitleSetter';
 
 function SignupForm() {
   const router = useRouter();
@@ -67,6 +68,7 @@ function SignupForm() {
 
   return (
     <div className="grid-bg flex min-h-screen items-center justify-center p-6">
+      <TitleSetter title="Create Account" />
       <div className="w-full max-w-[440px]">
 
         <div className="mb-10 text-center">

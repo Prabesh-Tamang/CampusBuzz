@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import ImageUpload from '@/components/admin/ImageUpload';
 import { EVENT_CATEGORIES } from '@/lib/constants';
+import TitleSetter from '@/components/TitleSetter';
 
 function getMinDateTime() {
   const now = new Date();
@@ -100,6 +101,7 @@ export default function NewEventPage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Create Event" />
       <div className="max-w-[900px] mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-8">

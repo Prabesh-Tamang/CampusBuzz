@@ -7,6 +7,7 @@ import TierBadge from './TierBadge';
 interface ReliabilityData {
   tier: 'champion' | 'regular' | 'new' | 'unreliable';
   score: number | null;
+  scoreHistory: Array<{ score: number; tier: string; reason: string; changedAt: string }>;
   metrics: {
     totalRegistered: number;
     totalAttended: number;
@@ -21,6 +22,39 @@ interface ReliabilityData {
   };
   improvementTip: string;
   modelActive: boolean;
+}
+
+function ScoreRing({ score, tier }: { score: number; tier: string }) {
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  const strokeColor =
+    tier === 'champion' ? '#f59e0b' :
+    tier === 'unreliable' ? '#f97316' :
+    '#14b8a6';
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg width="96" height="96" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="48" cy="48" r={radius}
+          fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+        <circle cx="48" cy="48" r={radius}
+          fill="none" stroke={strokeColor} strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-black" style={{ color: strokeColor }}>
+          {score}
+        </span>
+        <span className="text-xs" style={{ color: '#475569' }}>/ 100</span>
+      </div>
+    </div>
+  );
 }
 
 function MetricBar({
@@ -95,22 +129,10 @@ export default function ReliabilityCard() {
         <TierBadge tier={data.tier} size="sm" audience="student" />
       </div>
 
-      {/* Score bar — only when not new and score exists */}
+      {/* Score ring — only when not new and score exists */}
       {!isNew && data.score !== null && (
-        <div className="mb-4">
-          <div className="flex justify-between text-xs mb-1.5">
-            <span className="text-gray-500">Reliability score</span>
-            <span className="text-white font-medium">{data.score}/100</span>
-          </div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                isChampion ? 'bg-amber-400' :
-                isUnreliable ? 'bg-orange-500' : 'bg-teal-500'
-              }`}
-              style={{ width: `${data.score}%` }}
-            />
-          </div>
+        <div className="flex flex-col items-center mb-4">
+          <ScoreRing score={data.score} tier={data.tier} />
         </div>
       )}
 
@@ -209,6 +231,30 @@ export default function ReliabilityCard() {
           >
             {data.improvementTip}
           </p>
+        </div>
+      )}
+
+      {/* Score history */}
+      {data.scoreHistory && data.scoreHistory.length > 0 && (
+        <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p className="text-xs font-medium mb-3" style={{ color: '#64748b' }}>
+            Recent changes
+          </p>
+          <div className="space-y-2">
+            {data.scoreHistory.map((entry, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: '#94a3b8' }}>
+                  {entry.reason}
+                </span>
+                <span className="text-xs font-semibold" style={{
+                  color: entry.score >= (data.scoreHistory[i + 1]?.score ?? 0)
+                    ? '#14b8a6' : '#f97316'
+                }}>
+                  {entry.score}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

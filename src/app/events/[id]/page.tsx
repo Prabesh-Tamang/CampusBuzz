@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import PaymentModal from "@/components/PaymentModal";
+import LeaveWaitlistModal from "@/components/LeaveWaitlistModal";
 import {
   Calendar,
   MapPin,
@@ -75,6 +76,13 @@ export default function EventDetailPage() {
     confirmationWindowHours: number;
   } | null>(null);
   const [denialInfo, setDenialInfo] = useState<{ flagReason?: string; adminNote?: string } | null>(null);
+  const [banMessage, setBanMessage] = useState<{ reason?: string; bannedAt?: string } | null>(null);
+  // Ban status fetched on mount so buttons are disabled before first click
+  const [banStatus, setBanStatus] = useState<{ isBanned: boolean; banReason?: string } | null>(null);
+  const [banStatusLoading, setBanStatusLoading] = useState(true);
+  // Leave waitlist modal
+  const [leaveWaitlistModal, setLeaveWaitlistModal] = useState(false);
+  const [leavingWaitlist, setLeavingWaitlist] = useState(false);
 
   useEffect(() => {
     fetch(`/api/events/${id}`)
@@ -85,6 +93,12 @@ export default function EventDetailPage() {
       });
 
     if (session) {
+      // Fetch ban status upfront so buttons are disabled before first click
+      fetch('/api/user/ban-status')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setBanStatus(d); })
+        .catch(() => {})
+        .finally(() => setBanStatusLoading(false));
       // Fetch student's tier for context below register button
       fetch('/api/user/reliability')
         .then(r => r.ok ? r.json() : null)
@@ -111,7 +125,7 @@ export default function EventDetailPage() {
               const eid = typeof reg.eventId === 'object' ? reg.eventId?._id?.toString() : reg.eventId?.toString();
               return eid === id?.toString();
             });
-            if (existingReg?.qrCode) setQrCode(existingReg.qrCode);
+            if (existingReg?.confirmed && existingReg?.qrCode) setQrCode(existingReg.qrCode);
             if (existingReg?.registrationId) setRegistrationId(existingReg.registrationId);
             if (existingReg?.reviewStatus === 'denied') {
               setDenialInfo({
@@ -137,6 +151,9 @@ export default function EventDetailPage() {
         .then((r) => r.json())
         .then((data) => { if (data.interested) setInterested(true); })
         .catch(() => {});
+    } else {
+      // Not logged in — no ban check needed, clear loading state immediately
+      setBanStatusLoading(false);
     }
   }, [id, session]);
 
@@ -177,10 +194,14 @@ export default function EventDetailPage() {
         body: JSON.stringify({ eventId: id }),
       });
       const data = await res.json();
+      if (data.code === 'ACCOUNT_BANNED') {
+        setBanMessage({ reason: data.banReason, bannedAt: data.bannedAt });
+        return;
+      }
       if (!res.ok) throw new Error(data.error);
       setRegistered(true);
-      setQrCode(data.qrCode || null);
-      setRegistrationId('');
+      setQrCode('');
+      setRegistrationId(data.registrationId || '');
       toast.success("Registered! Check your email to confirm your attendance.");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
@@ -215,6 +236,13 @@ export default function EventDetailPage() {
 
   async function handleLeaveWaitlist() {
     if (!session) return;
+    // Open modal — actual deletion happens in confirmLeaveWaitlist
+    setLeaveWaitlistModal(true);
+  }
+
+  async function confirmLeaveWaitlist() {
+    if (!session) return;
+    setLeavingWaitlist(true);
     try {
       const res = await fetch("/api/waitlist", {
         method: "DELETE",
@@ -222,11 +250,14 @@ export default function EventDetailPage() {
         body: JSON.stringify({ eventId: id }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+      setLeaveWaitlistModal(false);
       setWaitlisted(false);
       setWaitlistInfo(null);
       toast.success("Left the waitlist");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to leave waitlist");
+    } finally {
+      setLeavingWaitlist(false);
     }
   }
 
@@ -674,11 +705,32 @@ export default function EventDetailPage() {
                     </div>
                   </div>
 
+                  {/* ── Ban notice — shown upfront if student is banned ── */}
+                  {session && banStatus?.isBanned && (
+                    <div className="p-4 rounded-2xl mb-5"
+                         style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg mt-0.5 flex-shrink-0">🚫</span>
+                        <div>
+                          <p className="text-sm font-semibold text-red-400 mb-1">
+                            Account Restricted
+                          </p>
+                          <p className="text-xs leading-relaxed mb-2" style={{ color: '#94a3b8' }}>
+                            {banStatus.banReason || 'Your account has been restricted from event registration.'}
+                          </p>
+                          <p className="text-xs" style={{ color: '#475569' }}>
+                            If you believe this is an error, please visit the admin office with your student ID.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {event.feeType === 'paid' && spotsLeft <= 0 ? (
                     // PAID + FULL → Notify Me / Sold Out
                     interested ? (
                       <div style={{ textAlign: 'center' }}>
-                         <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, marginBottom: 16 }}>
+                        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, marginBottom: 16 }}>
                           <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
                         </div>
                         <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
@@ -693,28 +745,46 @@ export default function EventDetailPage() {
                         <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, textAlign: 'center', marginBottom: 12 }}>
                           <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
                         </div>
-                        <button
-                          onClick={handleNotifyMe}
-                          disabled={registering}
-                          className="btn-secondary"
-                          style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                        >
-                          🔔 {registering ? 'Saving...' : 'Notify Me When Available'}
-                        </button>
+                        {/* Banned students can't join notify-me either */}
+                        {session && banStatus?.isBanned ? (
+                          <div
+                            style={{
+                              width: '100%', fontSize: 14, padding: '13px 24px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                              borderRadius: 10, color: '#475569', cursor: 'not-allowed',
+                            }}
+                          >
+                            🚫 Registration restricted
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleNotifyMe}
+                            disabled={registering || banStatusLoading}
+                            className="btn-secondary"
+                            style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                          >
+                            🔔 {registering ? 'Saving...' : 'Notify Me When Available'}
+                          </button>
+                        )}
                       </>
                     )
 
                   ) : event.feeType === 'free' && spotsLeft <= 0 ? (
-                    // FREE + FULL → Waitlist
+                    // FREE + FULL → Waitlist (if already on it, show position + leave button)
                     waitlisted && waitlistInfo ? (
                       <div style={{ textAlign: 'center', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 16, padding: 20 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#f59e0b', fontWeight: 700, fontSize: 20, marginBottom: 8 }}>
-                           #{waitlistInfo.position} in line
+                          #{waitlistInfo.position} in line
                         </div>
                         <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 16px' }}>
                           <span style={{ fontWeight: 600, color: 'var(--text)' }}>{waitlistInfo.queueLength} students waiting</span>
                         </p>
-                        <button onClick={handleLeaveWaitlist} className="btn-ghost" style={{ width: '100%', fontSize: 14, padding: '10px' }}>
+                        <button
+                          onClick={handleLeaveWaitlist}
+                          className="btn-ghost"
+                          style={{ width: '100%', fontSize: 14, padding: '10px' }}
+                        >
                           Leave waitlist
                         </button>
                       </div>
@@ -723,31 +793,64 @@ export default function EventDetailPage() {
                         <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, textAlign: 'center', marginBottom: 12 }}>
                           <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
                         </div>
-                        <button
-                          onClick={handleJoinWaitlist}
-                          disabled={registering}
-                          className="btn-secondary"
-                          style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                        >
-                          <Clock3 size={18} /> {registering ? 'Joining...' : 'Join Waitlist'}
-                        </button>
+                        {/* Banned students can't join waitlist */}
+                        {session && banStatus?.isBanned ? (
+                          <div
+                            style={{
+                              width: '100%', fontSize: 14, padding: '13px 24px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                              borderRadius: 10, color: '#475569', cursor: 'not-allowed',
+                            }}
+                          >
+                            🚫 Registration restricted
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleJoinWaitlist}
+                            disabled={registering || banStatusLoading}
+                            className="btn-secondary"
+                            style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                          >
+                            <Clock3 size={18} /> {registering ? 'Joining...' : 'Join Waitlist'}
+                          </button>
+                        )}
                       </>
                     )
 
                   ) : (
                     // SPOTS AVAILABLE → Register / Buy Ticket
                     <>
-                      <button
-                        onClick={handleRegister}
-                        disabled={registering}
-                        className="btn-primary"
-                        style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                      >
-                        {registering ? 'Processing...' : event.feeType === 'paid' ? <><CreditCard size={18} /> Buy Rs.{event.feeAmount}</> : <><Ticket size={18} /> Register Free</>}
-                      </button>
+                      {/* Banned students see disabled button, not the real one */}
+                      {session && banStatus?.isBanned ? (
+                        <div
+                          style={{
+                            width: '100%', fontSize: 15, padding: '14px 24px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: 10, color: '#475569', cursor: 'not-allowed',
+                          }}
+                        >
+                          🚫 Registration restricted
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleRegister}
+                          disabled={registering || banStatusLoading}
+                          className="btn-primary"
+                          style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                        >
+                          {registering
+                            ? 'Processing...'
+                            : event.feeType === 'paid'
+                              ? <><CreditCard size={18} /> Buy Rs.{event.feeAmount}</>
+                              : <><Ticket size={18} /> Register Free</>
+                          }
+                        </button>
+                      )}
 
-                      {/* Tier context — show for all events when logged in */}
-                      {session && reliabilityData && (
+                      {/* Tier context — shown only to non-banned logged-in users */}
+                      {session && reliabilityData && !banStatus?.isBanned && (
                         <p
                           style={{
                             textAlign: 'center',
@@ -834,6 +937,16 @@ export default function EventDetailPage() {
         <RecommendationsStrip currentEvent={event} />
 
       </div>
+
+      {/* Leave Waitlist Modal */}
+      <LeaveWaitlistModal
+        isOpen={leaveWaitlistModal}
+        eventTitle={event?.title ?? ''}
+        position={waitlistInfo?.position ?? null}
+        onConfirm={confirmLeaveWaitlist}
+        onCancel={() => { if (!leavingWaitlist) setLeaveWaitlistModal(false); }}
+        loading={leavingWaitlist}
+      />
 
       {/* Payment Modal */}
       {event && (

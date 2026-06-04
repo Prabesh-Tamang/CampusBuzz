@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Zap, LayoutDashboard, Calendar, ScanLine, CreditCard, Flag, LogOut, Shield, Plus } from 'lucide-react';
+import { Zap, LayoutDashboard, Calendar, ScanLine, CreditCard, Flag, LogOut, Shield, Plus, Users } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 
@@ -18,6 +18,7 @@ const navItems = [
   { href: '/admin/events/new', icon: Plus, label: 'New Event' },
   { href: '/admin/scanner', icon: ScanLine, label: 'Scanner' },
   { href: '/admin/payments', icon: CreditCard, label: 'Payments' },
+  { href: '/admin/students', icon: Users, label: 'Students' },
   { href: '/admin/flagged', icon: Flag, label: 'Flagged Check-ins' },
 ];
 

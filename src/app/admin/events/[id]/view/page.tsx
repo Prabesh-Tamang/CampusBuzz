@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import TierBadge from "@/components/TierBadge";
+import TitleSetter from "@/components/TitleSetter";
 
 interface EventData {
   _id: string;
@@ -187,6 +188,7 @@ export default function AdminEventViewPage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Event Details" />
       <div className="max-w-[1000px] mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-8">

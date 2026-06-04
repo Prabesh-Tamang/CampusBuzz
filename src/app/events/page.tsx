@@ -4,11 +4,12 @@ import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
-import { Search, X, Calendar, MapPin, Users, DollarSign, Ticket, ChevronRight } from 'lucide-react'
+import { Search, X, Calendar, MapPin, DollarSign, Ticket, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { EventCardSkeleton } from '@/components/ui/Skeleton'
 import EmptyState from '@/components/ui/EmptyState'
+import EventCard from '@/components/EventCard'
 import { CalendarX } from 'lucide-react'
 import { EVENT_CATEGORIES, PAGINATION } from '@/lib/constants'
 import TitleSetter from '@/components/TitleSetter'
@@ -147,7 +148,6 @@ function EventsContent() {
     setLoading(false)
   }
 
-  const getSpots = (e: Event) => e.capacity - e.registeredCount
 
   return (
     <div className="min-h-screen">
@@ -334,97 +334,8 @@ function EventsContent() {
               />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {events.map(event => (
-                  <Link key={event._id} href={`/events/${event._id}`} className="flex">
-                    <div className="card p-0 cursor-pointer overflow-hidden group flex flex-col w-full">
-                      {/* Header Banner or Image */}
-                      {event.imageUrl ? (
-                        <div className="h-40 overflow-hidden flex-shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={event.imageUrl}
-                            alt={event.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).parentElement!.style.display = 'none'
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          className="h-36 relative flex-shrink-0"
-                          style={{
-                            background: event.category === 'Technical' ? 'linear-gradient(135deg, #14b8a6, #0d9488)' :
-                                       event.category === 'Cultural' ? 'linear-gradient(135deg, #f43f5e, #e11d48)' :
-                                       event.category === 'Sports' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
-                                       event.category === 'Workshop' ? 'linear-gradient(135deg, #a78bfa, #7c3aed)' :
-                                       event.category === 'Seminar' ? 'linear-gradient(135deg, #fb923c, #ea580c)' :
-                                       event.category === 'Hackathon' ? 'linear-gradient(135deg, #ec4899, #db2777)' :
-                                       'linear-gradient(135deg, #60a5fa, #2563eb)'
-                          }}
-                        >
-                          <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
-                            <span className="badge bg-white/20 text-white backdrop-blur-sm">
-                              {event.category}
-                            </span>
-                            {event.feeType === 'paid' ? (
-                              <span className="badge bg-amber-500/40 text-amber-300 backdrop-blur-sm">
-                                Rs. {event.feeAmount}
-                              </span>
-                            ) : (
-                              <span className="badge bg-green-500/40 text-green-300 backdrop-blur-sm">
-                                Free
-                              </span>
-                            )}
-                          </div>
-                          <div className="absolute top-3 right-3 flex gap-2 flex-wrap">
-                            {getSpots(event) <= 0 && (
-                              <span className="badge bg-gray-500/20 text-gray-300 backdrop-blur-sm">FULL</span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Content */}
-                      <div className="p-5 flex flex-col flex-1">
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-accent transition-colors line-clamp-2">
-                          {event.title}
-                        </h3>
-
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">
-                          {event.description}
-                        </p>
-
-                        <div className="space-y-2 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-accent flex-shrink-0" />
-                            <span className="truncate">{format(new Date(event.date), 'MMM d, yyyy')}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-accent flex-shrink-0" />
-                            <span className="truncate">{event.venue}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Users size={14} className="text-accent flex-shrink-0" />
-                            <span>{event.registeredCount}/{event.capacity} registered</span>
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        <div className="mt-4 pt-4 border-t border-border">
-                          <div className="w-full h-2 bg-surface2 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                getSpots(event) <= 0 ? 'bg-red-500' :
-                                (event.registeredCount / event.capacity) > 0.8 ? 'bg-amber-500' : 'bg-accent'
-                              }`}
-                              style={{ width: `${Math.min((event.registeredCount / event.capacity) * 100, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
+                {events.map((event, i) => (
+                  <EventCard key={event._id} event={event} index={i} />
                 ))}
               </div>
             )}
@@ -469,6 +380,12 @@ function EventsContent() {
                       <p className="text-xs text-muted-foreground">{registrations.length} events</p>
                     </div>
                   </div>
+                  <Link
+                    href="/my-events"
+                    className="text-xs text-teal-400 hover:text-teal-300 transition-colors font-medium"
+                  >
+                    View all →
+                  </Link>
                 </div>
 
                 {regLoading ? (
@@ -519,7 +436,7 @@ function EventsContent() {
 
                     {registrations.length > 10 && (
                       <Link
-                        href="/my-registrations"
+                        href="/my-events"
                         className="block text-center py-2 text-sm text-accent hover:text-accent/80 transition-colors"
                       >
                         View all {registrations.length} registrations

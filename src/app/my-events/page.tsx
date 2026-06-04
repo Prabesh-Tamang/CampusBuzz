@@ -1,14 +1,16 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
+import LeaveWaitlistModal from '@/components/LeaveWaitlistModal'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import { HiCalendar, HiLocationMarker, HiCheckCircle, HiClock } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import TitleSetter from '@/components/TitleSetter'
+import { RegistrationCardSkeleton } from '@/components/ui/Skeleton'
 
 export default function MyEventsPage() {
   return (
@@ -40,6 +42,24 @@ function MyEventsContent() {
   const [activeTab, setActiveTab] = useState<'registered' | 'waitlisted'>(defaultTab as 'registered' | 'waitlisted')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [banStatus, setBanStatus] = useState<{ isBanned: boolean; banReason?: string } | null>(null)
+
+  // Waitlist leave modal state
+  const [leaveModal, setLeaveModal] = useState<{
+    open: boolean;
+    eventId: string;
+    eventTitle: string;
+    position: number | null;
+    loading: boolean;
+  }>({ open: false, eventId: '', eventTitle: '', position: null, loading: false })
+
+  // Fetch ban status on mount
+  useEffect(() => {
+    fetch('/api/user/ban-status')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setBanStatus(d); })
+      .catch(() => {});
+  }, [])
 
   // Handle query param toasts on mount
   useEffect(() => {
@@ -55,12 +75,7 @@ function MyEventsContent() {
     }
   }, [searchParams])
 
-  useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/auth/login'); return }
-    if (status === 'authenticated') fetchRegistrations()
-  }, [status, router])
-
-  async function fetchRegistrations() {
+  const fetchRegistrations = useCallback(async () => {
     try {
       const res = await fetch('/api/registrations')
       const d = await res.json()
@@ -74,7 +89,12 @@ function MyEventsContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') { router.push('/auth/login'); return }
+    if (status === 'authenticated') fetchRegistrations()
+  }, [status, router, fetchRegistrations])
 
   const handleDirectConfirm = async (registrationId: string) => {
     setConfirmingId(registrationId)
@@ -125,18 +145,29 @@ function MyEventsContent() {
     }
   }
 
-  async function handleLeaveWaitlist(eventId: string) {
-    if (!confirm('Are you sure you want to leave the waitlist?')) return
+  function openLeaveModal(eventId: string, eventTitle: string, position: number | null) {
+    setLeaveModal({ open: true, eventId, eventTitle, position, loading: false })
+  }
+
+  function closeLeaveModal() {
+    if (leaveModal.loading) return
+    setLeaveModal(prev => ({ ...prev, open: false }))
+  }
+
+  async function confirmLeaveWaitlist() {
+    setLeaveModal(prev => ({ ...prev, loading: true }))
     try {
       const res = await fetch('/api/waitlist', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId }),
+        body: JSON.stringify({ eventId: leaveModal.eventId }),
       })
       if (!res.ok) throw new Error((await res.json()).error)
-      setWaitlists(prev => prev.filter(w => w.eventId?._id !== eventId))
+      setWaitlists(prev => prev.filter(w => w.eventId?._id !== leaveModal.eventId))
+      setLeaveModal({ open: false, eventId: '', eventTitle: '', position: null, loading: false })
       toast.success('Left the waitlist')
     } catch (err: any) {
+      setLeaveModal(prev => ({ ...prev, loading: false }))
       toast.error(err.message || 'Failed to leave waitlist')
     }
   }
@@ -145,6 +176,16 @@ function MyEventsContent() {
     <div className="min-h-screen grid-bg">
       <TitleSetter title="My Events" />
       <Navbar />
+
+      {/* Leave Waitlist Modal */}
+      <LeaveWaitlistModal
+        isOpen={leaveModal.open}
+        eventTitle={leaveModal.eventTitle}
+        position={leaveModal.position}
+        onConfirm={confirmLeaveWaitlist}
+        onCancel={closeLeaveModal}
+        loading={leaveModal.loading}
+      />
       <div className="pt-24 pb-16 px-4 max-w-5xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-2">
@@ -153,6 +194,26 @@ function MyEventsContent() {
             </h1>
           </div>
           <p className="text-gray-400 mb-6">Your registered events and waitlist queue</p>
+
+          {/* Banned banner */}
+          {banStatus?.isBanned && (
+            <div className="mb-6 p-4 rounded-2xl"
+                 style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div className="flex items-start gap-3">
+                <span className="text-xl">🚫</span>
+                <div>
+                  <p className="font-semibold text-red-400 mb-1">Account Restricted</p>
+                  <p className="text-sm" style={{ color: '#94a3b8' }}>
+                    {banStatus.banReason || 'Your account has been restricted.'}
+                  </p>
+                  <p className="text-xs mt-2" style={{ color: '#475569' }}>
+                    You can view your existing registrations but cannot register for new events.
+                    Visit the admin office with your student ID to appeal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Attendance Stats Card — TASK-08 */}
           <AttendanceStatsCardWrapper />
@@ -165,37 +226,21 @@ function MyEventsContent() {
               onClick={() => { setActiveTab('registered'); router.push('/my-events?tab=registered', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'registered' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
-              Registered ({loading ? '—' : registrations.length})
+              Registered ({loading ? <span className="inline-block w-4 h-4 bg-white/20 rounded animate-pulse align-middle" /> : registrations.length})
               {activeTab === 'registered' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />}
             </button>
             <button
               onClick={() => { setActiveTab('waitlisted'); router.push('/my-events?tab=waitlisted', { scroll: false }); }}
               className={`pb-4 px-2 font-semibold transition-colors relative ${activeTab === 'waitlisted' ? 'text-accent' : 'text-gray-400 hover:text-white'}`}
             >
-              Waitlisted ({loading ? '—' : waitlists.length})
+              Waitlisted ({loading ? <span className="inline-block w-4 h-4 bg-white/20 rounded animate-pulse align-middle" /> : waitlists.length})
               {activeTab === 'waitlisted' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full" />}
             </button>
           </div>
 
           {loading ? (
             <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="card p-6">
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                    <div className="flex-1 space-y-3">
-                      <div className="h-6 w-48 bg-white/10 rounded animate-pulse" />
-                      <div className="flex gap-4">
-                        <div className="h-4 w-32 bg-white/10 rounded animate-pulse" />
-                        <div className="h-4 w-24 bg-white/10 rounded animate-pulse" />
-                      </div>
-                      <div className="h-4 w-40 bg-white/10 rounded animate-pulse" />
-                    </div>
-                    <div className="flex-shrink-0">
-                      <div className="h-10 w-28 bg-white/10 rounded-xl animate-pulse" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {[1, 2, 3].map(i => <RegistrationCardSkeleton key={i} />)}
             </div>
           ) : activeTab === 'registered' ? (
             registrations.length === 0 ? (
@@ -297,7 +342,7 @@ function MyEventsContent() {
                             <span className="px-4 py-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl block text-center">
                               Check-in denied
                             </span>
-                          ) : reg.qrCode ? (
+                          ) : reg.qrCode || isPaid ? (
                             <>
                               <button
                                 onClick={() => router.push(`/my-events/checkin/${reg.registrationId}`)}
@@ -307,8 +352,6 @@ function MyEventsContent() {
                               </button>
                               <a
                                 href={`/my-events/ticket/${reg.registrationId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="text-xs text-gray-500 hover:text-teal-400 transition-colors flex items-center justify-center gap-1"
                               >
                                 <span>🖨</span>
@@ -424,7 +467,7 @@ function MyEventsContent() {
                       </div>
                       <div className="flex flex-col gap-2 flex-shrink-0 mt-4 md:mt-0">
                         <button
-                          onClick={() => handleLeaveWaitlist(wl.eventId?._id)}
+                          onClick={() => openLeaveModal(wl.eventId?._id, wl.eventId?.title || 'Event', wl.position ?? null)}
                           className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 rounded-xl text-sm font-semibold transition-all"
                         >
                           Leave Waitlist

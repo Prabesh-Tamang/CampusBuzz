@@ -6,6 +6,29 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { sendPaymentConfirmation } from '@/lib/email';
 
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = 3,
+  delayMs = 150
+): Promise<T> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const isTransient =
+        err?.errorLabels?.includes('TransientTransactionError') ||
+        err?.code === 112 ||
+        err?.codeName === 'WriteConflict';
+
+      if (!isTransient || attempt === retries - 1) throw err;
+
+      await new Promise(resolve => setTimeout(resolve, delayMs * (attempt + 1)));
+      console.log(`[Payment] Retrying transaction (attempt ${attempt + 2}/${retries})`);
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
 const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
 const KHALTI_API_URL = process.env.KHALTI_API_URL || 'https://dev.khalti.com/api/v2';
 const KHALTI_VERIFY_URL = 'https://dev.khalti.com/api/v2/epayment/lookup/';
@@ -239,7 +262,25 @@ export async function completeRegistration(paymentId: string, userId: string, ev
   // Check if registration already exists for this user+event (idempotent)
   const existingReg = await Registration.findOne({ userId, eventId });
   if (existingReg) {
-    // Already registered — just link payment if not linked yet
+    // Already registered — update with QR and payment info if not set
+    if (!existingReg.qrCode) {
+      const QRCode = await import('qrcode');
+      const qrData = JSON.stringify({ registrationId: existingReg.registrationId, eventId, userId });
+      const qrCode = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+      });
+      await Registration.findByIdAndUpdate(existingReg._id, {
+        qrCode,
+        confirmed: true,
+        paymentId,
+      });
+    } else {
+      await Registration.findByIdAndUpdate(existingReg._id, {
+        paymentId,
+      });
+    }
     await Payment.findByIdAndUpdate(paymentId, {
       registrationId: existingReg._id,
       status: 'completed',
@@ -248,69 +289,76 @@ export async function completeRegistration(paymentId: string, userId: string, ev
     return;
   }
 
-  const mongoSession = await mongoose.startSession();
-  mongoSession.startTransaction();
+  await withRetry(async () => {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction();
+    try {
+      const payment = await Payment.findById(paymentId);
+      if (!payment || payment.status !== 'completed') {
+        throw new Error('Payment not completed');
+      }
 
-  try {
-    const payment = await Payment.findById(paymentId);
-    if (!payment || payment.status !== 'completed') {
-      throw new Error('Payment not completed');
+      const event = await Event.findById(eventId).session(mongoSession);
+      if (!event || event.registeredCount >= event.capacity) {
+        throw new Error('Event is full');
+      }
+
+      const registrationId = `CP-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+      const QRCode = await import('qrcode');
+      const qrData = JSON.stringify({ registrationId, eventId, userId });
+      const qrCode = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+      });
+
+      const registration = await Registration.findOneAndUpdate(
+        { userId, eventId },
+        {
+          $setOnInsert: {
+            userId,
+            eventId,
+            registrationId,
+            qrCode,
+            checkedIn: false,
+            confirmed: true,
+            paymentId: payment._id,
+          },
+        },
+        { upsert: true, session: mongoSession, new: true }
+      );
+
+      await Event.findByIdAndUpdate(
+        eventId,
+        { $inc: { registeredCount: 1 } },
+        { session: mongoSession }
+      );
+
+      await Payment.findByIdAndUpdate(paymentId, {
+        registrationId: registration._id,
+      }, { session: mongoSession });
+
+      await mongoSession.commitTransaction();
+      const user = await User.findById(userId).lean() as any;
+      if (user) {
+        sendPaymentConfirmation({
+          to: user.email,
+          name: user.name,
+          eventName: event.title,
+          amount: payment.amount,
+          provider: payment.provider,
+          transactionId: payment.transactionId,
+          qrCodeDataUrl: registration.qrCode,
+          registrationId: registration.registrationId,
+        }).catch(err => console.error('[Email] Payment confirmation failed:', err));
+      }
+    } catch (err) {
+      await mongoSession.abortTransaction();
+      throw err;
+    } finally {
+      mongoSession.endSession();
     }
-
-    const event = await Event.findById(eventId).session(mongoSession);
-    if (!event || event.registeredCount >= event.capacity) {
-      throw new Error('Event is full');
-    }
-
-    const registrationId = `CP-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-    const QRCode = await import('qrcode');
-    const qrData = JSON.stringify({ registrationId, eventId, userId });
-    const qrCode = await QRCode.toDataURL(qrData, {
-      width: 300,
-      margin: 2,
-      errorCorrectionLevel: 'H',
-    });
-
-    const registration = await Registration.create([{
-      userId,
-      eventId,
-      registrationId,
-      qrCode,
-      checkedIn: false,
-      confirmed: true,        // paid = auto-confirmed, payment is the confirmation
-      paymentId: payment._id,
-    }], { session: mongoSession });
-
-    await Event.findByIdAndUpdate(
-      eventId,
-      { $inc: { registeredCount: 1 } },
-      { session: mongoSession }
-    );
-
-    await Payment.findByIdAndUpdate(paymentId, {
-      registrationId: registration[0]._id,
-    }, { session: mongoSession });
-
-    await mongoSession.commitTransaction();
-    const user = await User.findById(userId).lean() as any;
-    if (user) {
-      sendPaymentConfirmation({
-        to: user.email,
-        name: user.name,
-        eventName: event.title,
-        amount: payment.amount,
-        provider: payment.provider,
-        transactionId: payment.transactionId,
-        qrCodeDataUrl: registration[0].qrCode,
-        registrationId: registration[0].registrationId,
-      }).catch(err => console.error('[Email] Payment confirmation failed:', err));
-    }
-  } catch (err) {
-    await mongoSession.abortTransaction();
-    throw err;
-  } finally {
-    mongoSession.endSession();
-  }
+  });
 }
 
 export async function getPaymentHistory(userId: string) {

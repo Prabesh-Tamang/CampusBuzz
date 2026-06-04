@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { Calendar, MapPin, Users, DollarSign, Clock, Tag, ArrowLeft } from 'lucide-react'
 import ImageUpload from '@/components/admin/ImageUpload'
 import { EVENT_CATEGORIES } from '@/lib/constants'
+import TitleSetter from '@/components/TitleSetter'
 
 function getMinDateTime() {
   const now = new Date()
@@ -161,6 +162,7 @@ export default function EditEventPage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Edit Event" />
       <div className="max-w-[900px] mx-auto px-6 py-12">
         
         {/* Header */}

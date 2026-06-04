@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
+import TitleSetter from '@/components/TitleSetter'
 
 type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded'
 
@@ -44,17 +45,7 @@ export default function AdminPaymentsPage() {
     setCurrentPage(1)
   }, [filter, providerFilter])
 
-  useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/auth/login'); return }
-    if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      router.push('/'); return
-    }
-    if (status === 'authenticated') {
-      fetchPayments()
-    }
-  }, [status, session])
-
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/payments')
       const data = await res.json()
@@ -66,7 +57,17 @@ export default function AdminPaymentsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') { router.push('/auth/login'); return }
+    if (status === 'authenticated' && session?.user?.role !== 'admin') {
+      router.push('/'); return
+    }
+    if (status === 'authenticated') {
+      fetchPayments()
+    }
+  }, [status, session, fetchPayments])
 
   const handleRefund = async (paymentId: string) => {
     try {
@@ -153,6 +154,7 @@ export default function AdminPaymentsPage() {
     <div className="min-h-screen">
       <div className="pb-16 px-4 max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <TitleSetter title="Payments" />
           {/* Header */}
           <div className="flex items-center gap-3 mb-8 mt-7">
             <div className="w-14 h-14 rounded-2xl bg-purple-600/20 flex items-center justify-center">

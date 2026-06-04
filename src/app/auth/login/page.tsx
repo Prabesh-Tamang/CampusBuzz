@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Zap, ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import TitleSetter from '@/components/TitleSetter';
 
 function LoginForm() {
   const router = useRouter();
@@ -82,6 +83,7 @@ function LoginForm() {
 
   return (
     <div className="grid-bg min-h-screen flex items-center justify-center p-6">
+      <TitleSetter title="Sign In" />
       <div className="w-full max-w-md">
 
         <div className="text-center mb-10">

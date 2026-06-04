@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh, HiCheck, HiClock, HiCamera } from 'react-icons/hi'
+import TitleSetter from '@/components/TitleSetter'
 
 export default function ScannerPage() {
   const { data: session, status } = useSession()
@@ -123,6 +124,7 @@ export default function ScannerPage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="QR Scanner" />
       <div className="pb-16 px-4 max-w-2xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <button onClick={() => router.back()} className="text-gray-400 hover:text-white text-sm mb-6 transition-colors">

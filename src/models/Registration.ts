@@ -15,11 +15,15 @@ export interface IRegistration extends Document {
   confirmed: boolean;
   confirmToken?: string;
   confirmationEmailSent: boolean;
+  confirmationEmailSentAt?: Date;
+  confirmedAt?: Date;
   confirmTokenExpiry?: Date;
+  cancelledAt?: Date;
   promotedFromWaitlist: boolean;
   isLastMinute: boolean;
   reviewStatus: 'pending' | 'approved' | 'denied';
   adminNote?: string;
+  adminDenyNote?: string;
   reviewedBy?: mongoose.Types.ObjectId;
   reviewedAt?: Date;
   createdAt: Date;
@@ -42,11 +46,15 @@ const RegistrationSchema = new Schema<IRegistration>(
     confirmed: { type: Boolean, default: false },
     confirmToken: { type: String },
     confirmationEmailSent: { type: Boolean, default: false },
+    confirmationEmailSentAt: { type: Date },
+    confirmedAt: { type: Date },
     confirmTokenExpiry: { type: Date },
+    cancelledAt: { type: Date },
     promotedFromWaitlist: { type: Boolean, default: false },
     isLastMinute: { type: Boolean, default: false },
     reviewStatus: { type: String, enum: ['pending', 'approved', 'denied'], default: 'pending' },
     adminNote: { type: String },
+    adminDenyNote: { type: String, default: null },
     reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
     reviewedAt: { type: Date },
   },
@@ -56,8 +64,9 @@ const RegistrationSchema = new Schema<IRegistration>(
 // Compound unique index to prevent duplicate registrations
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 RegistrationSchema.index({ eventId: 1, checkedIn: 1 });
-RegistrationSchema.index({ flagged: 1, checkedIn: 1 });
-RegistrationSchema.index({ reviewStatus: 1, createdAt: -1 });
+RegistrationSchema.index({ flagged: 1, reviewedAt: 1 });
+RegistrationSchema.index({ paymentStatus: 1 });
+RegistrationSchema.index({ anomalyScore: 1 });
 
 export default mongoose.models.Registration ||
   mongoose.model<IRegistration>('Registration', RegistrationSchema);

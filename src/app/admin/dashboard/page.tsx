@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
@@ -10,6 +10,8 @@ import {
 import toast from 'react-hot-toast'
 import dynamic from 'next/dynamic'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
+import { StatCardSkeleton } from '@/components/ui/Skeleton'
+import TitleSetter from '@/components/TitleSetter'
 
 const ChartsSection = dynamic(() => import('@/components/admin/ChartsSection'), { ssr: false })
 const AlgorithmInsights = dynamic(() => import('@/components/admin/AlgorithmInsights'), { ssr: false })
@@ -40,19 +42,50 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [flaggedCount, setFlaggedCount] = useState(0)
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/stats')
+      const d = await res.json()
+      setStats(d)
+      cacheSet('admin_stats', d, 30_000)
+    } catch (err) {
+      console.error(err)
+    }
+  }, [])
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/analytics')
+      if (res.ok) {
+        const d = await res.json()
+        setAnalytics(d)
+        cacheSet('admin_analytics', d, 30_000)
+      }
+    } catch {}
+  }, [])
+
+  const fetchFlaggedCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/flagged')
+      const d = await res.json()
+      setFlaggedCount(d.total || 0)
+      cacheSet('admin_flagged', d, 30_000)
+    } catch {}
+  }, [])
+
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
     if (status === 'authenticated') {
       if ((session?.user as any)?.role !== 'admin') { router.push('/events'); return }
       Promise.allSettled([fetchStats(), fetchAnalytics(), fetchFlaggedCount()])
     }
-  }, [status, session])
+  }, [status, session, fetchStats, fetchAnalytics, fetchFlaggedCount])
 
   useEffect(() => {
     if (pathname === '/admin/dashboard') {
       fetchFlaggedCount()
     }
-  }, [pathname])
+  }, [pathname, fetchFlaggedCount])
 
   // Hydrate from cache on mount
   useEffect(() => {
@@ -68,38 +101,7 @@ export default function AdminDashboard() {
       Promise.allSettled([fetchStats(), fetchAnalytics(), fetchFlaggedCount()])
     }, 30_000)
     return () => clearInterval(id)
-  }, [status])
-
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/admin/stats')
-      const d = await res.json()
-      setStats(d)
-      cacheSet('admin_stats', d, 30_000)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const fetchAnalytics = async () => {
-    try {
-      const res = await fetch('/api/admin/analytics')
-      if (res.ok) {
-        const d = await res.json()
-        setAnalytics(d)
-        cacheSet('admin_analytics', d, 30_000)
-      }
-    } catch {}
-  }
-
-  const fetchFlaggedCount = async () => {
-    try {
-      const res = await fetch('/api/admin/flagged')
-      const d = await res.json()
-      setFlaggedCount(d.total || 0)
-      cacheSet('admin_flagged', d, 30_000)
-    } catch {}
-  }
+  }, [status, fetchStats, fetchAnalytics, fetchFlaggedCount])
 
   const runConfirmations = async (force = false) => {
     try {
@@ -125,6 +127,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Dashboard" />
       <div className="max-w-[1200px] mx-auto px-6 py-12">
 
         {/* Header */}
@@ -153,6 +156,12 @@ export default function AdminDashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+          {!stats ? (
+            <>
+              {[1,2,3,4,5].map(i => <StatCardSkeleton key={i} />)}
+            </>
+          ) : (
+            <>
           <div className="card p-5 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-lg bg-teal-500/20 flex items-center justify-center">
@@ -199,6 +208,8 @@ export default function AdminDashboard() {
             <div className="text-3xl font-extrabold text-white mt-auto">{stats?.checkedInCount ?? '—'}</div>
             <div className="text-xs text-muted-foreground mt-1">{checkinRate}% rate</div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Algorithm Insights Widget */}

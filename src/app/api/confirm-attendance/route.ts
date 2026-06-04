@@ -53,6 +53,11 @@ export async function GET(req: NextRequest) {
       console.error('[Waitlist] Promotion after token expiry failed:', err)
     );
 
+    void import('@/lib/ml/reliabilityScoring').then(({ updateStudentReliability }) => {
+      updateStudentReliability(registration.userId.toString())
+        .catch(err => console.error('[Reliability] Post-expiry update failed:', err));
+    }).catch(() => {});
+
     return NextResponse.redirect(
       new URL('/my-events?confirm=expired', process.env.NEXTAUTH_URL ?? 'http://localhost:3000')
     );

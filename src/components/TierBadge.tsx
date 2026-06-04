@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Trophy, Star, Shield, AlertTriangle, Sparkles } from 'lucide-react';
 
 type Tier = 'champion' | 'regular' | 'new' | 'unreliable';
@@ -48,7 +49,7 @@ const tierConfig: Record<Tier, {
   },
 };
 
-export default function TierBadge({ tier, size = 'sm', audience = 'student' }: TierBadgeProps) {
+function TierBadgeNoMemo({ tier, size = 'sm', audience = 'student' }: TierBadgeProps) {
   const config = tierConfig[tier] ?? tierConfig.new;
   const label = audience === 'admin' ? config.label : config.studentLabel;
 
@@ -69,3 +70,5 @@ export default function TierBadge({ tier, size = 'sm', audience = 'student' }: T
     </span>
   );
 }
+
+export default memo(TierBadgeNoMemo);

@@ -40,6 +40,17 @@ export async function POST(req: NextRequest) {
     const existing = await Registration.findOne({ userId, eventId });
     if (existing) return NextResponse.json({ error: 'Already registered' }, { status: 409 });
 
+    // Ban check
+    const currentUser = await User.findById(userId).select('isBanned banReason bannedAt').lean();
+    if ((currentUser as any)?.isBanned) {
+      return NextResponse.json({
+        error: 'Your account has been restricted from registering for events.',
+        code: 'ACCOUNT_BANNED',
+        banReason: (currentUser as any).banReason,
+        bannedAt: (currentUser as any).bannedAt,
+      }, { status: 403 });
+    }
+
     const user = await User.findById(userId);
     const registrationId = generateRegistrationId();
 
@@ -117,17 +128,26 @@ export async function POST(req: NextRequest) {
       })();
 
       // Send a "registration received" email (no QR yet)
-      void sendRegistrationEmail({
-        to: user ? user.email : '',
-        name: user ? user.name : '',
-        eventName: event.title,
-        eventDate: format(event.date, 'PPP'),
-        eventVenue: event.venue,
-        qrCodeDataUrl: '',   // no QR in this email
-        registrationId,
-      }).catch((err: unknown) => {
-        console.error('[Email] Failed to send registration confirmation:', err);
-      });
+      const regId = (registration[0]?._id ?? (registration as any)._id)?.toString();
+      void (async () => {
+        try {
+          await sendRegistrationEmail({
+            to: user ? user.email : '',
+            name: user ? user.name : '',
+            eventName: event.title,
+            eventDate: format(event.date, 'PPP'),
+            eventVenue: event.venue,
+            qrCodeDataUrl: '',
+            registrationId,
+          });
+          // NOTE: Do NOT set confirmationEmailSent here.
+          // confirmationEmailSent is only set when admin runs "Run Confirmations"
+          // and sends the actual attendance confirmation email with the token.
+          // The email sent here is just a "registration received" notice.
+        } catch (err) {
+          console.error('[Email] Failed to send registration confirmation:', err);
+        }
+      })();
 
       // Fire-and-forget reliability scoring update
       void updateStudentReliability(userId).catch(err =>
@@ -139,6 +159,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         pendingConfirmation: true,
+        registrationId,
         message: 'Registration received. Check your email to confirm your attendance.',
       }, { status: 201 });
     } catch (err) {
@@ -185,6 +206,11 @@ export async function DELETE(req: NextRequest) {
     promoteTopWaitlistUser(eventId).catch(err =>
       console.error('[Waitlist] Promotion after cancel failed:', err)
     );
+
+    void import('@/lib/ml/reliabilityScoring').then(({ updateStudentReliability }) => {
+      updateStudentReliability(userId)
+        .catch(err => console.error('[Reliability] Post-cancel update failed:', err));
+    }).catch(() => {});
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

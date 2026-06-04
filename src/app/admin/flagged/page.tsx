@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle, ShieldCheck, RotateCcw, XCircle, Loader2, U
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';
+import TitleSetter from '@/components/TitleSetter';
 
 interface FlaggedEntry {
   _id: string;
@@ -22,6 +23,7 @@ interface FlaggedEntry {
   };
   registrationId: string;
   anomalyScore: number;
+  flagged: boolean;
   flagReason?: string;
   reviewStatus?: 'pending' | 'approved' | 'denied';
   adminNote?: string;
@@ -45,9 +47,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function AdminFlaggedPage() {
   const { data: session, status } = useSession();
-  const [flagged, setFlagged] = useState<FlaggedEntry[]>([]);
+  const [allFlagged, setAllFlagged] = useState<FlaggedEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tabLoading, setTabLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
   const [denyNotes, setDenyNotes] = useState<Record<string, string>>({});
   const [confirmDenyId, setConfirmDenyId] = useState<string | null>(null);
@@ -56,16 +57,15 @@ export default function AdminFlaggedPage() {
   const fetchFlagged = useCallback(async () => {
     if (status !== 'authenticated') return;
     try {
-      const res = await fetch(`/api/admin/flagged?tab=${activeTab}`);
+      const res = await fetch('/api/admin/flagged?include=all');
       const d = await res.json();
-      setFlagged(d.flagged || []);
+      setAllFlagged(d.flagged || []);
     } catch {
       // silent
     } finally {
       setLoading(false);
-      setTabLoading(false);
     }
-  }, [status, activeTab]);
+  }, [status]);
 
   useEffect(() => {
     fetchFlagged();
@@ -85,7 +85,7 @@ export default function AdminFlaggedPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
-      setFlagged(prev => prev.filter(f => f.registrationId !== registrationId));
+      setAllFlagged(prev => prev.filter(f => f.registrationId !== registrationId));
       setConfirmDenyId(null);
       setDenyNotes(prev => { const n = { ...prev }; delete n[registrationId]; return n; });
       toast.success(
@@ -111,7 +111,10 @@ export default function AdminFlaggedPage() {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   }
 
-  const pendingCount = flagged.filter(f => f.reviewStatus !== 'approved' && f.reviewStatus !== 'denied').length;
+  const pendingItems = allFlagged.filter(r => !r.reviewedAt && r.flagged && !r.checkedIn);
+  const historyItems = allFlagged.filter(r => r.reviewedAt);
+  const pendingCount = pendingItems.length;
+  const displayItems = activeTab === 'pending' ? pendingItems : historyItems;
 
   if (loading) return (
     <div className="p-6">
@@ -170,6 +173,7 @@ export default function AdminFlaggedPage() {
 
   return (
     <div className="p-6">
+      <TitleSetter title="Flagged Check-ins" />
       <div className="flex items-center gap-4 mb-6">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500/30 to-orange-500/20 flex items-center justify-center ring-1 ring-red-500/30">
           <AlertTriangle className="w-7 h-7 text-red-400" />
@@ -184,7 +188,7 @@ export default function AdminFlaggedPage() {
 
       <div className="flex gap-1 mb-6 p-1 bg-surface rounded-xl border border-border w-fit relative">
         <button
-          onClick={() => { if (activeTab !== 'pending') { setActiveTab('pending'); setTabLoading(true); } }}
+          onClick={() => setActiveTab('pending')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'pending' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
         >
           Pending Review
@@ -193,19 +197,14 @@ export default function AdminFlaggedPage() {
           )}
         </button>
         <button
-          onClick={() => { if (activeTab !== 'history') { setActiveTab('history'); setTabLoading(true); } }}
+          onClick={() => setActiveTab('history')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-accent/20 text-accent shadow-sm' : 'text-gray-400 hover:text-white'}`}
         >
           Review History
         </button>
-        {tabLoading && (
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2">
-            <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
       </div>
 
-      {flagged.length === 0 ? (
+      {displayItems.length === 0 ? (
         <div className="mt-16">
           <EmptyState
             icon={activeTab === 'pending' ? ShieldCheck : CheckCircle}
@@ -219,7 +218,7 @@ export default function AdminFlaggedPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {flagged.map((entry, i) => {
+          {displayItems.map((entry, i) => {
             const score = getScoreInfo(entry.anomalyScore);
             const isDenied = entry.reviewStatus === 'denied';
             const isApproved = entry.reviewStatus === 'approved';
@@ -326,11 +325,17 @@ export default function AdminFlaggedPage() {
                       confirmDenyId === entry.registrationId ? (
                         <div className="flex flex-col gap-2 min-w-[200px]">
                           <textarea
-                            placeholder="Reason for denying…"
+                            placeholder="Reason for denial (optional — visible to audit log only)..."
                             value={denyNotes[entry.registrationId] || ''}
                             onChange={e => setDenyNotes(prev => ({ ...prev, [entry.registrationId]: e.target.value }))}
-                            rows={2}
-                            className="w-full px-3 py-2 text-xs bg-surface border border-red-500/40 rounded-lg text-gray-300 placeholder-gray-600 focus:outline-none focus:border-red-500 resize-none"
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl text-sm resize-none transition-colors focus:outline-none"
+                  style={{
+                    backgroundColor: '#1c2f2e',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: '#f1f5f9',
+                    caretColor: '#14b8a6',
+                  }}
                           />
                           <div className="flex gap-2 justify-end">
                             <button

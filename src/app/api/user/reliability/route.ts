@@ -8,6 +8,7 @@ import {
   getTierBenefits,
   isReliabilityModelReady,
 } from '@/lib/ml/reliabilityScoring';
+import { MODEL_PARAMS } from '@/lib/ml/constants';
 
 export async function GET() {
   try {
@@ -19,12 +20,9 @@ export async function GET() {
     await connectDB();
     const userId = session.user.id;
 
-    const [user, metrics] = await Promise.all([
-      User.findById(userId)
-        .select('engagementTier reliabilityScore createdAt')
-        .lean(),
-      computeMetrics(userId),
-    ]);
+    const user = await User.findById(userId)
+      .select('engagementTier reliabilityScore createdAt scoreHistory')
+      .lean();
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -32,6 +30,8 @@ export async function GET() {
 
     const tier = (user as any).engagementTier ?? 'new';
     const score = (user as any).reliabilityScore;
+    const retentionDays = MODEL_PARAMS.RETENTION_DAYS[tier] ?? 30;
+    const metrics = await computeMetrics(userId, retentionDays);
     const benefits = getTierBenefits(tier);
 
     // What does the student need to do to improve?
@@ -61,6 +61,7 @@ export async function GET() {
     return NextResponse.json({
       tier,
       score,
+      scoreHistory: (user as any).scoreHistory?.slice(0, 5) ?? [],
       metrics: {
         totalRegistered: metrics.totalRegistrations,
         totalAttended: Math.round(metrics.attendanceRate * metrics.totalRegistrations),

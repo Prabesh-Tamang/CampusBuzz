@@ -1,23 +1,21 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { useSession } from "next-auth/react";
-import { useCachedData } from "@/hooks/useCachedData";
+import { HeroCTA, CtaLink } from "@/components/HeroCTA";
+import connectDB from "@/lib/mongodb";
+import Event from "@/models/Event";
+import User from "@/models/User";
+import Registration from "@/models/Registration";
+import TitleSetter from "@/components/TitleSetter";
+import EventCard from "@/components/EventCard";
 import {
   Zap,
   Calendar,
   QrCode,
   BarChart3,
-  ArrowRight,
   Users,
   Shield,
-  MapPin,
-  Clock,
+  ArrowRight,
 } from "lucide-react";
-import { format } from "date-fns";
-import TitleSetter from "@/components/TitleSetter";
 
 const features = [
   {
@@ -50,7 +48,7 @@ const features = [
   },
 ];
 
-interface Event {
+interface EventDoc {
   _id: string;
   title: string;
   date: string;
@@ -61,33 +59,45 @@ interface Event {
   imageUrl?: string;
 }
 
-export default function HomePage() {
-  const { data: session, status } = useSession();
+export default async function HomePage() {
+  await connectDB();
 
-  const { data: rawStats } = useCachedData<{ stats: { val: string; label: string }[] }>(
-    'landing_stats',
-    () => fetch("/api/stats").then(r => r.json()),
-    { refreshInterval: 30_000 }
-  )
-  const statsData = rawStats?.stats ?? null
+  const now = new Date();
 
-  const { data: rawEvents } = useCachedData<Event[]>(
-    'landing_events',
-    () => fetch("/api/events").then(r => r.json()),
-    { refreshInterval: 60_000 }
-  )
+  const [totalEvents, totalStudents, totalCheckins, upcomingEvents] =
+    await Promise.all([
+      Event.countDocuments({ isActive: true, isCancelled: { $ne: true } }),
+      User.countDocuments({ role: "student" }),
+      Registration.countDocuments({ checkedIn: true }),
+      Event.find({
+        isActive: true,
+        isCancelled: { $ne: true },
+        date: { $gte: now },
+      })
+        .sort({ registeredCount: -1 })
+        .limit(6)
+        .select(
+          "_id title description category date venue capacity registeredCount feeType feeAmount imageUrl"
+        )
+        .lean(),
+    ]);
 
-  const popularEvents: Event[] = Array.isArray(rawEvents)
-    ? rawEvents
-        .filter((e) => new Date(e.date) >= new Date())
-        .sort((a, b) => b.registeredCount - a.registeredCount)
-        .slice(0, 3)
-    : []
+  const checkinRate =
+    totalStudents > 0
+      ? Math.round((totalCheckins / totalStudents) * 100)
+      : 0;
+
+  const stats = [
+    { val: String(totalEvents), label: "Events Hosted" },
+    { val: String(totalStudents), label: "Students Registered" },
+    { val: `${checkinRate}%`, label: "Check-in Rate" },
+    { val: "15+", label: "Departments" },
+  ];
 
   return (
     <div className="min-h-screen">
-      <TitleSetter title="Home" />
       <Navbar />
+      <TitleSetter title="Home" />
 
       {/* Hero Section */}
       <section className="grid-bg relative overflow-hidden px-6 pb-[80px] pt-[120px]">
@@ -110,118 +120,42 @@ export default function HomePage() {
             in one place. QR check-in, live tracking, and instant notifications.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/events">
-              <button className="btn-primary flex items-center gap-2.5 px-9 py-4 text-base">
-                Explore Events <ArrowRight size={18} />
-              </button>
-            </Link>
-            {!session && (
-              <Link href="/auth/signup">
-                <button className="btn-ghost px-9 py-4 text-base">
-                  Get Started Free
-                </button>
-              </Link>
-            )}
-          </div>
+          <HeroCTA />
         </div>
 
-        {/* Stats bar */}
+        {/* Stats bar — server rendered with real data, no flash */}
         <div className="mx-auto mt-20 grid max-w-[800px] grid-cols-2 overflow-hidden rounded-2xl bg-border md:grid-cols-4 gap-[1px]">
-          {(statsData ?? [
-            { val: "0", label: 'Events Hosted' },
-            { val: "0", label: 'Students Registered' },
-            { val: "0%", label: 'Check-in Rate' },
-            { val: "0", label: 'Departments' },
-          ]).map((s) => (
-            <StatsCounter key={s.label} val={s.val} label={s.label} />
+          {stats.map((s) => (
+            <StatCard key={s.label} val={s.val} label={s.label} />
           ))}
         </div>
       </section>
 
       {/* Popular Events Section */}
-      {popularEvents.length > 0 && (
-          <section className="mx-auto max-w-[1200px] px-6 py-[60px]">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <h2 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white">
-                  Trending Events
-                </h2>
-                <p className="text-muted-foreground mt-1">
-                  Most popular events on campus right now
-                </p>
-              </div>
-              <Link href="/events">
-                <button className="btn-ghost flex items-center gap-2 text-sm">
-                  Browse All <ArrowRight size={16} />
-                </button>
-              </Link>
+      {upcomingEvents.length > 0 && (
+        <section className="mx-auto max-w-[1200px] px-6 py-[60px]">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-[clamp(28px,4vw,40px)] font-extrabold tracking-tighter text-white">
+                Trending Events
+              </h2>
+              <p className="text-muted-foreground mt-1">
+                Most popular events on campus right now
+              </p>
             </div>
+            <Link href="/events">
+              <button className="btn-ghost flex items-center gap-2 text-sm">
+                Browse All <ArrowRight size={16} />
+              </button>
+            </Link>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {popularEvents.map((event) => (
-                <Link
-                  key={event._id}
-                  href={`/events/${event._id}`}
-                  className="group block"
-                >
-                  <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden hover:border-teal-500/30 hover:bg-white/[0.05] transition-all duration-200">
-                    {event.imageUrl && (
-                      <div className="h-40 overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={event.imageUrl}
-                          alt={event.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          onError={(e) => {
-                            (
-                              e.target as HTMLImageElement
-                            ).parentElement!.style.display = "none";
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                          {event.category}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {event.registeredCount}/{event.capacity}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-bold text-white mb-3 group-hover:text-teal-300 transition-colors line-clamp-2">
-                        {event.title}
-                      </h3>
-                      <div className="space-y-2 text-sm text-gray-400">
-                        <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-teal-400" />
-                          {format(new Date(event.date), "MMM d, yyyy")}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-teal-400" />
-                          {event.venue}
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-4 border-t border-white/10">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">Popularity</span>
-                          <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-teal-500 rounded-full"
-                              style={{
-                                width: `${(event.registeredCount / event.capacity) * 100}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {upcomingEvents.map((event: any, i: number) => (
+              <EventCard key={event._id.toString()} event={event} index={i} />
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Features Section */}
@@ -254,7 +188,7 @@ export default function HomePage() {
 
       {/* CTA Section */}
       <section className="px-6 pb-[80px]">
-        <div className="glow-teal mx-auto max-w-[600px] rounded-2xl border border-teal-500/30 bg-gradient-to-br from-surface to-[#0a1a19] px-10 py-12 text-center">
+        <div className="glow-teal mx-auto max-w-[600px] rounded-2xl border border-teal-500/30 bg-gradient-to-br from-[#0d1f1e] to-[#050d0c] px-10 py-12 text-center">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-500/20">
             <Users size={24} className="text-[#042f2e]" />
           </div>
@@ -264,11 +198,7 @@ export default function HomePage() {
           <p className="mb-6 text-muted-foreground">
             Join thousands of students discovering campus events.
           </p>
-          <Link href={session ? "/events" : "/auth/signup"}>
-            <button className="btn-primary px-8 py-3">
-              {session ? "Browse Events" : "Create Free Account"}
-            </button>
-          </Link>
+          <CtaLink />
         </div>
       </section>
 
@@ -282,59 +212,18 @@ export default function HomePage() {
   );
 }
 
-function StatsCounter({ val, label }: { val: string; label: string }) {
-  const [displayed, setDisplayed] = useState("0");
-  const [showPlus, setShowPlus] = useState(false);
-  const currentRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
-
+function StatCard({ val, label }: { val: string; label: string }) {
+  // If the value already contains + or % don't append anything
+  const alreadyFormatted = val.includes("+") || val.includes("%");
   const num = parseInt(val.replace(/[^0-9]/g, "")) || 0;
-  const suffix = val.includes("%") ? "%" : "";
-
-  useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    const start = currentRef.current;
-    const end = num;
-
-    if (start === end) {
-      setDisplayed(val);
-      if (!suffix && end > 0) setShowPlus(true);
-      else setShowPlus(false);
-      return;
-    }
-
-    if (end === 0) setShowPlus(false);
-
-    const diff = Math.abs(end - start);
-    const duration = Math.min(500, Math.max(200, diff * 12));
-    const stepTime = Math.max(16, duration / Math.max(1, diff));
-    const dir = end > start ? 1 : -1;
-    let current = start;
-
-    const timer = setInterval(() => {
-      current += dir;
-      const next = dir > 0 ? Math.min(current, end) : Math.max(current, end);
-      currentRef.current = next;
-      setDisplayed(suffix ? `${next}${suffix}` : String(next));
-
-      if (next === end) {
-        clearInterval(timer);
-        if (!suffix && end > 0) setShowPlus(true);
-      }
-    }, stepTime);
-
-    timerRef.current = timer;
-    return () => clearInterval(timer);
-  }, [val, num, suffix]);
+  const showPlus = !alreadyFormatted && num > 0;
 
   return (
-    <div className="bg-surface px-5 py-6 text-center">
-      <div className="text-3xl font-extrabold leading-none text-accent">
-        {displayed}
-        {showPlus && "+"}
+    <div className="bg-[#0d1f1e] px-5 py-6 text-center">
+      <div className="text-3xl font-extrabold leading-none text-[#14b8a6]">
+        {val}{showPlus && "+"}
       </div>
-      <div className="mt-1.5 text-[12px] font-semibold tracking-wider text-muted-foreground uppercase">
+      <div className="mt-1.5 text-[12px] font-semibold tracking-wider text-[#6b9e99] uppercase">
         {label}
       </div>
     </div>

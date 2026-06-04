@@ -5,7 +5,8 @@ import connectDB from '@/lib/mongodb';
 import Registration from '@/models/Registration';
 import Event from '@/models/Event';
 import { format } from 'date-fns';
-import PrintButton from './PrintButton';
+import TicketActions from './TicketActions';
+import QRCode from 'qrcode';
 
 export default async function TicketPage({
   params,
@@ -18,15 +19,27 @@ export default async function TicketPage({
 
   await connectDB();
 
-  const registration = await Registration.findOne({
+  let registration = await Registration.findOne({
     registrationId: params.registrationId,
     userId: session.user.id,
   }).lean();
 
   const reg = registration as any;
-  if (!reg || !reg.qrCode || (!reg.confirmed && !reg.paymentId)) {
-    notFound();
+  if (!reg) notFound();
+
+  const isPaid = !!reg.paymentId;
+  const isValid = reg.confirmed || isPaid;
+
+  if (!isValid) notFound();
+
+  let qrCode = reg.qrCode;
+  if (!qrCode && isPaid) {
+    const qrData = JSON.stringify({ registrationId: reg.registrationId, eventId: reg.eventId, userId: reg.userId });
+    qrCode = await QRCode.toDataURL(qrData, { width: 300, margin: 2, errorCorrectionLevel: 'H' });
+    await Registration.findByIdAndUpdate(reg._id, { qrCode });
   }
+
+  if (!qrCode) notFound();
 
   const event = await Event.findById(reg.eventId).lean();
   if (!event) notFound();
@@ -80,9 +93,9 @@ export default async function TicketPage({
         <p className="text-xs text-gray-500 mb-3 uppercase tracking-widest print:text-gray-600">Scan to enter</p>
         <div className="inline-block relative">
           <div className="absolute inset-0 bg-teal-400/10 rounded-2xl blur-xl print:hidden" />
-          <div className="relative bg-white p-3 rounded-2xl shadow-xl print:shadow-none print:border print:border-gray-200">
+          <div className="relative bg-white p-3 rounded-2xl shadow-xl print:shadow-none" style={{ border: '3px solid #14b8a6' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={reg.qrCode} alt="Entry QR Code" className="w-44 h-44 block print:w-36 print:h-36" />
+            <img src={qrCode} alt="Entry QR Code" className="w-44 h-44 block print:w-36 print:h-36" />
           </div>
         </div>
         <p className="mt-4 text-xs text-gray-500 font-mono tracking-widest print:text-gray-600">{reg.registrationId}</p>
@@ -98,15 +111,7 @@ export default async function TicketPage({
       {/* Screen controls */}
       <div className="print:hidden min-h-screen bg-[#050d0c] flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-sm">
-          <div className="flex gap-3 mb-6 justify-center">
-            <PrintButton />
-            <a
-              href="/my-events"
-              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-sm font-medium border border-white/10 transition-colors"
-            >
-              ← Back
-            </a>
-          </div>
+          <TicketActions />
           {ticketContent}
           <p className="text-center text-xs text-gray-600 mt-4">Save as PDF for offline access 💾</p>
         </div>

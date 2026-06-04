@@ -8,9 +8,27 @@ export interface IUser extends Document {
   college: string;
   engagementTier: 'champion' | 'regular' | 'new' | 'unreliable';
   reliabilityScore: number | null;
+  scoreHistory: Array<{
+    score: number;
+    tier: string;
+    reason: string;
+    changedAt: Date;
+  }>;
+  isBanned: boolean;
+  banReason: string | null;
+  bannedAt: Date | null;
+  bannedBy: mongoose.Types.ObjectId | null;
+  bannedNote: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const ScoreHistorySchema = new Schema({
+  score:     { type: Number, required: true },
+  tier:      { type: String, required: true },
+  reason:    { type: String, required: true },
+  changedAt: { type: Date, default: Date.now },
+}, { _id: false });
 
 const UserSchema = new Schema<IUser>(
   {
@@ -30,11 +48,18 @@ const UserSchema = new Schema<IUser>(
       min: 0,
       max: 100,
     },
+    scoreHistory: [ScoreHistorySchema],
+    isBanned:    { type: Boolean, default: false },
+    banReason:   { type: String, default: null },
+    bannedAt:    { type: Date, default: null },
+    bannedBy:    { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    bannedNote:  { type: String, default: null },
   },
   { timestamps: true }
 );
 
 UserSchema.index({ engagementTier: 1 });
 UserSchema.index({ role: 1 });
+UserSchema.index({ isBanned: 1 });
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema);

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import NotFoundActions from '@/components/ui/NotFoundActions';
 
 export default function NotFound() {
   return (
@@ -13,13 +13,7 @@ export default function NotFound() {
         <p className="text-gray-400 mb-8">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500
-                     text-white rounded-xl font-semibold transition-colors"
-        >
-          Go home
-        </Link>
+        <NotFoundActions />
       </div>
     </div>
   )

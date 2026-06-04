@@ -12,19 +12,24 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
-  const tab = req.nextUrl.searchParams.get('tab') || 'pending';
+  const includeAll = req.nextUrl.searchParams.get('include') === 'all';
 
   let query;
-  if (tab === 'history') {
-    query = { flagged: true, reviewStatus: { $in: ['approved', 'denied'] } };
+  if (includeAll) {
+    query = { flagged: true };
   } else {
-    query = {
-      flagged: true,
-      $or: [
-        { reviewStatus: 'pending' },
-        { reviewStatus: { $exists: false } },
-      ],
-    };
+    const tab = req.nextUrl.searchParams.get('tab') || 'pending';
+    if (tab === 'history') {
+      query = { flagged: true, reviewStatus: { $in: ['approved', 'denied'] } };
+    } else {
+      query = {
+        flagged: true,
+        $or: [
+          { reviewStatus: 'pending' },
+          { reviewStatus: { $exists: false } },
+        ],
+      };
+    }
   }
 
   const flagged = await Registration.find(query)
@@ -69,6 +74,7 @@ export async function PATCH(req: Request) {
         flagged: true,
         adminOverride: false,
         reviewStatus: 'denied',
+        adminDenyNote: adminNote || null,
         adminNote: adminNote || 'Contact the event organiser',
         reviewedBy: (session.user as { id: string }).id,
         reviewedAt: new Date(),

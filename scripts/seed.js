@@ -32,6 +32,15 @@ const UserSchema = new mongoose.Schema({
   college: String,
   engagementTier: { type: String, enum: ['champion', 'regular', 'new', 'unreliable'], default: 'new' },
   reliabilityScore: { type: Number, default: null },
+  scoreHistory: [{
+    score: Number,
+    tier: String,
+    reason: String,
+    changedAt: { type: Date, default: Date.now },
+  }],
+  isBanned: { type: Boolean, default: false },
+  banReason: String,
+  bannedAt: Date,
 }, { timestamps: true });
 
 const EventSchema = new mongoose.Schema({
@@ -72,6 +81,12 @@ const RegistrationSchema = new mongoose.Schema({
   isLastMinute: { type: Boolean, default: false },
   confirmationEmailSent: { type: Boolean, default: false },
   confirmTokenExpiry: Date,
+  cancelledAt: Date,
+  confirmationEmailSentAt: Date,
+  confirmedAt: Date,
+  adminDenyNote: String,
+  flagReason: String,
+  reviewedAt: Date,
 }, { timestamps: true });
 
 const WaitlistSchema = new mongoose.Schema({
@@ -193,7 +208,7 @@ async function seed() {
     ];
 
     const students = await User.insertMany(
-      studentDefs.map(s => ({
+      studentDefs.map((s, idx) => ({
         name: s.name,
         email: s.email,
         password: studentPassword,
@@ -201,9 +216,16 @@ async function seed() {
         college: "CampusBuzz University",
         engagementTier: s.tier,
         reliabilityScore: s.score,
+        scoreHistory: s.score ? [
+          { score: Math.max(0, s.score - 10), tier: s.tier === 'champion' ? 'regular' : s.tier, reason: 'Initial assessment', changedAt: new Date(Date.now() - 60 * 24 * 3600000) },
+          { score: s.score, tier: s.tier, reason: s.tier === 'champion' ? 'Consistent high attendance' : 'Recalculated after recent events', changedAt: new Date(Date.now() - 7 * 24 * 3600000) },
+        ] : [],
+        isBanned: idx === 14,
+        banReason: idx === 14 ? 'Repeated no-show for registered events' : undefined,
+        bannedAt: idx === 14 ? new Date(Date.now() - 2 * 24 * 3600000) : undefined,
       }))
     );
-    console.log(`Created ${students.length} student users (4 champion, 5 regular, 3 new, 3 unreliable)`);
+    console.log(`Created ${students.length} student users (4 champion, 5 regular, 3 new, 3 unreliable; 1 banned)`);
 
     // ── Events (Req 15.2: 15+ across all 7 categories, free/paid, past/upcoming) ──
     const eventDefs = [
@@ -405,7 +427,11 @@ async function seed() {
         flagged = false,
         anomalyScore = null,
         checkedInAt = null,
+        cancelledAt = null,
+        flagReason = null,
+        reviewedAt = null,
       } = opts;
+      const confirmedAt = confirmed ? new Date(Date.now() - 3600000) : null;
       return {
         userId,
         eventId,
@@ -419,9 +445,14 @@ async function seed() {
         flagged,
         adminOverride: false,
         confirmed,
+        confirmedAt,
         promotedFromWaitlist: false,
         isLastMinute: false,
         confirmationEmailSent: confirmed,
+        confirmationEmailSentAt: confirmed ? new Date(Date.now() - 3300000) : null,
+        cancelledAt,
+        flagReason,
+        reviewedAt,
       };
     }
 
@@ -491,6 +522,8 @@ async function seed() {
             checkedInAt: anomAt,
             anomalyScore: 0.75 + Math.random() * 0.2,
             flagged: true,
+            flagReason: 'Suspicious check-in time (early morning)',
+            reviewedAt: null,
           }));
           totalCheckedIn++;
           anomalyCount++;

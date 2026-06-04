@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { Brain, Users, Clock, Shield, RefreshCw, Trophy } from 'lucide-react';
 
 interface AlgorithmStats {
@@ -66,7 +66,7 @@ const TIER_DISPLAY: Record<string, { label: string; color: string; bar: string }
   unreliable: { label: 'Low History',   color: 'text-orange-400', bar: 'bg-orange-500' },
 };
 
-export default function AlgorithmInsights() {
+function AlgorithmInsightsNoMemo() {
   const [stats, setStats] = useState<AlgorithmStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -164,7 +164,23 @@ export default function AlgorithmInsights() {
 
           <div className="bg-white/[0.03] rounded-lg p-4">
             <Row label="Trained on" value={`${rel.trainingCount} students`} />
+            <Row label="Reliability features" value="7 parameters" />
             <Row label="Avg reliability score" value={rel.averageScore !== null ? `${rel.averageScore}/100` : '—'} />
+          </div>
+          {/* Tooltip: 7 feature names */}
+          <div className="mt-2 group relative inline-block">
+            <button className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+              View reliability parameters ↗
+            </button>
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-72 z-10 p-3 rounded-xl text-xs"
+                 style={{ background: '#0a1a18', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <p className="font-semibold text-white mb-1.5">Reliability IF — 7 features:</p>
+              <p style={{ color: '#94a3b8', lineHeight: 1.6 }}>
+                Attendance rate · Waitlist abandon rate · Bulk registrations ·
+                Cancellation rate · Recent attendance · Confirmation response speed ·
+                Waitlist conversion rate
+              </p>
+            </div>
           </div>
           {rel.status === 'warming_up' && (
             <p className="text-xs text-amber-400/70 mt-2">
@@ -186,9 +202,25 @@ export default function AlgorithmInsights() {
           </div>
           <div className="bg-white/[0.03] rounded-lg p-4">
             <Row label="Trained on" value={`${ifo.trainedOnSamples} check-ins`} />
+            <Row label="Check-in features" value="8 parameters" />
             <Row label="Flagged today" value={ifo.flaggedToday} />
             <Row label="Blocked today" value={ifo.blockedToday} />
             <Row label="Total check-ins" value={ifo.totalCheckins} />
+          </div>
+          {/* Tooltip: 8 feature names */}
+          <div className="mt-2 group relative inline-block">
+            <button className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+              View check-in parameters ↗
+            </button>
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-72 z-10 p-3 rounded-xl text-xs"
+                 style={{ background: '#0a1a18', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <p className="font-semibold text-white mb-1.5">Check-in IF — 8 features:</p>
+              <p style={{ color: '#94a3b8', lineHeight: 1.6 }}>
+                Hour of day · Days since registration · Total registrations ·
+                Historical check-in rate · Minutes relative to event start ·
+                Same-category events attended · Check-ins today · Account age
+              </p>
+            </div>
           </div>
           {ifo.status === 'warming_up' && (
             <div className="mt-3">
@@ -260,3 +292,5 @@ export default function AlgorithmInsights() {
     </div>
   );
 }
+
+export default memo(AlgorithmInsightsNoMemo);

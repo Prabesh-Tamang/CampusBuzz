@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,6 +8,7 @@ import { Calendar, Plus, Edit2, Trash2, Eye, Search, ChevronLeft, ChevronRight, 
 import toast from 'react-hot-toast'
 import DeleteModal from '@/components/DeleteModal'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
+import TitleSetter from '@/components/TitleSetter'
 
 export default function AdminEventsPage() {
   const { data: session, status } = useSession()
@@ -33,15 +34,7 @@ export default function AdminEventsPage() {
     if (cached) { setEvents(cached); setLoading(false) }
   }, [])
 
-  useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/admin/login'); return }
-    if (status === 'authenticated') {
-      if ((session?.user as any)?.role !== 'admin') { router.push('/events'); return }
-      fetchEvents()
-    }
-  }, [status, session])
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/stats')
       const d = await res.json()
@@ -53,7 +46,15 @@ export default function AdminEventsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') { router.push('/admin/login'); return }
+    if (status === 'authenticated') {
+      if ((session?.user as any)?.role !== 'admin') { router.push('/events'); return }
+      fetchEvents()
+    }
+  }, [status, session, fetchEvents])
 
   const handleDelete = async (cancelReason?: string) => {
     if (!deleteModal.itemId) return
@@ -161,6 +162,7 @@ export default function AdminEventsPage() {
 
   return (
     <div className="min-h-screen">
+      <TitleSetter title="Events" />
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -193,29 +195,29 @@ export default function AdminEventsPage() {
             <span className="text-sm font-semibold text-muted-foreground">Filters</span>
           </div>
           <select
-            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer"
+            className="bg-[#1c2f2e] text-sm text-white focus:outline-none cursor-pointer px-3 py-1.5 rounded-lg border border-white/10"
             value={filterDate} onChange={(e) => setFilterDate(e.target.value)}
           >
-            <option value="all" className="bg-surface">All Dates</option>
-            <option value="upcoming" className="bg-surface">Upcoming</option>
-            <option value="past" className="bg-surface">Past</option>
+            <option value="all" className="bg-[#1c2f2e]">All Dates</option>
+            <option value="upcoming" className="bg-[#1c2f2e]">Upcoming</option>
+            <option value="past" className="bg-[#1c2f2e]">Past</option>
           </select>
           <select
-            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+            className="bg-[#1c2f2e] text-sm text-white focus:outline-none cursor-pointer px-3 py-1.5 rounded-lg border border-white/10"
             value={filterFee} onChange={(e) => setFilterFee(e.target.value)}
           >
-            <option value="all" className="bg-surface">Any Fee</option>
-            <option value="free" className="bg-surface">Free</option>
-            <option value="paid" className="bg-surface">Paid</option>
+            <option value="all" className="bg-[#1c2f2e]">Any Fee</option>
+            <option value="free" className="bg-[#1c2f2e]">Free</option>
+            <option value="paid" className="bg-[#1c2f2e]">Paid</option>
           </select>
           <select
-            className="bg-transparent text-sm text-white focus:outline-none cursor-pointer border-l border-border pl-3"
+            className="bg-[#1c2f2e] text-sm text-white focus:outline-none cursor-pointer px-3 py-1.5 rounded-lg border border-white/10"
             value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
           >
-            <option value="all" className="bg-surface">Any Status</option>
-            <option value="active" className="bg-surface">Active</option>
-            <option value="cancelled" className="bg-surface">Cancelled</option>
-            <option value="hidden" className="bg-surface">Hidden</option>
+            <option value="all" className="bg-[#1c2f2e]">Any Status</option>
+            <option value="active" className="bg-[#1c2f2e]">Active</option>
+            <option value="cancelled" className="bg-[#1c2f2e]">Cancelled</option>
+            <option value="hidden" className="bg-[#1c2f2e]">Hidden</option>
           </select>
         </div>
 
