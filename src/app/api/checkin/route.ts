@@ -200,6 +200,21 @@ export async function POST(req: NextRequest) {
     );
     maybeRetrain();
 
+    // Push a "checked in" notification to the student
+    void import('@/lib/notifications').then(({ pushNotification }) => {
+      pushNotification({
+        userId: existing.userId.toString(),
+        type: 'checked_in',
+        title: '✅ Checked in successfully',
+        body: `You're in at ${(updated.eventId as any).title}. Enjoy the event!`,
+        eventId: existing.eventId.toString(),
+        registrationId: updated.registrationId,
+        actionUrl: `/my-events/checkin/${updated.registrationId}`,
+        actionLabel: 'View ticket',
+        ttlHours: 12,
+      }).catch(() => {});
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       warning: false,

@@ -29,6 +29,26 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Redirect admins away from student-only pages (not event view — admins can preview events)
+  // Admins have no business on /my-events, /my-payments, /payment/*
+  const isStudentOnlyRoute =
+    pathname.startsWith('/my-events') ||
+    pathname.startsWith('/my-payments') ||
+    pathname.startsWith('/payment/');
+
+  if (isStudentOnlyRoute && token?.role === 'admin') {
+    return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+  }
+
+  // Redirect admin from shared event links to the admin event view
+  // e.g. /events/abc123 → /admin/events/abc123/view
+  const eventDetailMatch = pathname.match(/^\/events\/([a-f0-9]{24})$/i);
+  if (eventDetailMatch && token?.role === 'admin') {
+    return NextResponse.redirect(
+      new URL(`/admin/events/${eventDetailMatch[1]}/view`, req.url)
+    );
+  }
+
   // Redirect already-authenticated students away from student auth pages
   // Admins visiting /auth/login are handled by the page itself (signs them out)
   if (isAuthRoute && token) {

@@ -34,10 +34,13 @@ export default function PaymentHistoryPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
+    if (status === 'authenticated' && (session?.user as any)?.role === 'admin') {
+      router.replace('/admin/dashboard'); return
+    }
     if (status === 'authenticated') {
       fetchPayments()
     }
-  }, [status])
+  }, [status, session, router])
 
   const fetchPayments = async () => {
     try {

@@ -163,6 +163,21 @@ export async function promoteTopWaitlistUser(eventId: string): Promise<void> {
         qrCodeDataUrl: qrCode,
         registrationId,
       }).catch(err => console.error('[Waitlist] Promotion email failed:', err));
+
+      // Push promoted notification
+      void import('@/lib/notifications').then(({ pushNotification }) => {
+        pushNotification({
+          userId: top.userId,
+          type: 'promoted',
+          title: '🎉 You got a spot!',
+          body: `You've been promoted from the waitlist for ${event.title}. Your QR code is ready.`,
+          eventId,
+          registrationId,
+          actionUrl: `/my-events/checkin/${registrationId}`,
+          actionLabel: 'Open QR ticket',
+          ttlHours: 48,
+        }).catch(() => {});
+      }).catch(() => {});
     }
   } catch (err) {
     await session.abortTransaction();

@@ -351,6 +351,21 @@ export async function completeRegistration(paymentId: string, userId: string, ev
           qrCodeDataUrl: registration.qrCode,
           registrationId: registration.registrationId,
         }).catch(err => console.error('[Email] Payment confirmation failed:', err));
+
+        // Push payment confirmed notification
+        void import('@/lib/notifications').then(({ pushNotification }) => {
+          pushNotification({
+            userId,
+            type: 'payment_confirmed',
+            title: '💳 Payment confirmed',
+            body: `Your payment for ${event.title} is confirmed. Your QR code has been emailed.`,
+            eventId,
+            registrationId: registration.registrationId,
+            actionUrl: `/my-events/checkin/${registration.registrationId}`,
+            actionLabel: 'Open ticket',
+            ttlHours: 48,
+          }).catch(() => {});
+        }).catch(() => {});
       }
     } catch (err) {
       await mongoSession.abortTransaction();

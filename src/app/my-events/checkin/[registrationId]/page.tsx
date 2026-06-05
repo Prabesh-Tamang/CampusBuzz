@@ -15,7 +15,10 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') router.push('/auth/login')
-  }, [sessionStatus, router])
+    if (sessionStatus === 'authenticated' && (session?.user as any)?.role === 'admin') {
+      router.replace('/admin/dashboard')
+    }
+  }, [sessionStatus, session, router])
 
   useEffect(() => {
     if (sessionStatus !== 'authenticated') return;

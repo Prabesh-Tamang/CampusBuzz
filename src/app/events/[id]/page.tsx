@@ -57,7 +57,7 @@ interface WaitlistStatus {
 
 export default function EventDetailPage() {
   const { id } = useParams();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -345,6 +345,14 @@ export default function EventDetailPage() {
   const isEnded = now > eventEndDate;
   const isHappening = now >= eventDate && now <= eventEndDate;
   const deadlinePassed = deadlineDate && now > deadlineDate;
+  const isAdmin = (session?.user as any)?.role === 'admin';
+
+  // Admins should use the admin event view, not the student page.
+  // Redirect as soon as we know the role — prevents any flash of student UI.
+  if (sessionStatus === 'authenticated' && isAdmin) {
+    router.replace(`/admin/events/${event._id}/view`);
+    return null;
+  }
 
   return (
     <div>

@@ -93,8 +93,11 @@ function MyEventsContent() {
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
+    if (status === 'authenticated' && (session?.user as any)?.role === 'admin') {
+      router.replace('/admin/dashboard'); return
+    }
     if (status === 'authenticated') fetchRegistrations()
-  }, [status, router, fetchRegistrations])
+  }, [status, session, router, fetchRegistrations])
 
   const handleDirectConfirm = async (registrationId: string) => {
     setConfirmingId(registrationId)

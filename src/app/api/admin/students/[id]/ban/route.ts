@@ -37,6 +37,19 @@ export async function POST(
       bannedNote: note?.trim() ?? null,
     });
 
+    // Push ban notification to the student
+    void import('@/lib/notifications').then(({ pushNotification }) => {
+      pushNotification({
+        userId: params.id,
+        type: 'banned',
+        title: 'Account restricted',
+        body: reason.trim(),
+        actionUrl: '/my-events',
+        actionLabel: 'View my events',
+        ttlHours: 24 * 30, // 30 days
+      }).catch(() => {});
+    }).catch(() => {});
+
     return NextResponse.json({ success: true, message: 'Student has been banned' });
   } catch (err) {
     console.error('[POST /api/admin/students/[id]/ban]', err);
