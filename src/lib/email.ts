@@ -312,12 +312,16 @@ export async function sendRefundConfirmation({
 
 // ── Attendance confirmation email (free events, 24h before) ──────────────────
 export async function sendAttendanceConfirmation({
-  to, name, eventName, eventDate, eventVenue, confirmUrl,
+  to, name, eventName, eventDate, eventVenue, confirmUrl, confirmWindowHours,
 }: {
   to: string; name: string; eventName: string;
   eventDate: string; eventVenue: string; confirmUrl: string;
+  confirmWindowHours: number;
 }): Promise<void> {
   try {
+    const hoursLabel = confirmWindowHours >= 24
+      ? `${Math.round(confirmWindowHours / 24)} days`
+      : `${confirmWindowHours} hours`;
     await transporter.sendMail({
       from: `CampusBuzz <${process.env.EMAIL_USER}>`,
       to,
@@ -328,6 +332,7 @@ export async function sendAttendanceConfirmation({
         greeting: `Hi ${name},`,
         body: `
           <p>Your event <strong>${eventName}</strong> is <strong>tomorrow</strong>. Please confirm you're still attending.</p>
+          <p style="color:#f59e0b;font-size:14px;">⏰ If you don't confirm within <strong>${hoursLabel}</strong>, your spot will be released to the next person on the waitlist.</p>
           <table style="width:100%;margin:16px 0;border-collapse:collapse;">
             <tr>
               <td style="padding:8px 0;color:#64748b;font-size:14px;width:100px;">📅 Date</td>
@@ -338,7 +343,6 @@ export async function sendAttendanceConfirmation({
               <td style="padding:8px 0;font-weight:500;color:#0f172a;">${eventVenue}</td>
             </tr>
           </table>
-          <p style="color:#f59e0b;font-size:14px;">⏰ If you don't confirm within 24 hours, your spot will be released to the next person on the waitlist.</p>
         `,
         ctaUrl: confirmUrl,
         ctaLabel: "✅ Yes, I'm attending",
@@ -470,5 +474,55 @@ export async function sendCapacityAlertEmail(params: {
       ctaUrl: eventAdminUrl,
       ctaLabel: 'View Event',
     }),
+  });
+}
+
+export async function sendSpotReleasedEmail(params: {
+  to: string; name: string; eventName: string;
+  eventDate: string; eventUrl: string;
+  reason: 'token_expired' | 'admin_cancelled' | 'manual_cancel';
+}): Promise<void> {
+  const reasonText = {
+    token_expired: 'You did not confirm your registration within the required time window.',
+    admin_cancelled: 'The event organiser cancelled the event.',
+    manual_cancel: 'You cancelled your registration.',
+  }[params.reason];
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM ?? process.env.EMAIL_USER,
+    to: params.to,
+    subject: `Registration Released — ${params.eventName}`,
+    html: `
+      <div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;
+                  background:#ffffff;border-radius:16px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#0f766e,#14b8a6);
+                    padding:32px;text-align:center;">
+          <span style="color:#fff;font-size:22px;font-weight:700;">CampusBuzz</span>
+        </div>
+        <div style="padding:32px;">
+          <h2 style="color:#0f172a;font-size:20px;font-weight:700;margin:0 0 16px;">
+            Your registration was released
+          </h2>
+          <div style="background:#fef9c3;border:1px solid #fde047;
+                      border-radius:12px;padding:16px;margin-bottom:20px;">
+            <p style="color:#713f12;font-weight:600;margin:0 0 4px;">${params.eventName}</p>
+            <p style="color:#713f12;font-size:13px;margin:0;">${params.eventDate}</p>
+            <p style="color:#854d0e;font-size:13px;margin:8px 0 0;">${reasonText}</p>
+          </div>
+          <p style="color:#334155;font-size:14px;margin-bottom:20px;">
+            If spots are still available, you can register again.
+          </p>
+          <a href="${params.eventUrl}"
+             style="display:inline-block;background:#14b8a6;color:#fff;
+                    padding:12px 24px;border-radius:10px;text-decoration:none;
+                    font-weight:600;">
+            View Event
+          </a>
+        </div>
+        <div style="padding:16px 32px;background:#f8fafc;text-align:center;">
+          <p style="font-size:12px;color:#94a3b8;margin:0;">© 2025 CampusBuzz</p>
+        </div>
+      </div>
+    `,
   });
 }

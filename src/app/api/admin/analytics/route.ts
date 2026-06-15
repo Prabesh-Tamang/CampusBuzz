@@ -5,6 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import Event from '@/models/Event';
 import Registration from '@/models/Registration';
 import User from '@/models/User';
+import { TIME_UNITS } from '@/lib/constants';
 
 export async function GET(req: NextRequest) {
   try {
@@ -16,8 +17,8 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * TIME_UNITS.DAY_MS);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * TIME_UNITS.DAY_MS);
 
     const [
       registrationsTrend,
@@ -124,7 +125,7 @@ export async function GET(req: NextRequest) {
     const formatTrendData = (data: any[]) => {
       const result = [];
       for (let i = 29; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const date = new Date(now.getTime() - i * TIME_UNITS.DAY_MS);
         const dateStr = date.toISOString().split('T')[0];
         const found = data.find((d: any) => d._id === dateStr);
         result.push({

@@ -9,6 +9,8 @@ import User from '@/models/User';
 import Notification from '@/models/Notification';
 import type { NotificationType } from '@/models/Notification';
 import mongoose from 'mongoose';
+import { TIME_UNITS } from '@/lib/constants';
+import { getWaitlistPosition } from '@/lib/algorithms/waitlistManager';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +61,7 @@ export async function GET() {
       .lean() as any[];
 
     // ── 5. Fetch persisted notifications (unread or read in last 7 days) ──────
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * TIME_UNITS.DAY_MS);
     const persisted = await Notification.find({
       userId: new mongoose.Types.ObjectId(userId),
       $or: [
@@ -96,7 +98,7 @@ export async function GET() {
       if (!event) continue;
 
       const eventDate = new Date(event.date);
-      const eventEnd = event.endDate ? new Date(event.endDate) : new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
+      const eventEnd = event.endDate ? new Date(event.endDate) : new Date(eventDate.getTime() + 2 * TIME_UNITS.HOUR_MS);
       const isPastEvent = eventEnd < now;
 
       if (isPastEvent) continue; // no notifications for ended events
@@ -206,12 +208,14 @@ export async function GET() {
       const eventDate = new Date(event.date);
       if (eventDate < now) continue; // event passed
 
-      const position = await Waitlist.countDocuments({
-        eventId: entry.eventId,
-        priorityScore: { $lt: entry.priorityScore },
-      }) + 1;
+      const posData = await getWaitlistPosition(
+        event._id.toString(),
+        entry.userId.toString()
+      );
+      if (!posData) continue;
 
-      const queueLength = await Waitlist.countDocuments({ eventId: entry.eventId });
+      const position = posData.position;
+      const queueLength = posData.queueLength;
 
       liveNotifs.push({
         _id: `waitlist-${entry._id}`,
@@ -267,6 +271,7 @@ export async function GET() {
     // Filter persisted: skip types that have a live counterpart for the same event
     const LIVE_COVERS: NotificationType[] = [
       'confirm_attendance', 'event_tomorrow', 'event_soon', 'waitlist_position', 'notify_me',
+      'banned', 'check_denied', 'tier_override',
     ];
 
     const filteredPersisted = persisted.filter((p: any) => {

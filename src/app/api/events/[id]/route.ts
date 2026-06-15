@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await dbConnect();
     const body = await req.json();
 
-    const currentEvent = await Event.findById(params.id);
+    const currentEvent: any = await Event.findById(params.id).lean();
     if (!currentEvent) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
@@ -65,33 +65,42 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const event = await Event.findByIdAndUpdate(params.id, body, { new: true });
 
-    // If capacity was increased on a paid event, notify interested users
-    if (
-      body.capacity !== undefined &&
-      body.capacity > currentEvent.capacity &&
-      currentEvent.feeType === 'paid'
-    ) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      EventInterest.find({ eventId: params.id })
-        .populate('userId', 'email name')
-        .lean()
-        .then(async (interests: any[]) => {
-          for (const interest of interests) {
-            const user = interest.userId as any;
-            if (!user?.email) continue;
-            await sendCapacityIncreaseNotification({
-              to: user.email,
-              name: user.name,
-              eventName: event.title,
-              eventDate: format(new Date(event.date), 'PPP'),
-              eventVenue: event.venue,
-              eventUrl: `${appUrl}/events/${params.id}`,
-              eventId: params.id,
-              feeAmount: event.feeAmount ?? 0,
-            }).catch(() => {});
-          }
-        })
-        .catch(err => console.error('[Capacity increase] notification error:', err));
+    // If capacity was increased
+    if (body.capacity !== undefined && body.capacity > currentEvent.capacity) {
+      if (currentEvent.feeType === 'paid') {
+        // Notify interested users
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        EventInterest.find({ eventId: params.id })
+          .populate('userId', 'email name')
+          .lean()
+          .then(async (interests: any[]) => {
+            for (const interest of interests) {
+              const user = interest.userId as any;
+              if (!user?.email) continue;
+              await sendCapacityIncreaseNotification({
+                to: user.email,
+                name: user.name,
+                eventName: event.title,
+                eventDate: format(new Date(event.date), 'PPP'),
+                eventVenue: event.venue,
+                eventUrl: `${appUrl}/events/${params.id}`,
+                eventId: params.id,
+                feeAmount: event.feeAmount ?? 0,
+              }).catch(() => {});
+            }
+          })
+          .catch(err => console.error('[Capacity increase] notification error:', err));
+      } else {
+        // Auto-promote waitlisted students for free events
+        void import('@/lib/algorithms/waitlistManager')
+          .then(({ promoteForCapacityIncrease }) => {
+            promoteForCapacityIncrease(params.id, body.capacity)
+              .then(count => {
+                if (count > 0) console.log(`[Waitlist] Auto-promoted ${count} students after capacity increase`);
+              })
+              .catch(err => console.error('[Waitlist] Auto-promote failed:', err));
+          });
+      }
     }
 
     return NextResponse.json(event);

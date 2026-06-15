@@ -67,12 +67,15 @@ function LoginForm() {
         return;
       }
 
+      const studentName = sessionData?.user?.name ?? '';
+      const greeting = studentName ? `Welcome back, ${studentName.split(' ')[0]}!` : 'Welcome back!';
+
       const destination = decodeURIComponent(callbackUrl);
       router.push(destination);
       router.refresh();
 
       setTimeout(() => {
-        toast.success('Welcome back!');
+        toast.success(greeting);
       }, 300);
 
     } catch {

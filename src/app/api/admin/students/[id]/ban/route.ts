@@ -21,7 +21,7 @@ export async function POST(
       return NextResponse.json({ error: 'Ban reason is required' }, { status: 400 });
     }
 
-    const student = await User.findById(params.id);
+    const student: any = await User.findById(params.id).lean();
     if (!student) {
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
@@ -76,6 +76,19 @@ export async function DELETE(
       bannedBy: null,
       bannedNote: null,
     });
+
+    // Push ban-lifted notification
+    void import('@/lib/notifications').then(({ pushNotification }) => {
+      pushNotification({
+        userId: params.id,
+        type: 'ban_lifted',
+        title: 'Restriction lifted',
+        body: 'Your account restriction has been removed. You can now register for events again.',
+        actionUrl: '/events',
+        actionLabel: 'Browse events',
+        ttlHours: 72,
+      }).catch(() => {});
+    }).catch(() => {});
 
     return NextResponse.json({ success: true, message: 'Ban has been lifted' });
   } catch (err) {

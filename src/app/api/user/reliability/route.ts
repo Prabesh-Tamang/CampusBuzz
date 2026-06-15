@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/mongodb';
+import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import {
-  computeMetrics,
-  getTierBenefits,
-  isReliabilityModelReady,
+  computeMetrics, getTierBenefits, isReliabilityModelReady,
+  updateStudentReliability,
 } from '@/lib/ml/reliabilityScoring';
 import { MODEL_PARAMS } from '@/lib/ml/constants';
+import { TIER_CONFIG } from '@/lib/constants';
 
 export async function GET() {
   try {
@@ -17,8 +17,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Login required' }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
     const userId = session.user.id;
+
+    // Ensure the reliability data is fresh by running the update
+    await updateStudentReliability(userId);
 
     const user = await User.findById(userId)
       .select('engagementTier reliabilityScore createdAt scoreHistory')
@@ -35,27 +38,22 @@ export async function GET() {
     const benefits = getTierBenefits(tier);
 
     // What does the student need to do to improve?
+    const championConf = TIER_CONFIG.champion;
     let improvementTip = '';
-    if (tier === 'unreliable') {
-      if (metrics.attendanceRate < 0.25) {
-        const needed = Math.ceil(metrics.totalRegistrations * 0.25) - Math.round(metrics.attendanceRate * metrics.totalRegistrations);
-        improvementTip = `Attend your next ${Math.max(needed, 1)} registered event${needed > 1 ? 's' : ''} to reach Regular status.`;
-      } else if (metrics.waitlistAbandonRate >= 0.5) {
-        improvementTip = 'Keep your next waitlist spot when promoted to improve your score.';
-      } else {
-        improvementTip = 'Reduce the number of unconfirmed registrations you hold at once.';
-      }
+    if (tier === 'new') {
+      const needed = championConf.minAttended - metrics.totalAttended;
+      improvementTip = `Attend ${Math.max(needed, 1)} more event${needed > 1 ? 's' : ''} to unlock your reliability score.`;
     } else if (tier === 'regular') {
-      const needed = Math.ceil(metrics.totalRegistrations * 0.70) - Math.round(metrics.attendanceRate * metrics.totalRegistrations);
-      improvementTip = needed > 0
-        ? `Attend ${needed} more event${needed > 1 ? 's' : ''} to reach Champion status.`
-        : 'Maintain your attendance rate to reach Champion status.';
-    } else if (tier === 'new') {
-      const attended = Math.round(metrics.attendanceRate * metrics.totalRegistrations);
-      const remaining = Math.max(3 - attended, 1);
-      improvementTip = `Attend ${remaining} more event${remaining > 1 ? 's' : ''} to unlock your reliability score.`;
+      const attendedNeeded = championConf.minAttended - metrics.totalAttended;
+      if (attendedNeeded > 0) {
+        improvementTip = `Attend ${attendedNeeded} more event${attendedNeeded > 1 ? 's' : ''} and maintain ${Math.round(championConf.minAttendanceRate * 100)}%+ attendance to reach Champion.`;
+      } else {
+        improvementTip = `Maintain ${Math.round(championConf.minAttendanceRate * 100)}%+ attendance rate to reach Champion status.`;
+      }
+    } else if (tier === 'unreliable') {
+      improvementTip = 'Attend your next registered events to improve your score and restore full access.';
     } else if (tier === 'champion') {
-      improvementTip = 'Keep it up! Maintain your attendance rate to stay Champion.';
+      improvementTip = 'Champion status maintained. Keep attending events to stay at the top.';
     }
 
     return NextResponse.json({

@@ -68,9 +68,10 @@ export async function POST(req: Request) {
 
     // Fire-and-forget: send refund confirmation email to the student
     Payment.findById(payment._id)
-      .populate<{ userId: { email: string; name: string } }>('userId', 'email name')
-      .populate<{ eventId: { title: string } }>('eventId', 'title')
-      .then((populated) => {
+      .populate('userId', 'email name')
+      .populate('eventId', 'title')
+      .lean()
+      .then((populated: any) => {
         if (populated?.userId && populated?.eventId) {
           sendRefundConfirmation({
             to: populated.userId.email,

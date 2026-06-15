@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import SoldOutStamp from '@/components/ui/SoldOutStamp'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { Calendar, Plus, Edit2, Trash2, Eye, Search, ChevronLeft, ChevronRight, Filter } from 'lucide-react'
+import { Calendar, Plus, Edit2, Trash2, Eye, Search, ChevronLeft, ChevronRight, Filter, Send, X, Loader2, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DeleteModal from '@/components/DeleteModal'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
@@ -21,6 +22,9 @@ export default function AdminEventsPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, itemId: '', itemName: '' })
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; eventId: string; eventName: string; pendingCount: number; loading: boolean; sending: boolean; sentCount: number | null }>({
+    isOpen: false, eventId: '', eventName: '', pendingCount: 0, loading: false, sending: false, sentCount: null,
+  })
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
@@ -55,6 +59,32 @@ export default function AdminEventsPage() {
       fetchEvents()
     }
   }, [status, session, fetchEvents])
+
+  const openConfirmModal = async (eventId: string, eventName: string) => {
+    setConfirmModal(prev => ({ ...prev, isOpen: true, eventId, eventName, loading: true, sentCount: null }));
+    try {
+      const res = await fetch(`/api/admin/run-confirmations?eventId=${eventId}`);
+      const data = await res.json();
+      setConfirmModal(prev => ({ ...prev, pendingCount: data.pendingCount ?? 0, loading: false }));
+    } catch {
+      setConfirmModal(prev => ({ ...prev, loading: false, pendingCount: 0 }));
+    }
+  };
+
+  const sendConfirmations = async () => {
+    setConfirmModal(prev => ({ ...prev, sending: true }));
+    try {
+      const res = await fetch('/api/admin/run-confirmations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: confirmModal.eventId, force: true }),
+      });
+      const data = await res.json();
+      setConfirmModal(prev => ({ ...prev, sending: false, sentCount: data.sent ?? 0 }));
+    } catch {
+      setConfirmModal(prev => ({ ...prev, sending: false, sentCount: 0 }));
+    }
+  };
 
   const handleDelete = async (cancelReason?: string) => {
     if (!deleteModal.itemId) return
@@ -103,52 +133,52 @@ export default function AdminEventsPage() {
   })
 
   if (loading) return (
-    <div className="min-h-screen">
+    <div className="min-h-screen animate-pulse">
       <div className="max-w-[1200px] mx-auto px-6 py-12">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-24 h-9 bg-surface2 animate-pulse rounded-lg" />
-              <div className="w-20 h-9 bg-surface2/50 animate-pulse rounded-lg" />
+              <div className="w-24 h-9 bg-white/[0.07] rounded-lg" />
+              <div className="w-20 h-9 bg-white/[0.05] rounded-lg" />
             </div>
-            <div className="w-28 h-4 bg-surface2 animate-pulse rounded mt-2" />
+            <div className="w-28 h-4 bg-white/[0.07] rounded mt-2" />
           </div>
-          <div className="w-28 h-10 bg-surface2 animate-pulse rounded-lg" />
+          <div className="w-28 h-10 bg-white/[0.07] rounded-lg" />
         </div>
-        <div className="w-full max-w-sm h-11 bg-surface2 animate-pulse rounded-xl mb-6" />
+        <div className="w-full max-w-sm h-11 bg-white/[0.07] rounded-xl mb-6" />
         <div className="flex flex-wrap gap-2 mb-6">
-          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
-          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
-          <div className="w-24 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+          <div className="w-24 h-8 bg-white/[0.05] rounded-lg" />
+          <div className="w-24 h-8 bg-white/[0.05] rounded-lg" />
+          <div className="w-24 h-8 bg-white/[0.05] rounded-lg" />
         </div>
         <div className="bg-[#0d1f1e] rounded-2xl overflow-hidden">
           <div className="h-[52px] bg-[#142826] flex items-center px-6 gap-6">
-            <div className="w-20 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-16 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-20 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-12 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-24 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-14 h-4 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-14 h-4 bg-surface2/50 animate-pulse rounded ml-auto" />
+            <div className="w-20 h-4 bg-white/[0.06] rounded" />
+            <div className="w-16 h-4 bg-white/[0.06] rounded" />
+            <div className="w-20 h-4 bg-white/[0.06] rounded" />
+            <div className="w-12 h-4 bg-white/[0.06] rounded" />
+            <div className="w-24 h-4 bg-white/[0.06] rounded" />
+            <div className="w-14 h-4 bg-white/[0.06] rounded" />
+            <div className="w-14 h-4 bg-white/[0.06] rounded ml-auto" />
           </div>
           {[1,2,3,4].map(i => (
             <div key={i} className="px-6 py-4 flex items-center gap-6 border-t border-[#1e3a38]">
               <div className="flex items-center gap-3 w-[200px] flex-shrink-0">
-                <div className="w-9 h-9 rounded-lg bg-surface2/60 animate-pulse flex-shrink-0" />
+                <div className="w-9 h-9 rounded-lg bg-white/[0.08] flex-shrink-0" />
                 <div className="space-y-2">
-                  <div className="w-28 h-3.5 bg-surface2/50 animate-pulse rounded" />
-                  <div className="w-16 h-3 bg-surface2/30 animate-pulse rounded" />
+                  <div className="w-28 h-3.5 bg-white/[0.07] rounded" />
+                  <div className="w-16 h-3 bg-white/[0.04] rounded" />
                 </div>
               </div>
-              <div className="w-20 h-3.5 bg-surface2/50 animate-pulse rounded" />
-              <div className="w-24 h-3.5 bg-surface2/50 animate-pulse rounded" />
-              <div className="w-14 h-5 bg-surface2/50 animate-pulse rounded-full" />
-              <div className="w-20 h-3.5 bg-surface2/50 animate-pulse rounded" />
-              <div className="w-16 h-5 bg-surface2/50 animate-pulse rounded-full" />
+              <div className="w-20 h-3.5 bg-white/[0.06] rounded" />
+              <div className="w-24 h-3.5 bg-white/[0.06] rounded" />
+              <div className="w-14 h-5 bg-white/[0.06] rounded-full" />
+              <div className="w-20 h-3.5 bg-white/[0.06] rounded" />
+              <div className="w-16 h-5 bg-white/[0.06] rounded-full" />
               <div className="flex gap-2 ml-auto">
-                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
-                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
-                <div className="w-8 h-8 bg-surface2/50 animate-pulse rounded-lg" />
+                <div className="w-8 h-8 bg-white/[0.06] rounded-lg" />
+                <div className="w-8 h-8 bg-white/[0.06] rounded-lg" />
+                <div className="w-8 h-8 bg-white/[0.06] rounded-lg" />
               </div>
             </div>
           ))}
@@ -288,6 +318,9 @@ export default function AdminEventsPage() {
                             />
                           </div>
                           <span className="text-sm text-muted-foreground">{event.registeredCount}/{event.capacity}</span>
+                          {event.registeredCount >= event.capacity && !event.isCancelled && (
+                            <SoldOutStamp size="sm" />
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -302,22 +335,30 @@ export default function AdminEventsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <Link href={`/admin/events/${event._id}/view`}
-                            className="p-2 text-muted-foreground hover:text-white hover:bg-surface rounded-lg transition-all" title="View">
-                            <Eye size={16} />
-                          </Link>
-                          <Link href={`/admin/events/${event._id}/edit`}
-                            className="p-2 text-muted-foreground hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-all" title="Edit">
-                            <Edit2 size={16} />
-                          </Link>
-                          <button
-                            onClick={() => setDeleteModal({ isOpen: true, itemId: event._id, itemName: event.title })}
-                            disabled={deletingId === event._id}
-                            className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50" title="Cancel">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                          <div className="flex items-center justify-end gap-1">
+                            <Link href={`/admin/events/${event._id}/view`}
+                              className="p-2 text-muted-foreground hover:text-white hover:bg-surface rounded-lg transition-all" title="View">
+                              <Eye size={16} />
+                            </Link>
+                            <Link href={`/admin/events/${event._id}/edit`}
+                              className="p-2 text-muted-foreground hover:text-teal-400 hover:bg-teal-500/10 rounded-lg transition-all" title="Edit">
+                              <Edit2 size={16} />
+                            </Link>
+                            {event.feeType === 'free' && !event.isCancelled && new Date(event.date) > new Date() && (
+                              <button
+                                onClick={() => openConfirmModal(event._id, event.title)}
+                                className="p-2 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
+                                title="Send Confirmations">
+                                <Send size={16} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setDeleteModal({ isOpen: true, itemId: event._id, itemName: event.title })}
+                              disabled={deletingId === event._id}
+                              className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50" title="Cancel">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                       </td>
                     </tr>
                   ))
@@ -377,6 +418,63 @@ export default function AdminEventsPage() {
         deleteText="Cancel Event"
         showReasonInput
       />
+
+      {/* Send Confirmations Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+             style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }}
+             onClick={(e) => { if (e.target === e.currentTarget && !confirmModal.sending) setConfirmModal(prev => ({ ...prev, isOpen: false })); }}>
+          <div className="rounded-2xl p-6 max-w-md w-full shadow-2xl"
+               style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white">Send Confirmations</h2>
+              <button onClick={() => { if (!confirmModal.sending) setConfirmModal(prev => ({ ...prev, isOpen: false })); }}
+                className="p-1.5 rounded-lg" style={{ color: '#64748b' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {confirmModal.sentCount !== null ? (
+              <div className="text-center py-6">
+                <CheckCircle size={40} className="text-teal-400 mx-auto mb-3" />
+                <p className="text-white font-semibold text-lg mb-1">Emails Sent!</p>
+                <p style={{ color: '#94a3b8' }}>{confirmModal.sentCount} confirmation email(s) sent successfully.</p>
+                <button onClick={() => { setConfirmModal(prev => ({ ...prev, isOpen: false })); fetchEvents() }}
+                  className="mt-5 px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-white rounded-xl text-sm font-semibold transition-colors">
+                  Done
+                </button>
+              </div>
+            ) : confirmModal.loading ? (
+              <div className="text-center py-10">
+                <Loader2 size={28} className="animate-spin text-teal-400 mx-auto mb-3" />
+                <p style={{ color: '#94a3b8' }}>Checking pending confirmations...</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm mb-2" style={{ color: '#94a3b8' }}>
+                  Event: <span className="font-semibold text-white">{confirmModal.eventName}</span>
+                </p>
+                <div className="p-4 rounded-xl mb-5 text-center"
+                     style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.2)' }}>
+                  <p className="text-3xl font-extrabold text-teal-400">{confirmModal.pendingCount}</p>
+                  <p className="text-sm mt-1" style={{ color: '#94a3b8' }}>student(s) will receive confirmation emails</p>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', color: '#94a3b8' }}>
+                    Cancel
+                  </button>
+                  <button onClick={sendConfirmations} disabled={confirmModal.pendingCount === 0}
+                    className="flex-1 py-2.5 bg-teal-500 hover:bg-teal-400 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {confirmModal.sending ? 'Sending...' : 'Send Now'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

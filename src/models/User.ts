@@ -19,6 +19,8 @@ export interface IUser extends Document {
   bannedAt: Date | null;
   bannedBy: mongoose.Types.ObjectId | null;
   bannedNote: string | null;
+  adminOverriddenTier: boolean;
+  adminOverriddenAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +56,8 @@ const UserSchema = new Schema<IUser>(
     bannedAt:    { type: Date, default: null },
     bannedBy:    { type: Schema.Types.ObjectId, ref: 'User', default: null },
     bannedNote:  { type: String, default: null },
+    adminOverriddenTier: { type: Boolean, default: false },
+    adminOverriddenAt:   { type: Date, default: null },
   },
   { timestamps: true }
 );

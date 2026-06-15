@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     } else {
       query = {
         flagged: true,
+        checkedIn: false,
         $or: [
           { reviewStatus: 'pending' },
           { reviewStatus: { $exists: false } },

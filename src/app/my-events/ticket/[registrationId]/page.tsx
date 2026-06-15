@@ -7,6 +7,7 @@ import Event from '@/models/Event';
 import { format } from 'date-fns';
 import TicketActions from './TicketActions';
 import QRCode from 'qrcode';
+import { GraduationCap, Calendar, Clock, MapPin, User } from 'lucide-react';
 
 export default async function TicketPage({
   params,
@@ -54,7 +55,7 @@ export default async function TicketPage({
 
         <div className="flex items-center gap-2 mb-6 relative print:mb-3">
           <div className="w-7 h-7 bg-teal-500/20 rounded-lg flex items-center justify-center print:bg-teal-500/50">
-            <span className="text-teal-400 text-sm print:text-teal-700">🎓</span>
+            <GraduationCap size={16} className="text-teal-400 print:text-teal-700" />
           </div>
           <span className="text-teal-400 text-sm font-semibold tracking-wide print:text-teal-700">CampusBuzz</span>
           <div className="ml-auto">
@@ -70,13 +71,13 @@ export default async function TicketPage({
 
         <div className="space-y-2.5 mb-6 relative print:mb-3">
           {[
-            { icon: '📅', label: format(new Date(ev.date), 'EEEE, MMMM d yyyy') },
-            { icon: '⏰', label: format(new Date(ev.date), 'h:mm a') },
-            { icon: '📍', label: ev.venue },
-            { icon: '👤', label: session.user.name },
-          ].map(({ icon, label }) => (
+            { icon: Calendar, label: format(new Date(ev.date), 'EEEE, MMMM d yyyy') },
+            { icon: Clock, label: format(new Date(ev.date), 'h:mm a') },
+            { icon: MapPin, label: ev.venue },
+            { icon: User, label: session.user.name },
+          ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-3">
-              <span className="text-base w-5">{icon}</span>
+              <Icon size={16} className="text-teal-400" />
               <span className="text-sm text-gray-300 print:text-gray-700">{label}</span>
             </div>
           ))}

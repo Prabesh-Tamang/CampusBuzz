@@ -27,8 +27,9 @@ export async function GET(req: NextRequest) {
 
     const events: any = await Event.find(query).sort({ date: 1 }).lean();
 
-    // Fire-and-forget reminder check — never blocks response
-    void import('@/lib/reminders').then(({ sendPendingReminders }) => {
+    // Fire-and-forget reminder + auto-confirm — never blocks response
+    void import('@/lib/reminders').then(({ autoTriggerConfirmations, sendPendingReminders }) => {
+      autoTriggerConfirmations();
       sendPendingReminders();
     }).catch(() => {});
 

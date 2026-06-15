@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, Check, CheckCheck, X, AlertTriangle, Clock, Ticket, CreditCard, Trophy, Calendar, Ban, ShieldX } from 'lucide-react';
+import { Bell, Check, CheckCheck, X, AlertTriangle, Clock, Ticket, CreditCard, Trophy, Calendar, Ban, ShieldX, Trash2, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -103,6 +103,24 @@ const TYPE_CONFIG: Record<string, {
     iconColor: '#f87171',
     label: 'Denied',
   },
+  event_cancelled: {
+    icon: X,
+    iconBg: 'rgba(239,68,68,0.15)',
+    iconColor: '#f87171',
+    label: 'Cancelled',
+  },
+  ban_lifted: {
+    icon: Check,
+    iconBg: 'rgba(20,184,166,0.15)',
+    iconColor: '#14b8a6',
+    label: 'Restriction lifted',
+  },
+  tier_override: {
+    icon: Trophy,
+    iconBg: 'rgba(250,204,21,0.15)',
+    iconColor: '#fbbf24',
+    label: 'Tier updated',
+  },
 };
 
 // ─── Single notification row ──────────────────────────────────────────────────
@@ -111,10 +129,12 @@ function NotifRow({
   notif,
   onRead,
   onAction,
+  onDelete,
 }: {
   notif: Notification;
   onRead: (id: string) => void;
   onAction: (url: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const cfg = TYPE_CONFIG[notif.type] ?? TYPE_CONFIG.notify_me;
   const Icon = cfg.icon;
@@ -163,17 +183,6 @@ function NotifRow({
             >
               {notif.title}
             </p>
-            {/* Mark read button — top right, shown on hover */}
-            {!isRead && !notif.isLive && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onRead(notif._id); }}
-                className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1
-                           rounded-md hover:bg-white/10"
-                title="Mark as read"
-              >
-                <Check size={12} style={{ color: '#64748b' }} />
-              </button>
-            )}
           </div>
 
           <p
@@ -214,35 +223,59 @@ function NotifRow({
             </div>
           )}
 
-          {/* Footer row */}
-          <div className="flex items-center justify-between mt-2 gap-2">
+          {/* Action buttons row */}
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <span className="text-[10px]" style={{ color: '#374151' }}>
               {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
             </span>
-            {notif.actionUrl && notif.actionLabel && (
+
+            <div className="flex items-center gap-1 ml-auto">
+              {/* Tick — Mark as read */}
+              {!isRead && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRead(notif._id); }}
+                  className="p-1 rounded-md transition-colors hover:bg-white/10"
+                  title="Mark as read"
+                >
+                  <Check size={11} style={{ color: '#64748b' }} />
+                </button>
+              )}
+
+              {/* Delete */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRead(notif._id);
-                  onAction(notif.actionUrl!);
-                }}
-                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors flex-shrink-0"
-                style={{
-                  background: isUrgent ? 'rgba(239,68,68,0.15)' : 'rgba(20,184,166,0.12)',
-                  color: isUrgent ? '#f87171' : '#14b8a6',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background =
-                    isUrgent ? 'rgba(239,68,68,0.25)' : 'rgba(20,184,166,0.22)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.background =
-                    isUrgent ? 'rgba(239,68,68,0.15)' : 'rgba(20,184,166,0.12)';
-                }}
+                onClick={(e) => { e.stopPropagation(); onDelete(notif._id); }}
+                className="p-1 rounded-md transition-colors hover:bg-red-500/20"
+                title="Delete notification"
               >
-                {notif.actionLabel}
+                <Trash2 size={11} style={{ color: '#6b7280' }} />
               </button>
-            )}
+
+              {/* Action link */}
+              {notif.actionUrl && notif.actionLabel && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRead(notif._id);
+                    onAction(notif.actionUrl!);
+                  }}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors flex-shrink-0"
+                  style={{
+                    background: isUrgent ? 'rgba(239,68,68,0.15)' : 'rgba(20,184,166,0.12)',
+                    color: isUrgent ? '#f87171' : '#14b8a6',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.background =
+                      isUrgent ? 'rgba(239,68,68,0.25)' : 'rgba(20,184,166,0.22)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background =
+                      isUrgent ? 'rgba(239,68,68,0.15)' : 'rgba(20,184,166,0.12)';
+                  }}
+                >
+                  {notif.actionLabel}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -275,15 +308,24 @@ export default function NotificationBell() {
       const res = await fetch('/api/notifications');
       if (!res.ok) return;
       const data = await res.json();
-      setNotifications(data.notifications ?? []);
-      setUnreadCount(data.unreadCount ?? 0);
+      let items = data.notifications ?? [];
+      // Filter out live notifications the user has already dismissed
+      try {
+        const readSet = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
+        if (readSet.size > 0) {
+          items = items.filter((n: Notification) => !isLiveId(n._id) || !readSet.has(n._id));
+        }
+      } catch {}
+      setNotifications(items);
+      const unread = items.filter((n: Notification) => !n.readAt).length;
+      setUnreadCount(unread);
     } catch { /* silent */ }
   }, []);
 
-  // Initial fetch + 60s auto-refresh
+  // Initial fetch + 15s auto-refresh
   useEffect(() => {
     fetchNotifications();
-    const id = setInterval(fetchNotifications, 60_000);
+    const id = setInterval(fetchNotifications, 15_000);
     return () => clearInterval(id);
   }, [fetchNotifications]);
 
@@ -300,6 +342,12 @@ export default function NotificationBell() {
   }, [open]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
+  const isLiveId = (id: string) =>
+    id.startsWith('confirm-') || id.startsWith('tomorrow-') ||
+    id.startsWith('soon-') || id.startsWith('waitlist-') ||
+    id.startsWith('notifyme-') || id.startsWith('banned') ||
+    id.startsWith('denied-');
+
   const markRead = useCallback(async (id: string) => {
     // Optimistic update
     setNotifications(prev => prev.map(n =>
@@ -307,12 +355,32 @@ export default function NotificationBell() {
     ));
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    // Only persist if it's a DB notification (not a live one)
+    if (isLiveId(id)) {
+      // Persist live notification read state in sessionStorage
+      try {
+        const readSet = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
+        readSet.add(id);
+        sessionStorage.setItem('readLiveNotifs', JSON.stringify([...readSet]));
+      } catch {}
+    } else {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      }).catch(() => {});
+    }
+  }, []);
+
+  const deleteNotification = useCallback(async (id: string) => {
+    // Optimistic remove
+    setNotifications(prev => prev.filter(n => n._id !== id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
     if (!id.startsWith('confirm-') && !id.startsWith('tomorrow-') &&
         !id.startsWith('soon-') && !id.startsWith('waitlist-') &&
         !id.startsWith('notifyme-') && !id.startsWith('banned') &&
         !id.startsWith('denied-')) {
-      await fetch('/api/notifications/read', {
+      await fetch('/api/notifications/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] }),
@@ -322,9 +390,19 @@ export default function NotificationBell() {
 
   const markAllRead = useCallback(async () => {
     setLoading(true);
-    // Optimistic update
     const now = new Date().toISOString();
-    setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt ?? now })));
+    // Optimistic update + persist live notification IDs to sessionStorage
+    setNotifications(prev => {
+      const liveIds = prev.filter(n => isLiveId(n._id)).map(n => n._id);
+      if (liveIds.length > 0) {
+        try {
+          const readSet = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
+          liveIds.forEach(id => readSet.add(id));
+          sessionStorage.setItem('readLiveNotifs', JSON.stringify([...readSet]));
+        } catch {}
+      }
+      return prev.map(n => ({ ...n, readAt: n.readAt ?? now }));
+    });
     setUnreadCount(0);
     await fetch('/api/notifications/read', {
       method: 'POST',
@@ -496,6 +574,7 @@ export default function NotificationBell() {
                         notif={n}
                         onRead={markRead}
                         onAction={handleAction}
+                        onDelete={deleteNotification}
                       />
                     ))}
                   </>
@@ -516,6 +595,7 @@ export default function NotificationBell() {
                         notif={n}
                         onRead={markRead}
                         onAction={handleAction}
+                        onDelete={deleteNotification}
                       />
                     ))}
                   </>
@@ -538,6 +618,7 @@ export default function NotificationBell() {
                         notif={n}
                         onRead={markRead}
                         onAction={handleAction}
+                        onDelete={deleteNotification}
                       />
                     ))}
                   </>
@@ -553,7 +634,7 @@ export default function NotificationBell() {
           >
             <button
               onClick={() => { handleAction('/my-events'); }}
-              className="text-[12px] font-semibold transition-colors"
+              className="text-[12px] font-semibold transition-colors flex items-center gap-1"
               style={{ color: '#14b8a6' }}
               onMouseEnter={e => (e.currentTarget.style.color = '#5eead4')}
               onMouseLeave={e => (e.currentTarget.style.color = '#14b8a6')}
@@ -562,11 +643,22 @@ export default function NotificationBell() {
             </button>
             <button
               onClick={fetchNotifications}
-              className="text-[11px] transition-colors"
-              style={{ color: '#374151' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#64748b')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#374151')}
+              className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg transition-all"
+              style={{
+                color: '#94a3b8',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.06)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+                (e.currentTarget as HTMLElement).style.color = '#f1f5f9';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                (e.currentTarget as HTMLElement).style.color = '#94a3b8';
+              }}
             >
+              <RefreshCw size={12} />
               Refresh
             </button>
           </div>

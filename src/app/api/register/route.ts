@@ -8,11 +8,13 @@ import Event from '@/models/Event';
 import User from '@/models/User';
 import Waitlist from '@/models/Waitlist';
 import QRCode from 'qrcode';
-import { sendRegistrationEmail, sendCapacityAlertEmail } from '@/lib/email';
+import { sendRegistrationEmail, sendCapacityAlertEmail, sendSpotReleasedEmail } from '@/lib/email';
 import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { updateStudentReliability, getTierBenefits } from '@/lib/ml/reliabilityScoring';
+import { logActivity } from '@/lib/activityLog';
 import { format } from 'date-fns';
 import crypto from 'crypto';
+import { TIME_UNITS } from '@/lib/constants';
 
 function generateRegistrationId(): string {
   const unique = crypto.randomBytes(8).toString('hex').toUpperCase();
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
     const { eventId } = await req.json();
 
-    const event = await Event.findById(eventId);
+    const event: any = await Event.findById(eventId).lean();
     if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
 
     if (event.feeType === 'paid') return NextResponse.json({ error: 'Paid event — use payment flow' }, { status: 400 });
@@ -37,7 +39,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id;
-    const existing = await Registration.findOne({ userId, eventId });
+    const existing = await Registration.findOne({ userId, eventId }).lean();
     if (existing) return NextResponse.json({ error: 'Already registered' }, { status: 409 });
 
     // Ban check
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const user = await User.findById(userId);
+    const user: any = await User.findById(userId).lean();
     const registrationId = generateRegistrationId();
 
     const userTier = ((user as any)?.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const isLastMinute = event.date.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+    const isLastMinute = event.date.getTime() - Date.now() < TIME_UNITS.DAY_MS;
     const tierBenefits = getTierBenefits(userTier);
     const confirmTokenExpiry = new Date(Date.now() + tierBenefits.confirmationWindowHours * 60 * 60 * 1000);
 
@@ -154,6 +156,15 @@ export async function POST(req: NextRequest) {
         console.error('[Reliability] Update after registration failed:', err)
       );
 
+      // Log activity
+      void logActivity({
+        userId,
+        action: 'register',
+        eventId,
+        eventTitle: event.title,
+        details: `Registered for ${event.title}`,
+      }).catch(() => {});
+
       // Never expose registrationId for unconfirmed free registrations
       // A student must confirm via email before they can check in
       return NextResponse.json({
@@ -183,7 +194,7 @@ export async function DELETE(req: NextRequest) {
     const { eventId } = await req.json();
     const userId = (session.user as { id: string }).id;
 
-    const registration = await Registration.findOne({ userId, eventId });
+    const registration = await Registration.findOne({ userId, eventId }).lean();
     if (!registration) {
       return NextResponse.json({ error: 'Registration not found' }, { status: 404 });
     }
@@ -211,6 +222,43 @@ export async function DELETE(req: NextRequest) {
       updateStudentReliability(userId)
         .catch(err => console.error('[Reliability] Post-cancel update failed:', err));
     }).catch(() => {});
+
+    // Log activity
+    void (async () => {
+      try {
+        const ev = await Event.findById(eventId).select('title').lean() as any;
+        void logActivity({
+          userId,
+          action: 'cancel',
+          eventId,
+          eventTitle: ev?.title ?? '',
+          details: `Cancelled registration for ${ev?.title ?? 'event'}`,
+        });
+      } catch {}
+    })();
+
+    // Fire-and-forget: send spot released email to the cancelled student
+    void (async () => {
+      try {
+        const [cancelledUser, cancelledEvent] = await Promise.all([
+          User.findById(userId).select('email name').lean() as any,
+          Event.findById(eventId).select('title date').lean() as any,
+        ]);
+        if (cancelledUser?.email && cancelledEvent) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+          await sendSpotReleasedEmail({
+            to: cancelledUser.email,
+            name: cancelledUser.name,
+            eventName: cancelledEvent.title,
+            eventDate: format(new Date(cancelledEvent.date), 'PPP'),
+            eventUrl: `${appUrl}/events/${eventId}`,
+            reason: 'manual_cancel',
+          });
+        }
+      } catch (err) {
+        console.error('[Spot Release] Email failed:', err);
+      }
+    })();
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (err) {

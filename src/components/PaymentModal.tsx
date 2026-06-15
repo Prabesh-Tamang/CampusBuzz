@@ -1,7 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, ShieldCheck, Lock } from 'lucide-react'
+import { X, Loader2, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -16,6 +16,9 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
   const [loading, setLoading] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<'khalti' | 'esewa' | null>(null)
   const [error, setError] = useState('')
+  const [policyAccepted, setPolicyAccepted] = useState(false)
+
+  useEffect(() => { if (!isOpen) setPolicyAccepted(false); }, [isOpen])
 
   const handlePayment = async (provider: 'khalti' | 'esewa') => {
     setLoading(true)
@@ -53,7 +56,7 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
           product_service_charge: '0',
           product_delivery_charge: '0',
           success_url: config.merchantCallbackUrl,
-          failure_url: `${window.location.origin}/payment/failed`,
+          failure_url: `${window.location.origin}/payment/failed?eventId=${eventId}`,
           signed_field_names: 'total_amount,transaction_uuid,product_code',
           signature: data.signature || '',
         }
@@ -150,6 +153,43 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
               </div>
             )}
 
+            {/* Policy notice */}
+            <div className="p-3 rounded-xl mb-4"
+                 style={{ background: 'rgba(245,158,11,0.06)',
+                          border: '1px solid rgba(245,158,11,0.15)' }}>
+              <div className="flex gap-2">
+                <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-400 mb-1">Non-Refundable</p>
+                  <p className="text-xs leading-relaxed" style={{ color: '#94a3b8' }}>
+                    Ticket fees are non-refundable unless the event is cancelled by the organiser.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkbox */}
+            <label className="flex items-start gap-3 cursor-pointer mb-4">
+              <div className="relative mt-0.5">
+                <input type="checkbox" checked={policyAccepted}
+                       onChange={(e) => setPolicyAccepted(e.target.checked)}
+                       className="sr-only" />
+                <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
+                  policyAccepted ? 'bg-teal-500' : 'bg-white/5 border border-white/20'
+                }`}>
+                  {policyAccepted && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5"
+                            strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <span className="text-xs leading-relaxed" style={{ color: '#94a3b8' }}>
+                I understand this payment is non-refundable unless the event is cancelled.
+              </span>
+            </label>
+
             {/* Payment buttons */}
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: '#64748b' }}>
@@ -159,15 +199,17 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
               {/* Khalti */}
               <button
                 onClick={() => handlePayment('khalti')}
-                disabled={loading}
+                disabled={loading || !policyAccepted}
                 className="w-full rounded-xl flex items-center gap-4 transition-all relative overflow-hidden"
                 style={{
                   padding: '14px 16px',
                   background: loading && selectedProvider === 'khalti'
                     ? 'linear-gradient(135deg, #7c3aed, #db2777)'
-                    : 'linear-gradient(135deg, #7c3aed, #db2777)',
-                  opacity: loading && selectedProvider !== 'khalti' ? 0.5 : 1,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                    : !policyAccepted
+                      ? 'linear-gradient(135deg, #1e1e2e, #2a2a3e)'
+                      : 'linear-gradient(135deg, #7c3aed, #db2777)',
+                  opacity: (!policyAccepted || (loading && selectedProvider !== 'khalti')) ? 0.4 : 1,
+                  cursor: !policyAccepted || loading ? 'not-allowed' : 'pointer',
                 }}
               >
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
@@ -193,13 +235,15 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
               {/* eSewa */}
               <button
                 onClick={() => handlePayment('esewa')}
-                disabled={loading}
+                disabled={loading || !policyAccepted}
                 className="w-full rounded-xl flex items-center gap-4 transition-all"
                 style={{
                   padding: '14px 16px',
-                  background: 'linear-gradient(135deg, #16a34a, #0d9488)',
-                  opacity: loading && selectedProvider !== 'esewa' ? 0.5 : 1,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  background: !policyAccepted
+                    ? 'linear-gradient(135deg, #1e1e2e, #2a2a3e)'
+                    : 'linear-gradient(135deg, #16a34a, #0d9488)',
+                  opacity: (!policyAccepted || (loading && selectedProvider !== 'esewa')) ? 0.4 : 1,
+                  cursor: !policyAccepted || loading ? 'not-allowed' : 'pointer',
                 }}
               >
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>

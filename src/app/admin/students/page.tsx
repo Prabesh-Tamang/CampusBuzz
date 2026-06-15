@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Users, UserCheck, AlertTriangle } from 'lucide-react';
+import { Search, Users, UserCheck, AlertTriangle, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import TierBadge from '@/components/TierBadge';
 import TitleSetter from '@/components/TitleSetter';
 
@@ -27,6 +27,8 @@ export default function AdminStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [tierFilter, setTierFilter] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return; }
@@ -55,6 +57,15 @@ export default function AdminStudentsPage() {
     return result;
   }, [students, search, tierFilter]);
 
+  // Reset to page 1 when filter or search changes
+  useEffect(() => { setCurrentPage(1); }, [search, tierFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const currentStudents = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const tiers = ['champion', 'regular', 'new', 'unreliable'];
   const tierCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -65,20 +76,20 @@ export default function AdminStudentsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="w-48 h-8 bg-surface2/50 animate-pulse rounded-lg mb-6" />
-        <div className="w-full h-12 bg-surface2/30 animate-pulse rounded-xl mb-4" />
+      <div className="p-6 animate-pulse">
+        <div className="w-48 h-8 bg-white/[0.07] rounded-lg mb-6" />
+        <div className="w-full h-12 bg-white/[0.04] rounded-xl mb-4" />
         <div className="flex gap-2 mb-6">
-          {[1,2,3,4,5,6].map(i => <div key={i} className="w-24 h-8 bg-surface2/40 animate-pulse rounded-full" />)}
+          {[1,2,3,4,5,6].map(i => <div key={i} className="w-24 h-8 bg-white/[0.05] rounded-full" />)}
         </div>
         {[1,2,3,4].map(i => (
-          <div key={i} className="flex gap-4 p-4 bg-surface2/20 rounded-xl mb-2">
-            <div className="w-10 h-10 bg-surface2/40 animate-pulse rounded-full" />
+          <div key={i} className="flex gap-4 p-4 bg-white/[0.02] rounded-xl mb-2">
+            <div className="w-10 h-10 bg-white/[0.05] rounded-full" />
             <div className="flex-1 space-y-2">
-              <div className="w-40 h-4 bg-surface2/50 animate-pulse rounded" />
-              <div className="w-24 h-3 bg-surface2/30 animate-pulse rounded" />
+              <div className="w-40 h-4 bg-white/[0.07] rounded" />
+              <div className="w-24 h-3 bg-white/[0.04] rounded" />
             </div>
-            <div className="w-16 h-6 bg-surface2/40 animate-pulse rounded-lg" />
+            <div className="w-24 h-6 bg-white/[0.05] rounded-lg" />
           </div>
         ))}
       </div>
@@ -106,9 +117,17 @@ export default function AdminStudentsPage() {
           type="text"
           placeholder="Search by name or email..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full h-12 pl-11 pr-4 rounded-xl bg-[#1c2f2e] border border-white/15 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-teal-500/60 focus:ring-1 focus:ring-teal-500/30"
+          onChange={e => { setSearch(e.target.value); }}
+          className="w-full h-12 pl-11 pr-12 rounded-xl bg-[#1c2f2e] border border-white/15 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-teal-500/60 focus:ring-1 focus:ring-teal-500/30"
         />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -143,40 +162,102 @@ export default function AdminStudentsPage() {
           <p className="text-sm text-muted-foreground">Try adjusting your search or filter.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(student => (
-            <Link
-              key={student._id}
-              href={`/admin/students/${student._id}`}
-              className="block card p-4 hover:border-teal-500/30 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center text-sm font-bold text-teal-400 flex-shrink-0">
-                  {student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white truncate">{student.name}</span>
-                    {student.isBanned && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500/20 text-red-400 rounded">BANNED</span>
-                    )}
+        <div>
+          <div className="space-y-2">
+            {currentStudents.map(student => (
+              <Link
+                key={student._id}
+                href={`/admin/students/${student._id}`}
+                className="block card p-4 hover:border-teal-500/30 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-teal-500/10 flex items-center justify-center text-sm font-bold text-teal-400 flex-shrink-0">
+                    {student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{student.email}</p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white truncate">{student.name}</span>
+                      {student.isBanned && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500/20 text-red-400 rounded">BANNED</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">{student.email}</p>
+                  </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <TierBadge tier={student.engagementTier as 'champion' | 'regular' | 'new' | 'unreliable'} />
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-white">{student.reliabilityScore ?? '—'}</div>
-                    <div className="text-[10px] text-gray-500">/ 100</div>
-                  </div>
-                  <div className="text-xs text-gray-500 text-right">
-                    <div>{student.totalRegistrations} reg</div>
-                    <div>{student.totalAttended} att</div>
+                  <div className="flex items-center gap-4 pl-3 border-l border-white/10">
+                    {/* Score */}
+                    <div className="text-center min-w-[44px]">
+                      <div className={`text-base font-extrabold ${
+                        student.reliabilityScore !== null
+                          ? student.reliabilityScore >= 70 ? 'text-teal-400'
+                            : student.reliabilityScore >= 40 ? 'text-amber-400'
+                            : 'text-red-400'
+                          : 'text-gray-500'
+                      }`}>
+                        {student.reliabilityScore ?? '—'}
+                      </div>
+                      <div className="text-[10px] text-gray-500 font-medium tracking-wide uppercase mt-0.5">Score</div>
+                    </div>
+                    {/* Registered */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
+                        <Calendar size={14} className="text-teal-400" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-white leading-tight">{student.totalRegistrations}</div>
+                        <div className="text-[10px] text-gray-500 leading-tight">Registered</div>
+                      </div>
+                    </div>
+                    {/* Attended */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center">
+                        <UserCheck size={14} className="text-teal-400" />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-white leading-tight">{student.totalAttended}</div>
+                        <div className="text-[10px] text-gray-500 leading-tight">Attended</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`min-w-[32px] h-8 rounded-lg text-xs font-semibold transition-all ${
+                    page === currentPage
+                      ? 'bg-teal-500/20 text-teal-400 border border-teal-500/40'
+                      : 'text-gray-400 border border-white/10 hover:text-white hover:border-white/20'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="p-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

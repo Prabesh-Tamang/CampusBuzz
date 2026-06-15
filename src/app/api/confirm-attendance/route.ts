@@ -5,7 +5,7 @@ import Registration from '@/models/Registration';
 import User from '@/models/User';
 import Event from '@/models/Event';
 import QRCode from 'qrcode';
-import { sendRegistrationEmail } from '@/lib/email';
+import { sendRegistrationEmail, sendSpotReleasedEmail } from '@/lib/email';
 import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { format } from 'date-fns';
 
@@ -58,14 +58,39 @@ export async function GET(req: NextRequest) {
         .catch(err => console.error('[Reliability] Post-expiry update failed:', err));
     }).catch(() => {});
 
+    // Fire-and-forget: send spot released email
+    void (async () => {
+      try {
+        const [expiredUser, expiredEvent] = await Promise.all([
+          User.findById(registration.userId).select('email name').lean() as any,
+          Event.findById(registration.eventId).select('title date').lean() as any,
+        ]);
+        if (expiredUser?.email && expiredEvent) {
+          await sendSpotReleasedEmail({
+            to: expiredUser.email,
+            name: expiredUser.name,
+            eventName: expiredEvent.title,
+            eventDate: format(new Date(expiredEvent.date), 'PPP'),
+            eventUrl: `${APP_URL}/events/${registration.eventId}`,
+            reason: 'token_expired',
+          });
+        }
+      } catch (err) {
+        console.error('[Spot Release] Email failed:', err);
+      }
+    })();
+
     return NextResponse.redirect(
-      new URL('/my-events?confirm=expired', process.env.NEXTAUTH_URL ?? 'http://localhost:3000')
+      new URL(`/events/${registration.eventId}?released=true`, process.env.NEXTAUTH_URL ?? 'http://localhost:3000')
     );
   }
 
   if (registration.confirmed) {
-    // Already confirmed — just redirect
-    return NextResponse.redirect(new URL('/my-events?confirm=already', APP_URL));
+    return NextResponse.redirect(
+      new URL(`/confirm-success?registrationId=${registration.registrationId}`,
+        process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+      )
+    );
   }
 
   // Generate QR code now that attendance is confirmed
@@ -108,5 +133,9 @@ export async function GET(req: NextRequest) {
     console.error('[Confirm] Email send failed:', err);
   }
 
-  return NextResponse.redirect(new URL('/my-events?confirm=success', APP_URL));
+  return NextResponse.redirect(
+    new URL(`/confirm-success?registrationId=${registration.registrationId}`,
+      process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+    )
+  );
 }

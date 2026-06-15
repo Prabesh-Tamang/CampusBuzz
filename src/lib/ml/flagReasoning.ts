@@ -45,52 +45,12 @@ export async function generateFlagReason(
     return reasonCache.get(registrationId)!;
   }
 
-  const structuredFallback = buildStructuredReason(features, anomalyScore, severity);
+  const reason = buildStructuredReason(features, anomalyScore, severity);
 
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const featureDescriptions = buildFeatureDescriptions(features).join(', ') ||
-        `score ${(anomalyScore * 100).toFixed(0)}%`;
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `You are a campus event security system. A check-in was ${severity === 'blocked' ? 'BLOCKED' : 'FLAGGED'} with anomaly score ${(anomalyScore * 100).toFixed(0)}%.
-
-Data: ${featureDescriptions}
-
-Write a ${severity === 'blocked' ? 'firm but professional' : 'friendly but clear'} one-sentence reason for the admin explaining why this was flagged. Be specific about the suspicious pattern. Be slightly sarcastic and witty but professional. Do not use jargon. Maximum 25 words.`,
-              }],
-            }],
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        console.error(`[FlagReasoning] Gemini API ${response.status}: ${errText}`);
-        throw new Error(`API returned ${response.status}`);
-      }
-
-      const data = await response.json();
-      const aiReason = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      const reason = aiReason || structuredFallback;
-
-      if (registrationId) {
-        reasonCache.set(registrationId, reason);
-        setTimeout(() => reasonCache.delete(registrationId!), 60 * 60 * 1000);
-      }
-
-      return reason;
-    } catch (err) {
-      console.error('[FlagReasoning] Gemini failed, using structured fallback:', err);
-    }
+  if (registrationId) {
+    reasonCache.set(registrationId, reason);
+    setTimeout(() => reasonCache.delete(registrationId!), 60 * 60 * 1000);
   }
 
-  return structuredFallback;
+  return reason;
 }

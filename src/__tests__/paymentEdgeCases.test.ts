@@ -44,6 +44,9 @@ jest.mock('@/models/Registration', () => ({
   __esModule: true,
   default: {
     create: (...args: unknown[]) => mockRegistrationCreate(...args),
+    findOne: jest.fn().mockResolvedValue(null),
+    findOneAndUpdate: jest.fn().mockResolvedValue({ _id: 'reg-id-1', registrationId: 'CP-ABCDEF1234567890' }),
+    findByIdAndUpdate: jest.fn().mockResolvedValue({}),
   },
 }));
 

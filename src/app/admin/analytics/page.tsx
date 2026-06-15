@@ -37,17 +37,17 @@ export default function AdminAnalyticsPage() {
   }, [status, fetchAnalytics])
 
   if (loading) return (
-    <div className="p-6">
+    <div className="p-6 animate-pulse">
       <div className="mb-8">
-        <div className="w-52 h-7 bg-surface2 animate-pulse rounded-lg mb-2" />
-        <div className="w-72 h-4 bg-surface2 animate-pulse rounded" />
+        <div className="w-52 h-7 bg-white/[0.07] rounded-lg mb-2" />
+        <div className="w-72 h-4 bg-white/[0.05] rounded" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="h-72 bg-surface2 animate-pulse rounded-2xl" />
-        <div className="h-72 bg-surface2 animate-pulse rounded-2xl" />
+        <div className="h-72 bg-white/[0.04] rounded-2xl" />
+        <div className="h-72 bg-white/[0.04] rounded-2xl" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-surface2 animate-pulse rounded-2xl" />)}
+        {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white/[0.04] rounded-2xl" />)}
       </div>
     </div>
   )

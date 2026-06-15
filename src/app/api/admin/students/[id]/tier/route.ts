@@ -35,6 +35,8 @@ export async function POST(
     await User.findByIdAndUpdate(params.id, {
       engagementTier: tier,
       reliabilityScore: score,
+      adminOverriddenTier: true,
+      adminOverriddenAt: new Date(),
       $push: {
         scoreHistory: {
           $each: [{
@@ -48,6 +50,19 @@ export async function POST(
         },
       },
     });
+
+    // Push notification to the student
+    void import('@/lib/notifications').then(({ pushNotification }) => {
+      pushNotification({
+        userId: params.id,
+        type: 'tier_override',
+        title: 'Reliability tier updated',
+        body: note?.trim() || `Your tier has been updated to ${tier} by an admin.`,
+        actionUrl: '/my-reliability',
+        actionLabel: 'View details',
+        ttlHours: 72,
+      }).catch(() => {});
+    }).catch(() => {});
 
     return NextResponse.json({ success: true, tier, score });
   } catch (err) {

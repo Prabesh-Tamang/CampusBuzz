@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Find payment by purchaseOrderId
-  const payment = await Payment.findOne({ purchaseOrderId });
+  const payment: any = await Payment.findOne({ purchaseOrderId }).lean();
   if (!payment) {
     console.error('[Khalti callback] Payment not found for purchaseOrderId:', purchaseOrderId);
     return NextResponse.redirect(new URL('/payment/failed?reason=Payment+not+found', APP_URL));
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   if (status !== 'Completed') {
     await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });
     return NextResponse.redirect(
-      new URL(`/payment/failed?reason=${encodeURIComponent(status || 'Payment cancelled')}`, APP_URL)
+      new URL(`/payment/failed?reason=${encodeURIComponent(status || 'Payment cancelled')}&eventId=${payment.eventId}`, APP_URL)
     );
   }
 
@@ -85,6 +85,6 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error('[Khalti callback] error:', err);
     await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });
-    return NextResponse.redirect(new URL('/payment/failed?reason=Server+error', APP_URL));
+    return NextResponse.redirect(new URL(`/payment/failed?reason=Server+error&eventId=${payment.eventId}`, APP_URL));
   }
 }

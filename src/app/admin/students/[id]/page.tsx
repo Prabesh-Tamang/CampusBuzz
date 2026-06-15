@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Award, Ban, RotateCcw, RefreshCw, Shield, UserCheck } from 'lucide-react';
+import { ArrowLeft, Award, Ban, RotateCcw, RefreshCw, Shield, UserCheck, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import TierBadge from '@/components/TierBadge';
@@ -120,18 +120,24 @@ export default function StudentDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="w-32 h-6 bg-surface2/50 animate-pulse rounded mb-6" />
+      <div className="p-6 max-w-5xl mx-auto animate-pulse">
+        <div className="w-32 h-5 bg-white/[0.07] rounded mb-6" />
         <div className="flex items-center gap-6 mb-8">
-          <div className="w-20 h-20 bg-surface2/40 animate-pulse rounded-full" />
-          <div className="space-y-2">
-            <div className="w-48 h-6 bg-surface2/50 animate-pulse rounded" />
-            <div className="w-32 h-4 bg-surface2/30 animate-pulse rounded" />
+          <div className="w-20 h-20 bg-white/[0.06] rounded-full" />
+          <div className="space-y-3 flex-1">
+            <div className="w-56 h-7 bg-white/[0.07] rounded" />
+            <div className="w-40 h-4 bg-white/[0.04] rounded" />
+            <div className="w-32 h-4 bg-white/[0.04] rounded" />
           </div>
+          <div className="w-24 h-10 bg-white/[0.06] rounded-xl" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="h-40 bg-surface2/20 animate-pulse rounded-2xl" />
-          <div className="h-40 bg-surface2/20 animate-pulse rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-64 bg-white/[0.04] rounded-2xl" />
+            <div className="h-48 bg-white/[0.04] rounded-2xl" />
+            <div className="h-40 bg-white/[0.04] rounded-2xl" />
+          </div>
+          <div className="h-72 bg-white/[0.04] rounded-2xl" />
         </div>
       </div>
     );
@@ -271,7 +277,7 @@ export default function StudentDetailPage() {
                         </td>
                         <td className="py-2 text-right">
                           {reg.checkedIn ? (
-                            <span className="text-teal-400">✓</span>
+                            <Check size={14} className="text-teal-400" />
                           ) : (
                             <span className="text-gray-600">—</span>
                           )}

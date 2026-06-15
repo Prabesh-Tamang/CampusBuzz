@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import PaymentModal from "@/components/PaymentModal";
@@ -17,12 +17,17 @@ import {
   Clock3,
   CreditCard,
   Share2,
+  AlertTriangle,
+  Check,
+  Ban,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import { QRCodeSVG } from "qrcode.react";
 import Link from "next/link";
 import TitleSetter from '@/components/TitleSetter';
+import SoldOutStamp from '@/components/ui/SoldOutStamp';
+import { CATEGORY_COLORS, TIER_CONFIG } from '@/lib/constants';
 
 interface EventData {
   _id: string;
@@ -53,12 +58,16 @@ interface Registration {
 interface WaitlistStatus {
   position: number;
   queueLength: number;
+  tier?: string;
+  championsAhead?: number;
+  priorityNote?: string;
 }
 
 export default function EventDetailPage() {
   const { id } = useParams();
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -74,6 +83,8 @@ export default function EventDetailPage() {
   const [reliabilityData, setReliabilityData] = useState<{
     tier: string;
     confirmationWindowHours: number;
+    waitlistMultiplier: number;
+    waitlistPenaltyHours: number;
   } | null>(null);
   const [denialInfo, setDenialInfo] = useState<{ flagReason?: string; adminNote?: string } | null>(null);
   const [banMessage, setBanMessage] = useState<{ reason?: string; bannedAt?: string } | null>(null);
@@ -83,7 +94,6 @@ export default function EventDetailPage() {
   // Leave waitlist modal
   const [leaveWaitlistModal, setLeaveWaitlistModal] = useState(false);
   const [leavingWaitlist, setLeavingWaitlist] = useState(false);
-
   useEffect(() => {
     fetch(`/api/events/${id}`)
       .then((r) => r.json())
@@ -106,6 +116,8 @@ export default function EventDetailPage() {
           if (d) setReliabilityData({
             tier: d.tier,
             confirmationWindowHours: d.benefits.confirmationWindowHours,
+            waitlistMultiplier: d.benefits.waitlistMultiplier,
+            waitlistPenaltyHours: d.benefits.waitlistPenaltyHours ?? 0,
           });
         })
         .catch(() => {});
@@ -139,9 +151,15 @@ export default function EventDetailPage() {
       fetch(`/api/waitlist?eventId=${id}`)
         .then((r) => r.json())
         .then((data) => {
-          if (!data.error && data.position) {
+          if (data.onWaitlist) {
             setWaitlisted(true);
-            setWaitlistInfo({ position: data.position, queueLength: data.queueLength });
+            setWaitlistInfo({
+              position: data.position,
+              queueLength: data.queueLength,
+              tier: data.tier,
+              championsAhead: data.championsAhead,
+              priorityNote: data.priorityNote,
+            });
           }
         })
         .catch(() => {});
@@ -156,6 +174,29 @@ export default function EventDetailPage() {
       setBanStatusLoading(false);
     }
   }, [id, session]);
+
+  // Poll waitlist position every 10s when waitlisted
+  useEffect(() => {
+    if (!waitlisted || !id) return;
+    const refresh = () => {
+      fetch(`/api/waitlist?eventId=${id}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.onWaitlist) {
+            setWaitlistInfo({
+              position: data.position,
+              queueLength: data.queueLength,
+              tier: data.tier,
+              championsAhead: data.championsAhead,
+              priorityNote: data.priorityNote,
+            });
+          }
+        })
+        .catch(() => {});
+    };
+    const id_ = setInterval(refresh, 10_000);
+    return () => clearInterval(id_);
+  }, [waitlisted, id]);
 
   const handleShare = async () => {
     const url = `${window.location.origin}/events/${id}`;
@@ -226,7 +267,10 @@ export default function EventDetailPage() {
       if (!res.ok) throw new Error(data.error);
       setWaitlisted(true);
       setWaitlistInfo({ position: data.position, queueLength: data.queueLength });
-      toast.success(`You're #${data.position} on the waitlist!`);
+      const joinMsg = data.wasPromotedBefore
+        ? `Rejoined waitlist at #${data.position}. Note: you have a penalty for previously cancelling after promotion.`
+        : `Joined waitlist at #${data.position}. Students with better attendance history may rank ahead of you.`;
+      toast.success(joinMsg, { duration: 5000 });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to join waitlist");
     } finally {
@@ -302,27 +346,32 @@ export default function EventDetailPage() {
 
   if (loading)
     return (
-      <div>
+      <div className="min-h-screen grid-bg">
+        <TitleSetter title="Loading..." />
         <Navbar />
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "60px auto",
-            padding: "0 24px",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              border: "3px solid var(--border)",
-              borderTopColor: "var(--accent)",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
+        <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
+          <div className="h-4 w-24 bg-white/10 rounded mb-6" />
+          <div className="h-72 bg-white/10 rounded-2xl mb-8" />
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
+            <div className="space-y-4">
+              <div className="h-8 w-3/4 bg-white/10 rounded" />
+              <div className="h-4 w-1/2 bg-white/10 rounded" />
+              <div className="flex gap-2">
+                <div className="h-6 w-20 bg-white/10 rounded-full" />
+                <div className="h-6 w-20 bg-white/10 rounded-full" />
+              </div>
+              <div className="h-48 bg-white/10 rounded-2xl" />
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-white/10 rounded" />
+                <div className="h-4 w-5/6 bg-white/10 rounded" />
+                <div className="h-4 w-4/6 bg-white/10 rounded" />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="h-48 bg-white/10 rounded-2xl" />
+              <div className="h-32 bg-white/10 rounded-2xl" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -335,7 +384,10 @@ export default function EventDetailPage() {
       </div>
     );
 
-  const spotsLeft = event.capacity - event.registeredCount;
+  const capacity = event.capacity ?? 0;
+  const registeredCount = event.registeredCount ?? 0;
+  const spotsLeft = capacity - registeredCount;
+  const isFull = spotsLeft <= 0;
   const now = new Date();
   const eventDate = new Date(event.date);
   const eventEndDate = new Date(event.endDate || event.date);
@@ -358,6 +410,18 @@ export default function EventDetailPage() {
     <div>
       <TitleSetter title={event?.title || 'Event'} />
       <Navbar />
+      {searchParams?.get('released') === 'true' && (
+        <div className="mx-auto max-w-[900px] px-6 pt-6">
+          <div className="p-3 rounded-xl flex items-start gap-2"
+               style={{ background: 'rgba(245,158,11,0.06)',
+                        border: '1px solid rgba(245,158,11,0.2)' }}>
+            <AlertTriangle size={14} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs" style={{ color: '#d97706' }}>
+              Your previous registration expired. You can register again if spots are available.
+            </p>
+          </div>
+        </div>
+      )}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px" }}>
         <Link
           href="/events"
@@ -409,12 +473,60 @@ export default function EventDetailPage() {
                 overflow: "hidden",
               }}
             >
-              <span
-                className={`badge cat-${event.category}`}
-                style={{ fontSize: 13 }}
-              >
-                {event.category}
-              </span>
+            </div>
+
+            {/* Badge row */}
+            <div className="flex items-center gap-2 flex-wrap mb-4">
+              {(() => {
+                const catColor = CATEGORY_COLORS[event.category] ?? CATEGORY_COLORS.Other;
+                return (
+                  <span
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full
+                                text-xs font-semibold border
+                                ${catColor.bg} ${catColor.text} ${catColor.border}`}
+                  >
+                    {event.category}
+                  </span>
+                );
+              })()}
+              {event.feeType === 'free' ? (
+                <span
+                  className="inline-flex items-center px-3 py-1.5 rounded-full
+                             text-xs font-semibold border"
+                  style={{
+                    background: 'rgba(20,184,166,0.12)',
+                    color: '#2dd4bf',
+                    borderColor: 'rgba(20,184,166,0.3)',
+                  }}
+                >
+                  Free Entry
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center px-3 py-1.5 rounded-full
+                             text-xs font-semibold border"
+                  style={{
+                    background: 'rgba(245,158,11,0.12)',
+                    color: '#fbbf24',
+                    borderColor: 'rgba(245,158,11,0.3)',
+                  }}
+                >
+                  Rs. {event.feeAmount?.toLocaleString()}
+                </span>
+              )}
+              {isFull && (
+                <span
+                  className="inline-flex items-center px-3 py-1.5 rounded-full
+                             text-xs font-semibold border"
+                  style={{
+                    background: 'rgba(239,68,68,0.12)',
+                    color: '#f87171',
+                    borderColor: 'rgba(239,68,68,0.3)',
+                  }}
+                >
+                  At Capacity
+                </span>
+              )}
             </div>
 
             <h1
@@ -449,7 +561,7 @@ export default function EventDetailPage() {
               >
                 {copied ? (
                   <>
-                    <span style={{ fontSize: 14, lineHeight: 1 }}>✓</span>
+                    <Check size={14} className="text-teal-400" style={{ lineHeight: 1 }} />
                     <span>Link copied!</span>
                   </>
                 ) : (
@@ -481,7 +593,7 @@ export default function EventDetailPage() {
                 { icon: MapPin, text: event.venue },
                 {
                   icon: Users,
-                  text: `${event.registeredCount}/${event.capacity} registered`,
+                  text: `${registeredCount}/${capacity} registered`,
                 },
               ].map((item, i) => (
                 <div
@@ -606,7 +718,7 @@ export default function EventDetailPage() {
                   ) : (
                     <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: 16, marginTop: 8 }}>
                       <p style={{ color: "#f59e0b", fontSize: 13, margin: 0 }}>
-                        ⏰ QR code will be available after you confirm attendance 24h before the event.
+                        QR code will be available after you confirm attendance 24h before the event.
                       </p>
                     </div>
                   )}
@@ -646,7 +758,7 @@ export default function EventDetailPage() {
                       <div
                         style={{
                           height: "100%",
-                          width: `${(event.registeredCount / event.capacity) * 100}%`,
+                          width: `${capacity > 0 ? (registeredCount / capacity) * 100 : 0}%`,
                           background:
                             spotsLeft < 20 ? "#f43f5e" : "var(--accent)",
                           borderRadius: 3,
@@ -718,7 +830,7 @@ export default function EventDetailPage() {
                     <div className="p-4 rounded-2xl mb-5"
                          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
                       <div className="flex items-start gap-3">
-                        <span className="text-lg mt-0.5 flex-shrink-0">🚫</span>
+                        <Ban size={20} className="text-red-400 mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-semibold text-red-400 mb-1">
                             Account Restricted
@@ -738,8 +850,8 @@ export default function EventDetailPage() {
                     // PAID + FULL → Notify Me / Sold Out
                     interested ? (
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, marginBottom: 16 }}>
-                          <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
+                        <div className="flex justify-center mb-4">
+                          <SoldOutStamp size="md" />
                         </div>
                         <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
                           🔔 You&apos;ll be notified when spots open
@@ -750,8 +862,8 @@ export default function EventDetailPage() {
                       </div>
                     ) : (
                       <>
-                        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, textAlign: 'center', marginBottom: 12 }}>
-                          <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
+                        <div className="flex justify-center mb-4">
+                          <SoldOutStamp size="lg" />
                         </div>
                         {/* Banned students can't join notify-me either */}
                         {session && banStatus?.isBanned ? (
@@ -763,7 +875,7 @@ export default function EventDetailPage() {
                               borderRadius: 10, color: '#475569', cursor: 'not-allowed',
                             }}
                           >
-                            🚫 Registration restricted
+                            Registration restricted
                           </div>
                         ) : (
                           <button
@@ -772,7 +884,7 @@ export default function EventDetailPage() {
                             className="btn-secondary"
                             style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                           >
-                            🔔 {registering ? 'Saving...' : 'Notify Me When Available'}
+                            {registering ? 'Saving...' : 'Notify Me When Available'}
                           </button>
                         )}
                       </>
@@ -781,26 +893,51 @@ export default function EventDetailPage() {
                   ) : event.feeType === 'free' && spotsLeft <= 0 ? (
                     // FREE + FULL → Waitlist (if already on it, show position + leave button)
                     waitlisted && waitlistInfo ? (
-                      <div style={{ textAlign: 'center', background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 16, padding: 20 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#f59e0b', fontWeight: 700, fontSize: 20, marginBottom: 8 }}>
-                          #{waitlistInfo.position} in line
+                      <div className="space-y-3">
+                        <div style={{ textAlign: 'center', padding: '16px', borderRadius: 16, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <Clock size={16} className="text-amber-400" />
+                            <span className="text-amber-400 font-bold text-lg">
+                              #{waitlistInfo.position} in line
+                            </span>
+                          </div>
+                          <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>
+                            {waitlistInfo.queueLength} students waiting total
+                          </p>
                         </div>
-                        <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: '0 0 16px' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--text)' }}>{waitlistInfo.queueLength} students waiting</span>
+                        {waitlistInfo.priorityNote && (
+                          <div style={{ padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            <p style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.5, margin: 0 }}>
+                              {waitlistInfo.priorityNote}
+                            </p>
+                            {waitlistInfo.championsAhead && waitlistInfo.championsAhead > 0 && waitlistInfo.tier !== 'champion' && (
+                              <p style={{ color: '#f59e0b', fontSize: 12, marginTop: 6 }}>
+                                {waitlistInfo.championsAhead} Champion student
+                                {waitlistInfo.championsAhead > 1 ? 's are' : ' is'} ahead of you
+                                due to their attendance history.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <p style={{ color: '#64748b', fontSize: 12, textAlign: 'center', margin: 0 }}>
+                          You will receive your QR code by email when a spot opens. No further action needed.
                         </p>
-                        <button
-                          onClick={handleLeaveWaitlist}
-                          className="btn-ghost"
-                          style={{ width: '100%', fontSize: 14, padding: '10px' }}
-                        >
-                          Leave waitlist
+                        <button onClick={handleLeaveWaitlist} disabled={leavingWaitlist}
+                          className="w-full py-2 rounded-xl text-xs font-medium text-center
+                                     transition-all border border-gray-700/50 text-gray-400
+                                     hover:text-coral-400 hover:border-coral-500/30
+                                     hover:bg-coral-500/5 disabled:opacity-50">
+                          {leavingWaitlist ? 'Leaving...' : 'Leave waitlist'}
                         </button>
                       </div>
                     ) : (
                       <>
-                        <div style={{ padding: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, textAlign: 'center', marginBottom: 12 }}>
-                          <h3 style={{ color: '#ef4444', fontWeight: 700, margin: 0, fontSize: 16 }}>Sold out</h3>
+                        <div className="flex justify-center mb-4">
+                          <SoldOutStamp size="lg" />
                         </div>
+                        <p style={{ color: '#94a3b8', fontSize: 14, textAlign: 'center', margin: '0 0 16px' }}>
+                          This event has reached capacity
+                        </p>
                         {/* Banned students can't join waitlist */}
                         {session && banStatus?.isBanned ? (
                           <div
@@ -811,16 +948,26 @@ export default function EventDetailPage() {
                               borderRadius: 10, color: '#475569', cursor: 'not-allowed',
                             }}
                           >
-                            🚫 Registration restricted
+                            Registration restricted
                           </div>
                         ) : (
                           <button
                             onClick={handleJoinWaitlist}
                             disabled={registering || banStatusLoading}
-                            className="btn-secondary"
-                            style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                            className="w-full py-3 rounded-xl font-semibold text-sm transition-all
+                                       flex items-center justify-center gap-2 disabled:opacity-50
+                                       disabled:cursor-not-allowed"
+                            style={{
+                              background: registering
+                                ? 'rgba(245,158,11,0.05)'
+                                : 'rgba(245,158,11,0.10)',
+                              border: '1px solid rgba(245,158,11,0.35)',
+                              color: '#f59e0b',
+                              boxShadow: '0 0 20px rgba(245,158,11,0.05)',
+                            }}
                           >
-                            <Clock3 size={18} /> {registering ? 'Joining...' : 'Join Waitlist'}
+                            <Clock size={16} />
+                            {registering ? 'Joining...' : 'Join Waitlist'}
                           </button>
                         )}
                       </>
@@ -839,11 +986,11 @@ export default function EventDetailPage() {
                             borderRadius: 10, color: '#475569', cursor: 'not-allowed',
                           }}
                         >
-                          🚫 Registration restricted
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleRegister}
+                            Registration restricted
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleRegister}
                           disabled={registering || banStatusLoading}
                           className="btn-primary"
                           style={{ width: '100%', fontSize: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -857,27 +1004,89 @@ export default function EventDetailPage() {
                         </button>
                       )}
 
-                      {/* Tier context — shown only to non-banned logged-in users */}
+                      {/* Reliability benefit card — shown below register button */}
                       {session && reliabilityData && !banStatus?.isBanned && (
-                        <p
-                          style={{
-                            textAlign: 'center',
-                            fontSize: 12,
-                            marginTop: 8,
-                            color:
-                              reliabilityData.tier === 'champion'
-                                ? '#fbbf24'
-                                : reliabilityData.tier === 'unreliable'
-                                  ? '#fb923c'
-                                  : '#6b7280',
-                          }}
-                        >
-                          {reliabilityData.tier === 'champion'
-                            ? `🏆 Champion benefit: ${reliabilityData.confirmationWindowHours}h to confirm`
+                        <div style={{
+                          marginTop: 12,
+                          borderRadius: 12,
+                          padding: '12px 16px',
+                          background: reliabilityData.tier === 'champion'
+                            ? 'rgba(250,204,21,0.06)'
                             : reliabilityData.tier === 'unreliable'
-                              ? `⚠ You have ${reliabilityData.confirmationWindowHours}h to confirm via email`
-                              : `You have ${reliabilityData.confirmationWindowHours}h to confirm via email`}
-                        </p>
+                              ? 'rgba(239,68,68,0.06)'
+                              : 'rgba(20,184,166,0.06)',
+                          border: `1px solid ${
+                            reliabilityData.tier === 'champion'
+                              ? 'rgba(250,204,21,0.15)'
+                              : reliabilityData.tier === 'unreliable'
+                                ? 'rgba(239,68,68,0.15)'
+                                : 'rgba(20,184,166,0.15)'
+                          }`,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 36, height: 36, borderRadius: 10,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              background: reliabilityData.tier === 'champion'
+                                ? 'rgba(250,204,21,0.12)'
+                                : reliabilityData.tier === 'unreliable'
+                                  ? 'rgba(239,68,68,0.12)'
+                                  : 'rgba(20,184,166,0.12)',
+                            }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={
+                                reliabilityData.tier === 'champion'
+                                  ? '#fbbf24'
+                                  : reliabilityData.tier === 'unreliable'
+                                    ? '#f87171'
+                                    : '#2dd4bf'
+                              } strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                              </svg>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{
+                                fontSize: 13, fontWeight: 700,
+                                color: reliabilityData.tier === 'champion'
+                                  ? '#fbbf24'
+                                  : reliabilityData.tier === 'unreliable'
+                                    ? '#f87171'
+                                    : '#2dd4bf',
+                              }}>
+                                {(() => {
+                                  const conf = TIER_CONFIG[reliabilityData.tier as keyof typeof TIER_CONFIG];
+                                  const windowDisplay = conf.confirmationWindowHours < 1
+                                    ? `${Math.round(conf.confirmationWindowHours * 60)} minutes`
+                                    : `${conf.confirmationWindowHours}h`;
+                                  return `${windowDisplay} confirmation window`;
+                                })()}
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                {reliabilityData.tier === 'champion'
+                                  ? 'Priority access — maximum time to confirm your spot'
+                                  : reliabilityData.tier === 'unreliable'
+                                    ? 'Reduced window — confirm promptly to keep your registration'
+                                    : 'Standard confirmation window for event registration'}
+                              </div>
+                            </div>
+                            {reliabilityData.tier === 'champion' && (
+                              <div style={{
+                                padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                background: 'rgba(250,204,21,0.12)', color: '#fbbf24',
+                              }}>
+                                CHAMPION
+                              </div>
+                            )}
+                            {reliabilityData.tier === 'unreliable' && (
+                              <div style={{
+                                padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                                background: 'rgba(239,68,68,0.12)', color: '#f87171',
+                              }}>
+                                LIMITED
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </>
                   )}
@@ -973,36 +1182,65 @@ export default function EventDetailPage() {
 
 function RecommendationsStrip({ currentEvent }: { currentEvent: EventData }) {
   const [recommendations, setRecommendations] = useState<EventData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     fetch(`/api/events?category=${encodeURIComponent(currentEvent.category)}`)
       .then(r => r.json())
       .then((data: EventData[]) => {
         const recs = data.filter(e => e._id !== currentEvent._id).slice(0, 3);
         setRecommendations(recs);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [currentEvent._id, currentEvent.category]);
-
-  if (recommendations.length === 0) return null;
 
   return (
     <div style={{ marginTop: 64, borderTop: '1px solid var(--border)', paddingTop: 40 }}>
       <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>You might also like...</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 }}>
-        {recommendations.map(event => (
-          <Link href={`/events/${event._id}`} key={event._id} className="card" style={{ display: 'block', textDecoration: 'none', transition: 'transform 0.2s', padding: 0, overflow: 'hidden' }}>
-            <div style={{ height: 160, background: event.imageUrl ? `url(${event.imageUrl}) center/cover` : 'var(--surface2)', display: 'flex', alignItems: 'flex-end', padding: 16 }}>
-               <span className={`badge cat-${event.category}`} style={{ fontSize: 11 }}>{event.category}</span>
-            </div>
-            <div style={{ padding: 20 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', color: 'var(--text)' }}>{event.title}</h3>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                {format(new Date(event.date), 'MMM d, yyyy')} • {event.venue}
+        {loading ? (
+          <>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ height: 120, background: 'var(--surface2)', animation: 'pulse 2s infinite' }} />
+              <div style={{ padding: 20 }}>
+                <div style={{ height: 16, width: '60%', background: 'var(--surface2)', borderRadius: 6 }} />
+                <div style={{ height: 12, width: '40%', background: 'var(--surface2)', borderRadius: 6, marginTop: 8 }} />
               </div>
             </div>
-          </Link>
-        ))}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ height: 120, background: 'var(--surface2)', animation: 'pulse 2s infinite' }} />
+              <div style={{ padding: 20 }}>
+                <div style={{ height: 16, width: '60%', background: 'var(--surface2)', borderRadius: 6 }} />
+                <div style={{ height: 12, width: '40%', background: 'var(--surface2)', borderRadius: 6, marginTop: 8 }} />
+              </div>
+            </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ height: 120, background: 'var(--surface2)', animation: 'pulse 2s infinite' }} />
+              <div style={{ padding: 20 }}>
+                <div style={{ height: 16, width: '60%', background: 'var(--surface2)', borderRadius: 6 }} />
+                <div style={{ height: 12, width: '40%', background: 'var(--surface2)', borderRadius: 6, marginTop: 8 }} />
+              </div>
+            </div>
+          </>
+        ) : recommendations.length > 0 ? (
+          recommendations.map(event => (
+            <Link href={`/events/${event._id}`} key={event._id} className="card" style={{ display: 'block', textDecoration: 'none', transition: 'transform 0.2s', padding: 0, overflow: 'hidden' }}>
+              <div style={{ height: 160, background: event.imageUrl ? `url(${event.imageUrl}) center/cover` : 'var(--surface2)', display: 'flex', alignItems: 'flex-end', padding: 16 }}>
+                 <span className={`badge cat-${event.category}`} style={{ fontSize: 11 }}>{event.category}</span>
+              </div>
+              <div style={{ padding: 20 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px', color: 'var(--text)' }}>{event.title}</h3>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  {format(new Date(event.date), 'MMM d, yyyy')} • {event.venue}
+                </div>
+              </div>
+            </Link>
+          ))
+        ) : (
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No similar events found.</p>
+        )}
       </div>
     </div>
   );

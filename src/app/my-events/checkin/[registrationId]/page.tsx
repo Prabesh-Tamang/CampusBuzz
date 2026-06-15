@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HiCheckCircle, HiXCircle, HiExclamationCircle, HiQrcode } from 'react-icons/hi'
 import Navbar from '@/components/Navbar'
+import { AlertTriangle, Ban } from 'lucide-react'
 
 export default function LiveCheckinStatusPage({ params }: { params: { registrationId: string } }) {
   const { data: session, status: sessionStatus } = useSession()
@@ -143,7 +144,7 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                 >
                   <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
                        style={{ background: 'rgba(245,158,11,0.1)', border: '2px solid rgba(245,158,11,0.3)' }}>
-                    <span className="text-3xl">⚠</span>
+                    <AlertTriangle size={32} style={{ color: '#f59e0b' }} />
                   </div>
                   <h2 className="text-xl font-bold text-white mb-2">
                     Verification Required
@@ -170,7 +171,7 @@ export default function LiveCheckinStatusPage({ params }: { params: { registrati
                 >
                   <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
                        style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)' }}>
-                    <span className="text-3xl">🚫</span>
+                    <Ban size={32} style={{ color: '#ef4444' }} />
                   </div>
                   <h2 className="text-xl font-bold text-white mb-2">
                     Entry Not Permitted

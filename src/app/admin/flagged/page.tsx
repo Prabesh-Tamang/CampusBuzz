@@ -85,9 +85,22 @@ export default function AdminFlaggedPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
-      setAllFlagged(prev => prev.filter(f => f.registrationId !== registrationId));
+      setAllFlagged(prev => prev.map(f =>
+        f.registrationId === registrationId
+          ? {
+              ...f,
+              reviewStatus: action === 'reinstate' ? 'pending' : action as 'approved' | 'denied',
+              reviewedAt: action === 'reinstate' ? undefined : new Date().toISOString(),
+              checkedIn: action === 'approve' ? true : f.checkedIn,
+              adminNote: action === 'deny' ? (denyNotes[registrationId] || f.adminNote) : f.adminNote,
+            }
+          : f
+      ));
       setConfirmDenyId(null);
       setDenyNotes(prev => { const n = { ...prev }; delete n[registrationId]; return n; });
+      if (action === 'deny') setActiveTab('history');
+      if (action === 'reinstate') setActiveTab('pending');
+      fetchFlagged();
       toast.success(
         action === 'approve' ? 'Check-in approved'
         : action === 'deny' ? 'Check-in denied'
@@ -117,52 +130,52 @@ export default function AdminFlaggedPage() {
   const displayItems = activeTab === 'pending' ? pendingItems : historyItems;
 
   if (loading) return (
-    <div className="p-6">
+    <div className="p-6 animate-pulse">
       <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 bg-surface2/50 animate-pulse rounded-2xl" />
+        <div className="w-14 h-14 bg-white/[0.07] rounded-2xl" />
         <div>
           <div className="flex gap-2">
-            <div className="w-24 h-7 bg-surface2/60 animate-pulse rounded-lg" />
-            <div className="w-28 h-7 bg-surface2/40 animate-pulse rounded-lg" />
+            <div className="w-24 h-7 bg-white/[0.08] rounded-lg" />
+            <div className="w-28 h-7 bg-white/[0.05] rounded-lg" />
           </div>
-          <div className="w-72 h-4 bg-surface2/40 animate-pulse rounded mt-2" />
+          <div className="w-72 h-4 bg-white/[0.05] rounded mt-2" />
         </div>
       </div>
-      <div className="flex gap-1 mb-6 p-1 bg-surface rounded-xl w-fit">
-        <div className="w-32 h-9 bg-surface2/50 animate-pulse rounded-lg" />
-        <div className="w-28 h-9 bg-surface2/30 animate-pulse rounded-lg" />
+      <div className="flex gap-1 mb-6 p-1 rounded-xl w-fit" style={{ background: '#0d1f1e' }}>
+        <div className="w-32 h-9 bg-white/[0.07] rounded-lg" />
+        <div className="w-28 h-9 bg-white/[0.04] rounded-lg" />
       </div>
       {[1, 2, 3].map(i => (
-        <div key={i} className="card p-5 mb-4 relative overflow-hidden border-l-4 border-surface2/50">
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-surface2/30">
-            <div className="w-1/3 h-full bg-surface2/50 animate-pulse rounded-full" />
+        <div key={i} className="card p-5 mb-4 relative overflow-hidden border-l-4" style={{ borderLeftColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="w-1/3 h-full bg-white/[0.07] rounded-full" />
           </div>
           <div className="flex flex-col lg:flex-row lg:items-start gap-4">
             <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="w-10 h-10 bg-surface2/50 animate-pulse rounded-xl flex-shrink-0" />
+              <div className="w-10 h-10 bg-white/[0.07] rounded-xl flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-28 h-4 bg-surface2/60 animate-pulse rounded" />
-                  <div className="w-14 h-4 bg-surface2/40 animate-pulse rounded-md" />
+                  <div className="w-28 h-4 bg-white/[0.08] rounded" />
+                  <div className="w-14 h-4 bg-white/[0.05] rounded-md" />
                 </div>
-                <div className="w-40 h-3 bg-surface2/30 animate-pulse rounded" />
-                <div className="w-full h-10 bg-surface2/30 animate-pulse rounded-lg" />
+                <div className="w-40 h-3 bg-white/[0.04] rounded" />
+                <div className="w-full h-10 bg-white/[0.04] rounded-lg" />
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
               <div className="space-y-1.5">
-                <div className="w-36 h-3.5 bg-surface2/50 animate-pulse rounded" />
-                <div className="w-28 h-3 bg-surface2/30 animate-pulse rounded" />
+                <div className="w-36 h-3.5 bg-white/[0.07] rounded" />
+                <div className="w-28 h-3 bg-white/[0.04] rounded" />
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-16 h-6 bg-surface2/50 animate-pulse rounded-lg" />
-                <div className="w-20 h-5 bg-surface2/40 animate-pulse rounded-lg" />
+                <div className="w-16 h-6 bg-white/[0.07] rounded-lg" />
+                <div className="w-20 h-5 bg-white/[0.05] rounded-lg" />
               </div>
             </div>
             <div className="flex-shrink-0">
               <div className="flex gap-2">
-                <div className="w-16 h-8 bg-surface2/50 animate-pulse rounded-xl" />
-                <div className="w-20 h-8 bg-surface2/60 animate-pulse rounded-xl" />
+                <div className="w-16 h-8 bg-white/[0.07] rounded-xl" />
+                <div className="w-20 h-8 bg-white/[0.08] rounded-xl" />
               </div>
             </div>
           </div>
@@ -375,16 +388,14 @@ export default function AdminFlaggedPage() {
                       )
                     ) : (
                       <div className="flex gap-2">
-                        {isDenied && (
-                          <button
-                            onClick={() => handleAction(entry.registrationId, 'reinstate')}
-                            disabled={isActing}
-                            className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs rounded-xl border border-amber-500/20 transition-colors inline-flex items-center gap-1.5 font-semibold"
-                          >
-                            {isActing ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
-                            Reinstate
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleAction(entry.registrationId, 'reinstate')}
+                          disabled={isActing}
+                          className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs rounded-xl border border-amber-500/20 transition-colors inline-flex items-center gap-1.5 font-semibold"
+                        >
+                          {isActing ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                          Reinstate
+                        </button>
                       </div>
                     )}
 

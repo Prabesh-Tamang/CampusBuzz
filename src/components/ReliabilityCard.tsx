@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import { TrendingUp, Clock, CheckCircle, Trophy } from 'lucide-react';
+import Link from 'next/link';
 import TierBadge from './TierBadge';
+import { TIER_CONFIG } from '@/lib/constants';
 
 interface ReliabilityData {
   tier: 'champion' | 'regular' | 'new' | 'unreliable';
@@ -86,16 +88,24 @@ function MetricBar({
   );
 }
 
-export default function ReliabilityCard() {
+function ReliabilityCard() {
   const [data, setData] = useState<ReliabilityData | null>(null);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    fetch('/api/user/reliability')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setData(d); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const fetchData = () => {
+      fetch('/api/user/reliability')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setData(d); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+    fetchData();
+    intervalRef.current = setInterval(fetchData, 15_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   if (loading) {
@@ -171,27 +181,36 @@ export default function ReliabilityCard() {
       )}
 
       {/* Benefits */}
-      <div className="p-3 bg-white/[0.03] rounded-xl mb-3">
-        <p className="text-xs font-medium text-gray-400 mb-2">Your current benefits:</p>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-xs">
-            <Clock size={11} className="text-gray-500" />
-            <span className="text-gray-400">
-              {data.benefits.confirmationWindowHours}h to confirm free event spots
-            </span>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="rounded-xl p-3 text-center" style={{ background: isUnreliable ? 'rgba(239,68,68,0.06)' : 'rgba(20,184,166,0.06)', border: `1px solid ${isUnreliable ? 'rgba(239,68,68,0.15)' : 'rgba(20,184,166,0.15)'}` }}>
+          <Clock size={16} className={`mx-auto mb-1 ${isUnreliable ? 'text-red-400' : 'text-teal-400'}`} />
+          <div className={`text-lg font-extrabold ${isUnreliable ? 'text-red-400' : 'text-teal-400'}`}>
+            {(() => {
+              const tierConf = TIER_CONFIG[data.tier as keyof typeof TIER_CONFIG];
+              const windowDisplay = tierConf.confirmationWindowHours < 1
+                ? `${Math.round(tierConf.confirmationWindowHours * 60)}m`
+                : `${tierConf.confirmationWindowHours}h`;
+              return windowDisplay;
+            })()}
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Trophy size={11} className="text-gray-500" />
-            <span className="text-gray-400">
-              {data.benefits.waitlistMultiplier > 0
-                ? `${data.benefits.waitlistMultiplier}× priority bonus on waitlists`
-                : isUnreliable
-                  ? 'No waitlist priority bonus'
-                  : 'No waitlist bonus yet — attend events to earn one'}
-            </span>
+          <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">Confirmation window</p>
+        </div>
+        <div className="rounded-xl p-3 text-center" style={{ background: data.benefits.waitlistMultiplier > 0 ? 'rgba(250,204,21,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${data.benefits.waitlistMultiplier > 0 ? 'rgba(250,204,21,0.15)' : 'rgba(255,255,255,0.06)'}` }}>
+          <Trophy size={16} className={`mx-auto mb-1 ${data.benefits.waitlistMultiplier > 0 ? 'text-yellow-400' : 'text-gray-600'}`} />
+          <div className={`text-lg font-extrabold ${data.benefits.waitlistMultiplier > 0 ? 'text-yellow-400' : 'text-gray-500'}`}>
+            {data.benefits.waitlistMultiplier > 0 ? `${data.benefits.waitlistMultiplier}×` : '—'}
           </div>
+          <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">Waitlist priority</p>
         </div>
       </div>
+      {(data.benefits.waitlistPenaltyHours ?? 0) > 0 && (
+        <div className="flex items-center gap-2 text-xs p-2 rounded-lg mb-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+          <Clock size={12} className="text-red-400 flex-shrink-0" />
+          <span className="text-red-400 font-medium">
+            {data.benefits.waitlistPenaltyHours}h penalty before you can join another waitlist
+          </span>
+        </div>
+      )}
 
       {/* New tier — progress bar toward 3 events */}
       {isNew && (
@@ -257,6 +276,16 @@ export default function ReliabilityCard() {
           </div>
         </div>
       )}
+
+      {/* Link to full page */}
+      <Link
+        href="/my-reliability"
+        className="block mt-4 text-center text-xs font-medium text-teal-400 hover:text-teal-300 transition-colors"
+      >
+        View full details →
+      </Link>
     </div>
   );
 }
+
+export default memo(ReliabilityCard);

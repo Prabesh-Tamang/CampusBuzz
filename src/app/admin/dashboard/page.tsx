@@ -114,7 +114,7 @@ export default function AdminDashboard() {
       if (d.message) {
         toast(d.message, { icon: 'ℹ️' })
       } else {
-        toast.success(`${force ? '[Force] ' : ''}Emails: ${d.confirmEmailsSent} sent, ${d.cancelledCount} cancelled, ${d.promotedCount} promoted`)
+        toast.success(`${force ? '[Force] ' : ''}Emails: ${d.sent} sent, ${d.failed} failed`)
       }
     } catch {
       toast.error('Failed to run confirmations')

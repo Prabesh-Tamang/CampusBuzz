@@ -26,6 +26,7 @@ interface AlgorithmStats {
   reliability: {
     trained: boolean;
     trainingCount: number;
+    totalStudents: number;
     tierDistribution: {
       champion: number;
       regular: number;
@@ -34,6 +35,8 @@ interface AlgorithmStats {
     };
     averageScore: number | null;
     status: 'active' | 'warming_up';
+    minStudentsNeeded: number;
+    eligibleStudents: number;
   };
 }
 
@@ -107,8 +110,8 @@ function AlgorithmInsightsNoMemo() {
 
   const { collaborativeFiltering: cf, waitlist: wl, isolationForest: ifo, reliability: rel } = stats;
 
-  // Total students for percentage calculation
-  const totalStudents = Object.values(rel.tierDistribution).reduce((a, b) => a + b, 0) || 1;
+  // Total students for percentage calculation (use API value, fallback to sum)
+  const totalStudents = rel.totalStudents || Object.values(rel.tierDistribution).reduce((a, b) => a + b, 0) || 1;
 
   return (
     <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5">
@@ -163,6 +166,8 @@ function AlgorithmInsightsNoMemo() {
           </div>
 
           <div className="bg-white/[0.03] rounded-lg p-4">
+            <Row label="Total students" value={rel.totalStudents} />
+            <Row label="Eligible (3+ registrations)" value={rel.eligibleStudents} />
             <Row label="Trained on" value={`${rel.trainingCount} students`} />
             <Row label="Reliability features" value="7 parameters" />
             <Row label="Avg reliability score" value={rel.averageScore !== null ? `${rel.averageScore}/100` : '—'} />
@@ -182,10 +187,36 @@ function AlgorithmInsightsNoMemo() {
               </p>
             </div>
           </div>
-          {rel.status === 'warming_up' && (
-            <p className="text-xs text-amber-400/70 mt-2">
-              Needs 10+ students with 2+ registrations each to train
+          <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+            {rel.totalStudents - rel.eligibleStudents > 0
+              ? `${rel.totalStudents - rel.eligibleStudents} student${rel.totalStudents - rel.eligibleStudents > 1 ? 's' : ''} excluded — need 3+ registrations to be eligible for scoring.`
+              : 'All students have 3+ registrations and are eligible for scoring.'}
+          </p>
+          {rel.trainingCount < rel.eligibleStudents && (
+            <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+              {rel.eligibleStudents - rel.trainingCount} eligible student{rel.eligibleStudents - rel.trainingCount > 1 ? 's' : ''} excluded during training (NaN feature values).
             </p>
+          )}
+          {rel.status === 'warming_up' && (
+            <div className="mt-3">
+              <div className="flex justify-between text-[13px] text-amber-400/70 mb-1.5">
+                <span>Training progress</span>
+                <span>{rel.eligibleStudents} / {rel.minStudentsNeeded} students</span>
+              </div>
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full"
+                  style={{
+                    width: `${Math.min(
+                      (rel.eligibleStudents / rel.minStudentsNeeded) * 100, 100
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p className="text-xs text-amber-400/70 mt-1">
+                Needs {rel.minStudentsNeeded}+ students with 3+ registrations each
+              </p>
+            </div>
           )}
         </div>
 
@@ -239,6 +270,11 @@ function AlgorithmInsightsNoMemo() {
                 />
               </div>
             </div>
+          )}
+          {ifo.status === 'active' && ifo.totalCheckins > ifo.trainedOnSamples && (
+            <p className="text-xs text-gray-600 mt-1.5 leading-relaxed">
+              {ifo.totalCheckins - ifo.trainedOnSamples} check-in{ifo.totalCheckins - ifo.trainedOnSamples > 1 ? 's' : ''} excluded from training (admin overrides, cancelled/inactive events).
+            </p>
           )}
         </div>
 

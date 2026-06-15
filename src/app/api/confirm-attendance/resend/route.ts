@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import Registration from '@/models/Registration';
+import User from '@/models/User';
+import { TIER_CONFIG } from '@/lib/constants';
 import { sendAttendanceConfirmation } from '@/lib/email';
 
 // Simple in-memory cooldown: 1 resend per registration per hour
@@ -74,6 +76,11 @@ export async function POST(req: Request) {
     const event = (registration as any).eventId;
     const confirmUrl = `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/api/confirm-attendance?token=${(registration as any).confirmToken}`;
 
+    // Fetch user for tier-based window
+    const resendUser = await User.findById(session.user.id).select('engagementTier').lean() as any;
+    const resendTier = (resendUser?.engagementTier ?? 'new') as keyof typeof TIER_CONFIG;
+    const tierCfg = TIER_CONFIG[resendTier] ?? TIER_CONFIG.new;
+
     void sendAttendanceConfirmation({
       to: session.user.email ?? '',
       name: session.user.name ?? 'Student',
@@ -81,6 +88,7 @@ export async function POST(req: Request) {
       eventDate: new Date(event.date).toLocaleDateString('en-NP', { dateStyle: 'full' } as any),
       eventVenue: event.venue,
       confirmUrl,
+      confirmWindowHours: tierCfg.confirmationWindowHours,
     }).catch(err => console.error('[Email] Resend confirmation failed:', err));
 
     cooldowns.set(registrationId, Date.now());

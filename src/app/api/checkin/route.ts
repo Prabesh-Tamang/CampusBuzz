@@ -5,7 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import Registration from '@/models/Registration';
 import { rateLimit } from '@/lib/rateLimit';
 import { extractFeatures } from '@/lib/ml/checkinFeatures';
-import { getModel, isModelReady, recordCheckin } from '@/lib/ml/modelManager';
+import { getModel, recordCheckin } from '@/lib/ml/modelManager';
 import { updateStudentReliability, maybeRetrain } from '@/lib/ml/reliabilityScoring';
 import { generateFlagReason } from '@/lib/ml/flagReasoning';
 import { ML_THRESHOLDS } from '@/lib/constants';
@@ -43,9 +43,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'registrationId required' }, { status: 400 });
     }
 
-    const existing = await Registration.findOne({ registrationId })
+    const existing: any = await Registration.findOne({ registrationId })
       .populate('userId', 'name email')
-      .populate('eventId', 'title date endDate venue category');
+      .populate('eventId', 'title date endDate venue category')
+      .lean();
 
     if (!existing) {
       return NextResponse.json({ error: 'Invalid QR code' }, { status: 404 });
@@ -93,22 +94,24 @@ export async function POST(req: NextRequest) {
     let anomalyScore: number | null = null;
     let features: number[] = [];
 
-    if (isModelReady()) {
+    // Always attempt to get/initialize the model (lazy training triggered here)
+    const ifoModel = await getModel();
+    if (ifoModel?.isTrained) {
       try {
-        const ifoModel = await getModel();
         features = await extractFeatures({
-          userId: existing.userId.toString(),
-          eventId: existing.eventId.toString(),
+          userId: (existing.userId as any)._id.toString(),
+          eventId: (existing.eventId as any)._id.toString(),
           eventCategory: event.category,
           eventDate: event.date,
           registrationCreatedAt: existing.createdAt,
           checkinTime,
         });
-        anomalyScore = Math.round(ifoModel!.anomalyScore(features) * 1000) / 1000;
+        anomalyScore = Math.round(ifoModel.anomalyScore(features) * 1000) / 1000;
       } catch (err) {
         console.error('[IsolationForest] Scoring failed:', err);
       }
-    } else {
+    }
+    if (anomalyScore === null) {
       try {
         const daysSinceReg = (checkinTime.getTime() - existing.createdAt.getTime()) / 86_400_000;
         const minutesRelativeToStart = (checkinTime.getTime() - new Date(event.date).getTime()) / 60_000;
@@ -128,7 +131,7 @@ export async function POST(req: NextRequest) {
     const flagged = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.flagThreshold;
     const blocked = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.blockThreshold;
 
-    // ─── Handle blocked (score >= 0.80) ──────────────────────────────────────
+    // ─── Handle blocked (score >= blockThreshold) ─────────────────────────────
     if (blocked) {
       await Registration.findOneAndUpdate(
         { registrationId, checkedIn: false },
@@ -152,7 +155,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ─── Handle flagged (score 0.65-0.80) — held for admin review ────────────
+    // ─── Handle flagged (score flagThreshold–blockThreshold) — held for admin review ────
     if (flagged) {
       await Registration.findOneAndUpdate(
         { registrationId, checkedIn: false },
@@ -195,10 +198,22 @@ export async function POST(req: NextRequest) {
     }
 
     recordCheckin();
-    void updateStudentReliability(existing.userId.toString()).catch(err =>
+    void updateStudentReliability((existing.userId as any)._id.toString()).catch(err =>
       console.error('[Reliability] Update after check-in failed:', err)
     );
     maybeRetrain();
+
+    // Log activity
+    void import('@/lib/activityLog').then(({ logActivity }) => {
+      logActivity({
+        userId: existing.userId.toString(),
+        action: 'checkin',
+        eventId: existing.eventId.toString(),
+        eventTitle: (existing.eventId as any).title,
+        details: `Checked in to ${(existing.eventId as any).title}`,
+        algorithmTriggers: anomalyScore !== null ? [`Anomaly score: ${anomalyScore}`] : undefined,
+      }).catch(() => {});
+    }).catch(() => {});
 
     // Push a "checked in" notification to the student
     void import('@/lib/notifications').then(({ pushNotification }) => {

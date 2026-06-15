@@ -1,189 +1,198 @@
-import { MinHeap } from './minHeap';
-import Waitlist from '@/models/Waitlist';
+import mongoose from 'mongoose';
 import Registration from '@/models/Registration';
+import Waitlist from '@/models/Waitlist';
 import Event from '@/models/Event';
 import User from '@/models/User';
-import mongoose from 'mongoose';
-import { sendPromotionEmail } from '@/lib/email';
-import { WAITLIST_CONFIG } from '@/lib/constants';
-import { getTierBenefits } from '@/lib/ml/reliabilityScoring';
-import type { EngagementTier } from '@/lib/ml/reliabilityScoring';
+import QRCode from 'qrcode';
 import crypto from 'crypto';
-
-export interface WaitlistEntry {
-  userId: string;
-  eventId: string;
-  priorityScore: number;
-  joinedAt: Date;
-}
-
-const heaps = new Map<string, MinHeap<WaitlistEntry>>();
-
-const comparator = (a: WaitlistEntry, b: WaitlistEntry) =>
-  a.priorityScore - b.priorityScore;
+import { sendPromotionEmail } from '@/lib/email';
+import { WAITLIST_CONFIG, TIER_CONFIG, CONFIRMATION_CONFIG } from '@/lib/constants';
+import { updateStudentReliability } from '@/lib/ml/reliabilityScoring';
+import { logActivity } from '@/lib/activityLog';
 
 export async function computePriorityScore(
   userId: string,
-  joinedAt: Date
+  joinedAt: Date,
+  wasPromotedBefore: boolean = false
 ): Promise<number> {
-  const attendanceBonus = await Registration.countDocuments({
+  const user = await User.findById(userId)
+    .select('engagementTier')
+    .lean() as any;
+
+  const tier = (user?.engagementTier ?? 'new') as keyof typeof TIER_CONFIG;
+  const tierConfig = TIER_CONFIG[tier];
+  const multiplier = tierConfig.waitlistMultiplier;
+  const penaltyHours = tierConfig.waitlistPenaltyHours;
+  const basePriorityHours = tierConfig.tierBasePriorityHours;
+
+  const attendanceCount = await Registration.countDocuments({
     userId,
     checkedIn: true,
   });
 
-  const user = await User.findById(userId).select('engagementTier').lean();
-  const tier = ((user as any)?.engagementTier ?? 'new') as EngagementTier;
-  const benefits = getTierBenefits(tier);
+  let score = joinedAt.getTime();
 
-  let score = joinedAt.getTime() - attendanceBonus * WAITLIST_CONFIG.HOUR_DISCOUNT_MS * benefits.waitlistMultiplier;
-  score += benefits.waitlistPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+  // Tier base priority — higher-tier students get a head start
+  score -= basePriorityHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+
+  // Attendance-based discount — scales by tier multiplier
+  score -= attendanceCount * WAITLIST_CONFIG.HOUR_DISCOUNT_MS * multiplier;
+
+  // Unreliable penalty
+  score += penaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+
+  if (wasPromotedBefore) {
+    score += CONFIRMATION_CONFIG.rejoinPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+  }
 
   return score;
 }
 
-export async function buildHeap(eventId: string): Promise<MinHeap<WaitlistEntry>> {
+export async function getSortedWaitlist(eventId: string): Promise<Array<{
+  userId: string;
+  joinedAt: Date;
+  priorityScore: number;
+  wasPromoted: boolean;
+}>> {
   const entries = await Waitlist.find({
     eventId,
-    $or: [
-      { abandonedAt: null },
-      { abandonedAt: { $exists: false } },
-    ],
-  })
-    .sort({ priorityScore: 1 })
-    .lean();
+    abandonedAt: null,
+  }).lean() as any[];
 
-  const heap = new MinHeap<WaitlistEntry>(comparator);
-  entries.forEach(e =>
-    heap.insert({
-      userId: e.userId.toString(),
-      eventId: e.eventId.toString(),
-      priorityScore: e.priorityScore,
-      joinedAt: e.joinedAt,
-    })
+  const withScores = await Promise.all(
+    entries.map(async (entry) => ({
+      userId: entry.userId.toString(),
+      joinedAt: entry.joinedAt,
+      wasPromoted: entry.wasPromoted ?? false,
+      priorityScore: await computePriorityScore(
+        entry.userId.toString(),
+        entry.joinedAt,
+        entry.wasPromoted ?? false
+      ),
+    }))
   );
 
-  heaps.set(eventId, heap);
-  return heap;
+  return withScores.sort((a, b) => a.priorityScore - b.priorityScore);
 }
 
-export async function getHeap(eventId: string): Promise<MinHeap<WaitlistEntry>> {
-  if (!heaps.has(eventId)) {
-    return buildHeap(eventId);
-  }
-  return heaps.get(eventId)!;
-}
+export async function getWaitlistPosition(
+  eventId: string,
+  userId: string
+): Promise<{ position: number; queueLength: number; priorityScore: number } | null> {
+  const sorted = await getSortedWaitlist(eventId);
+  const queueLength = sorted.length;
+  const index = sorted.findIndex(e => e.userId === userId);
 
-export function invalidateHeap(eventId: string): void {
-  heaps.delete(eventId);
-}
+  if (index === -1) return null;
 
-export async function joinWaitlist(
-  userId: string,
-  eventId: string
-): Promise<{ position: number; priorityScore: number; queueLength: number }> {
-  const joinedAt = new Date();
-  const priorityScore = await computePriorityScore(userId, joinedAt);
-
-  await Waitlist.create({ eventId, userId, priorityScore, joinedAt });
-
-  const heap = await getHeap(eventId);
-  heap.insert({ userId, eventId, priorityScore, joinedAt });
-
-  const position = await getPosition(userId, eventId);
-  return { position, priorityScore, queueLength: heap.size() };
-}
-
-export async function leaveWaitlist(
-  userId: string,
-  eventId: string
-): Promise<void> {
-  await Waitlist.deleteOne({ userId, eventId });
-  invalidateHeap(eventId);
-}
-
-export async function getPosition(
-  userId: string,
-  eventId: string
-): Promise<number> {
-  const userEntry = await Waitlist.findOne({ userId, eventId });
-  if (!userEntry) return -1;
-
-  const position = await Waitlist.countDocuments({
-    eventId,
-    priorityScore: { $lt: userEntry.priorityScore },
-  });
-
-  return position + 1;
+  return {
+    position: index + 1,
+    queueLength,
+    priorityScore: sorted[index].priorityScore,
+  };
 }
 
 export async function promoteTopWaitlistUser(eventId: string): Promise<void> {
-  const heap = await getHeap(eventId);
-  if (heap.isEmpty()) return;
+  const sorted = await getSortedWaitlist(eventId);
+  if (sorted.length === 0) return;
 
-  const top = heap.extractMin();
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const topEntry = sorted[0];
+  const userId = topEntry.userId;
+
+  const registrationId = `CP-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
+  const qrData = JSON.stringify({ registrationId, eventId, userId });
+  const qrCode = await QRCode.toDataURL(qrData, {
+    width: 300, margin: 2, errorCorrectionLevel: 'H',
+  });
+
+  const dbSession = await mongoose.startSession();
+  dbSession.startTransaction();
 
   try {
-    await Waitlist.deleteOne({ userId: top.userId, eventId }, { session });
-
-    const registrationId = `CP-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-    const QRCode = await import('qrcode');
-    const qrData = JSON.stringify({ registrationId, eventId, userId: top.userId });
-    const qrCode = await QRCode.toDataURL(qrData, {
-      width: 300, margin: 2, errorCorrectionLevel: 'H',
-    });
-
-    await Registration.create([{
-      userId: top.userId,
-      eventId,
-      registrationId,
-      qrCode,
-      checkedIn: false,
-      promotedFromWaitlist: true,
-    }], { session });
+    await Registration.findOneAndUpdate(
+      { userId, eventId },
+      {
+        $set: {
+          userId,
+          eventId,
+          registrationId,
+          qrCode,
+          confirmed: true,
+          confirmationEmailSent: true,
+          promotedFromWaitlist: true,
+          paymentStatus: 'FREE',
+          amountPaid: 0,
+        },
+      },
+      { upsert: true, new: true, session: dbSession }
+    );
 
     await Event.findByIdAndUpdate(
       eventId,
       { $inc: { registeredCount: 1 } },
-      { session }
+      { session: dbSession }
     );
 
-    await session.commitTransaction();
+    await Waitlist.findOneAndUpdate(
+      { eventId, userId, abandonedAt: null },
+      { $set: { wasPromoted: true, abandonedAt: new Date() } },
+      { session: dbSession }
+    );
 
-    const user = await User.findById(top.userId).select('email name');
-    const event = await Event.findById(eventId).select('title date venue');
-    if (user && event) {
-      void sendPromotionEmail({
-        to: user.email,
-        name: user.name,
-        eventName: event.title,
-        eventDate: event.date.toISOString(),
-        eventVenue: event.venue,
-        qrCodeDataUrl: qrCode,
-        registrationId,
-      }).catch(err => console.error('[Waitlist] Promotion email failed:', err));
-
-      // Push promoted notification
-      void import('@/lib/notifications').then(({ pushNotification }) => {
-        pushNotification({
-          userId: top.userId,
-          type: 'promoted',
-          title: '🎉 You got a spot!',
-          body: `You've been promoted from the waitlist for ${event.title}. Your QR code is ready.`,
-          eventId,
-          registrationId,
-          actionUrl: `/my-events/checkin/${registrationId}`,
-          actionLabel: 'Open QR ticket',
-          ttlHours: 48,
-        }).catch(() => {});
-      }).catch(() => {});
-    }
+    await dbSession.commitTransaction();
   } catch (err) {
-    await session.abortTransaction();
-    heap.insert(top);
+    await dbSession.abortTransaction();
     throw err;
   } finally {
-    session.endSession();
+    dbSession.endSession();
   }
+
+  const event = await Event.findById(eventId).select('title date venue').lean() as any;
+  const user = await User.findById(userId).select('email name').lean() as any;
+
+  if (user && event) {
+    void sendPromotionEmail({
+      to: user.email,
+      name: user.name,
+      eventName: event.title,
+      eventDate: new Date(event.date).toLocaleDateString('en-NP', { dateStyle: 'full' }),
+      eventVenue: event.venue,
+      qrCodeDataUrl: qrCode,
+      registrationId,
+    }).catch(err => console.error('[Waitlist] Promotion email failed:', err));
+  }
+
+  // Log activity
+  void logActivity({
+    userId,
+    action: 'waitlist_promotion',
+    eventId,
+    eventTitle: event?.title ?? '',
+    details: `Promoted from waitlist for ${event?.title ?? 'event'}`,
+  }).catch(() => {});
+
+  void updateStudentReliability(userId).catch(err =>
+    console.error('[Reliability] Post-promotion update failed:', err)
+  );
+}
+
+export async function promoteForCapacityIncrease(
+  eventId: string,
+  newCapacity: number
+): Promise<number> {
+  const event = await Event.findById(eventId).lean() as any;
+  if (!event) return 0;
+
+  const spotsAvailable = newCapacity - event.registeredCount;
+  if (spotsAvailable <= 0) return 0;
+
+  let promoted = 0;
+  for (let i = 0; i < spotsAvailable; i++) {
+    const sorted = await getSortedWaitlist(eventId);
+    if (sorted.length === 0) break;
+    await promoteTopWaitlistUser(eventId);
+    promoted++;
+  }
+
+  return promoted;
 }

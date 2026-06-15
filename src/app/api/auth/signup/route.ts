@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email }).lean();
     if (existing) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
     }

@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
-import { Search, X, Calendar, MapPin, DollarSign, Ticket, ChevronRight } from 'lucide-react'
+import { Search, X, Calendar, MapPin, DollarSign, Ticket, ChevronRight, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { EventCardSkeleton } from '@/components/ui/Skeleton'
@@ -57,6 +57,7 @@ function EventsContent() {
   const [events, setEvents] = useState<Event[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [waitlistedEventIds, setWaitlistedEventIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [regLoading, setRegLoading] = useState(true)
   const [totalEvents, setTotalEvents] = useState(0)
@@ -95,6 +96,14 @@ function EventsContent() {
         })
         .catch(() => {})
       fetchRegistrations()
+      fetch('/api/waitlist/my')
+        .then(r => r.json())
+        .then(d => {
+          if (d.entries) {
+            setWaitlistedEventIds(new Set(d.entries.map((e: any) => e.eventId)))
+          }
+        })
+        .catch(() => {})
     }
   }, [session, search, category, statusFilter, feeFilter])
 
@@ -270,44 +279,44 @@ function EventsContent() {
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {recommendations.slice(0, 3).map(({ event: recEvent, reason }) => (
-                    <div key={recEvent._id} className="relative group">
-                      <Link
-                        href={`/events/${recEvent._id}`}
-                        className="card p-5 cursor-pointer block"
-                      >
-                        <div className="mb-3">
-                          <span className={`badge cat-${recEvent.category}`}>
-                            {recEvent.category}
-                          </span>
-                        </div>
-                        <h3 className="text-base font-bold text-white mb-3 line-clamp-2">
-                          {recEvent.title}
-                        </h3>
-                        <div className="space-y-2 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-accent" />
-                            {format(new Date(recEvent.date), 'MMM d, yyyy')}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-accent" />
-                            {recEvent.venue}
-                          </div>
-                        </div>
-                      </Link>
-                      <div className="absolute top-3 right-3 z-10">
-                        <span className="text-xs bg-teal-500/20 text-teal-300 border
-                                         border-teal-500/30 px-2 py-0.5 rounded-full">
-                          ✨ For you
+                    <Link
+                      key={recEvent._id}
+                      href={`/events/${recEvent._id}`}
+                      className="card p-5 relative overflow-hidden group transition-all duration-200
+                                 hover:border-teal-500/30 hover:bg-white/[0.05]"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full
+                                         text-[11px] font-semibold border"
+                              style={{
+                                background: 'rgba(20,184,166,0.08)',
+                                color: '#2dd4bf',
+                                borderColor: 'rgba(20,184,166,0.2)',
+                              }}>
+                          {recEvent.category}
                         </span>
+                        <Zap size={14} className="text-teal-400" />
                       </div>
-                      <div className="absolute inset-x-0 bottom-0 p-3 opacity-0
-                                      group-hover:opacity-100 transition-opacity">
-                        <p className="text-xs text-gray-300 bg-black/70 backdrop-blur-sm
-                                      px-3 py-1.5 rounded-lg">
+                      <h3 className="text-base font-bold text-white mb-3 line-clamp-2 group-hover:text-teal-300 transition-colors">
+                        {recEvent.title}
+                      </h3>
+                      <div className="space-y-2 text-sm text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <Calendar size={14} className="text-teal-400" />
+                          {format(new Date(recEvent.date), 'MMM d, yyyy')}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-teal-400" />
+                          {recEvent.venue}
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-white/5">
+                        <p className="text-xs text-gray-500 italic leading-relaxed">
                           {reason}
                         </p>
                       </div>
-                    </div>
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-teal-500/5 to-transparent rounded-bl-full" />
+                    </Link>
                   ))}
                 </div>
               </section>
@@ -335,7 +344,7 @@ function EventsContent() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {events.map((event, i) => (
-                  <EventCard key={event._id} event={event} index={i} />
+                  <EventCard key={event._id} event={event} index={i} registered={registrations.some(r => r.eventId?._id === event._id)} waitlisted={waitlistedEventIds.has(event._id)} />
                 ))}
               </div>
             )}

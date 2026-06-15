@@ -1,63 +1,54 @@
-import Registration from '@/models/Registration';
+import connectDB from '@/lib/mongodb';
 import Event from '@/models/Event';
-import User from '@/models/User';
-import { sendEventReminderEmail } from './email';
+import Registration from '@/models/Registration';
 
-// Track reminded registrations in memory to prevent duplicates
-// Resets on server restart — worst case student gets 2 reminders, acceptable
-const remindedSet = new Set<string>();
-
-export async function sendPendingReminders(): Promise<void> {
+export async function autoTriggerConfirmations(): Promise<void> {
   try {
+    await connectDB();
     const now = new Date();
-    const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-    const windowEnd   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+    const windowStart = new Date(now.getTime() + 2.5 * 24 * 60 * 60 * 1000);
+    const windowEnd   = new Date(now.getTime() + 3.5 * 24 * 60 * 60 * 1000);
 
-    const upcomingEvents = await Event.find({
+    const events = await Event.find({
       isActive: true,
       isCancelled: { $ne: true },
       date: { $gte: windowStart, $lte: windowEnd },
-    }).select('_id title date venue').lean();
+    }).select('_id').lean();
 
-    if (upcomingEvents.length === 0) return;
+    if (events.length === 0) return;
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    for (const event of events) {
+      const evt = event as { _id: import('mongoose').Types.ObjectId };
+      const pendingCount = await Registration.countDocuments({
+        eventId: evt._id,
+        confirmed: false,
+        confirmationEmailSent: false,
+      });
 
-    for (const event of upcomingEvents) {
-      const registrations = await Registration.find({
-        eventId: event._id,
-        confirmed: true,
-        qrCode: { $ne: '' },
-        checkedIn: false,
-      }).select('_id registrationId userId qrCode').lean();
+      if (pendingCount === 0) continue;
 
-      for (const reg of registrations) {
-        const key = `${(reg._id as any).toString()}-24h-reminder`;
-        if (remindedSet.has(key)) continue;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+      await fetch(`${appUrl}/api/admin/run-confirmations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: evt._id.toString(),
+          force: false,
+          _autoTriggered: true,
+        }),
+      }).catch(err => console.error('[AutoConfirm] Trigger failed:', err));
 
-        const user = await User.findById(reg.userId)
-          .select('email name').lean();
-        if (!user) continue;
-
-        remindedSet.add(key);
-
-        void sendEventReminderEmail({
-          to: (user as any).email,
-          name: (user as any).name,
-          eventName: (event as any).title,
-          eventDate: new Date((event as any).date).toLocaleDateString('en-NP', {
-            dateStyle: 'full',
-          } as any),
-          eventVenue: (event as any).venue,
-          qrCodeDataUrl: (reg as any).qrCode,
-          registrationId: (reg as any).registrationId,
-          eventUrl: `${appUrl}/events/${(event._id as any).toString()}`,
-        }).catch(err =>
-          console.error('[Reminder] Email failed for', (reg as any).registrationId, err)
-        );
-      }
+      console.log(`[AutoConfirm] Triggered for event ${evt._id} (${pendingCount} pending)`);
     }
   } catch (err) {
-    console.error('[Reminders] sendPendingReminders failed:', err);
+    console.error('[AutoConfirm] Failed:', err);
+  }
+}
+
+export async function sendPendingReminders(): Promise<void> {
+  try {
+    // Placeholder for future reminder logic
+  } catch (err) {
+    console.error('[Reminders] Failed:', err);
   }
 }

@@ -51,14 +51,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Find payment by purchaseOrderId (= transaction_uuid we sent)
+    const payment: any = await Payment.findOne({ purchaseOrderId: transaction_uuid }).lean();
+
     if (status !== 'COMPLETE') {
-      const payment = await Payment.findOne({ purchaseOrderId: transaction_uuid });
       if (payment) await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });
-      return NextResponse.redirect(new URL(`/payment/failed?reason=${encodeURIComponent(status || 'Payment failed')}`, APP_URL));
+      const eventParam = payment?.eventId ? `&eventId=${payment.eventId}` : '';
+      return NextResponse.redirect(new URL(`/payment/failed?reason=${encodeURIComponent(status || 'Payment failed')}${eventParam}`, APP_URL));
     }
 
-    // Find payment by purchaseOrderId (= transaction_uuid we sent)
-    const payment = await Payment.findOne({ purchaseOrderId: transaction_uuid });
     if (!payment) {
       return NextResponse.redirect(new URL('/payment/failed?reason=Payment+not+found', APP_URL));
     }

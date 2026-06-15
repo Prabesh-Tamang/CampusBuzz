@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/mongodb';
 import Registration from '@/models/Registration';
 import Waitlist from '@/models/Waitlist';
+import { getWaitlistPosition } from '@/lib/algorithms/waitlistManager';
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,17 +26,12 @@ export async function GET(req: NextRequest) {
 
     const waitlistWithPositions = await Promise.all(waitlists.map(async (wl: any) => {
       if (!wl.eventId) return { ...wl, position: 0, queueLength: 0 };
-      
-      const position = await Waitlist.countDocuments({
-        eventId: wl.eventId._id,
-        $or: [
-          { priorityScore: { $gt: wl.priorityScore } },
-          { priorityScore: wl.priorityScore, joinedAt: { $lt: wl.joinedAt } }
-        ]
-      }) + 1;
-      
-      const queueLength = await Waitlist.countDocuments({ eventId: wl.eventId._id });
-      return { ...wl, position, queueLength };
+      const posData = await getWaitlistPosition(wl.eventId._id.toString(), userId);
+      return {
+        ...wl,
+        position: posData?.position ?? 1,
+        queueLength: posData?.queueLength ?? 1,
+      };
     }));
 
     return NextResponse.json({ 

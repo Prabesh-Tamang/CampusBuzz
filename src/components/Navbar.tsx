@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { Zap, LogOut, LayoutDashboard, ScanLine, Menu, X, Plus, Calendar, CreditCard } from 'lucide-react';
+import { Zap, LogOut, LayoutDashboard, ScanLine, Menu, X, Plus, Calendar, CreditCard, Activity } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
 
 interface NavbarProps { showAdminLinks?: boolean; }
@@ -11,6 +11,7 @@ interface NavbarProps { showAdminLinks?: boolean; }
 export default function Navbar({ showAdminLinks = true }: NavbarProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const isAdmin = session?.user?.role === 'admin';
@@ -18,8 +19,10 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
 
   const handleLogout = () => signOut({ callbackUrl: '/' });
 
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+
   const nl = (href: string, icon: React.ReactNode, label: string) => (
-    <Link key={href} href={href} className="px-4 py-2 text-sm font-semibold text-gray-400 rounded-lg hover:text-white hover:bg-white/5 transition-all flex items-center gap-2">
+    <Link key={href} href={href} className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${isActive(href) ? 'text-pulse-400 bg-pulse-500/10' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
       {icon}{label}
     </Link>
   );
@@ -57,6 +60,7 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                 <>
                   {nl('/my-events', <Calendar size={15} />, 'My Events')}
                   {nl('/my-payments', <CreditCard size={15} />, 'My Payments')}
+                  {nl('/my-reliability', <Activity size={15} />, 'Reliability')}
                 </>
               )}
 
@@ -111,8 +115,9 @@ export default function Navbar({ showAdminLinks = true }: NavbarProps) {
                 )}
                 {sessionReady && !isAdmin && session && (
                   <>
-                    <Link href="/my-events" onClick={() => setShowMobileMenu(false)} className="px-4 py-2.5 text-sm font-semibold text-gray-400 rounded-lg">My Events</Link>
-                    <Link href="/my-payments" onClick={() => setShowMobileMenu(false)} className="px-4 py-2.5 text-sm font-semibold text-gray-400 rounded-lg">My Payments</Link>
+                    <Link href="/my-events" onClick={() => setShowMobileMenu(false)} className={`px-4 py-2.5 text-sm font-semibold rounded-lg ${isActive('/my-events') ? 'text-pulse-400 bg-pulse-500/10' : 'text-gray-400'}`}>My Events</Link>
+                    <Link href="/my-payments" onClick={() => setShowMobileMenu(false)} className={`px-4 py-2.5 text-sm font-semibold rounded-lg ${isActive('/my-payments') ? 'text-pulse-400 bg-pulse-500/10' : 'text-gray-400'}`}>My Payments</Link>
+                    <Link href="/my-reliability" onClick={() => setShowMobileMenu(false)} className={`px-4 py-2.5 text-sm font-semibold rounded-lg ${isActive('/my-reliability') ? 'text-pulse-400 bg-pulse-500/10' : 'text-gray-400'}`}>Reliability Score</Link>
                   </>
                 )}
                 {sessionReady && session && (

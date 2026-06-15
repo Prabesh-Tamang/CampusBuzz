@@ -15,12 +15,13 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     await dbConnect();
     const eventId = params.id;
 
-    const registrations = await Registration.find({ eventId });
+    const [registrations, payments] = await Promise.all([
+      Registration.find({ eventId }).lean() as Promise<any[]>,
+      Payment.find({ eventId, status: 'completed' }).lean() as Promise<any[]>,
+    ]);
     const totalRegistrations = registrations.length;
     const checkIns = registrations.filter(r => r.checkedIn).length;
     const anomalyCount = registrations.filter(r => r.flagged).length;
-
-    const payments = await Payment.find({ eventId, status: 'completed' });
     const revenue = payments.reduce((acc, p) => acc + p.amount, 0);
 
     return NextResponse.json({

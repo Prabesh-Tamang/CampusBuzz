@@ -182,48 +182,44 @@ describe('Middleware function — integration with mocked next-auth/jwt and next
     mockNext.mockClear();
   });
 
-  // 1. Unauthenticated user on admin route → redirect to /auth/login
-  test('unauthenticated user on /admin/dashboard → redirect to /auth/login', async () => {
+  // 1. Unauthenticated user on admin route → redirect to /admin/login
+  test('unauthenticated user on /admin/dashboard → redirect to /admin/login', async () => {
     mockGetToken.mockResolvedValue(null);
     const req = makeRequest('/admin/dashboard');
     await middleware(req);
     expect(mockRedirect).toHaveBeenCalledTimes(1);
     const redirectUrl: URL = mockRedirect.mock.calls[0][0];
-    expect(redirectUrl.pathname).toBe('/auth/login');
+    expect(redirectUrl.pathname).toBe('/admin/login');
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  // 2. Authenticated student on admin route → redirect to /
-  test('authenticated student on /admin/dashboard → redirect to /', async () => {
+  // 2. Authenticated student on admin route → redirect to /events
+  test('authenticated student on /admin/dashboard → redirect to /events', async () => {
     mockGetToken.mockResolvedValue({ role: 'student' } as JWT);
     const req = makeRequest('/admin/dashboard');
     await middleware(req);
     expect(mockRedirect).toHaveBeenCalledTimes(1);
     const redirectUrl: URL = mockRedirect.mock.calls[0][0];
-    expect(redirectUrl.pathname).toBe('/');
+    expect(redirectUrl.pathname).toBe('/events');
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  // 3. Authenticated admin on /auth/login → redirect to /admin/dashboard
-  test('authenticated admin on /auth/login → redirect to /admin/dashboard', async () => {
+  // 3. Authenticated admin on /auth/login → let page handle it (no redirect)
+  test('authenticated admin on /auth/login → no redirect, calls next()', async () => {
     mockGetToken.mockResolvedValue({ role: 'admin' } as JWT);
     const req = makeRequest('/auth/login');
     await middleware(req);
-    expect(mockRedirect).toHaveBeenCalledTimes(1);
-    const redirectUrl: URL = mockRedirect.mock.calls[0][0];
-    expect(redirectUrl.pathname).toBe('/admin/dashboard');
-    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledTimes(1);
   });
 
-  // 4. Authenticated admin on /auth/signup → redirect to /admin/dashboard
-  test('authenticated admin on /auth/signup → redirect to /admin/dashboard', async () => {
+  // 4. Authenticated admin on /auth/signup → let page handle it (no redirect)
+  test('authenticated admin on /auth/signup → no redirect, calls next()', async () => {
     mockGetToken.mockResolvedValue({ role: 'admin' } as JWT);
     const req = makeRequest('/auth/signup');
     await middleware(req);
-    expect(mockRedirect).toHaveBeenCalledTimes(1);
-    const redirectUrl: URL = mockRedirect.mock.calls[0][0];
-    expect(redirectUrl.pathname).toBe('/admin/dashboard');
-    expect(mockNext).not.toHaveBeenCalled();
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalledTimes(1);
   });
 
   // 5. Authenticated student on /auth/login → redirect to /events

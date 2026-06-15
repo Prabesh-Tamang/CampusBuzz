@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Zap, LayoutDashboard, Calendar, ScanLine, CreditCard, Flag, LogOut, Shield, Plus, Users } from 'lucide-react';
+import { Zap, LayoutDashboard, Calendar, ScanLine, CreditCard, Flag, LogOut, Shield, Plus, Users, X, Menu } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 
@@ -113,7 +113,7 @@ export default function AdminSidebar({ userName, userEmail }: AdminSidebarProps)
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="p-2 text-gray-400 hover:text-white"
         >
-          {mobileMenuOpen ? '✕' : '☰'}
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 

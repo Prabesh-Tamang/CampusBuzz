@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Missing payment parameters' }, { status: 400 });
       }
 
-      const payment = await Payment.findOne({ $or: [{ purchaseOrderId: idToFind }, { 'metadata.pidx': pidx }] });
+      const payment: any = await Payment.findOne({ $or: [{ purchaseOrderId: idToFind }, { 'metadata.pidx': pidx }] }).lean();
       if (!payment) return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
       if (payment.status === 'completed') return NextResponse.json({ success: true, eventId: payment.eventId });
 
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const payment = await Payment.findOne({ purchaseOrderId: transaction_uuid });
+      const payment: any = await Payment.findOne({ purchaseOrderId: transaction_uuid }).lean();
       if (!payment) return NextResponse.json({ success: false, error: 'Payment not found' }, { status: 404 });
       if (payment.status === 'completed') return NextResponse.json({ success: true, eventId: payment.eventId });
 

@@ -1,177 +1,193 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/mongodb';
-import Event from '@/models/Event';
+import connectDB from '@/lib/mongodb';
 import Registration from '@/models/Registration';
+import Event from '@/models/Event';
 import User from '@/models/User';
-import { promoteTopWaitlistUser } from '@/lib/algorithms/waitlistManager';
 import { sendAttendanceConfirmation } from '@/lib/email';
-import { getTierBenefits } from '@/lib/ml/reliabilityScoring';
+import { CONFIRMATION_CONFIG, TIER_CONFIG } from '@/lib/constants';
 import crypto from 'crypto';
-import { format } from 'date-fns';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+function computeConfirmExpiry(
+  tier: string,
+  eventDate: Date
+): Date {
+  const tierConfig = TIER_CONFIG[tier as keyof typeof TIER_CONFIG]
+    ?? TIER_CONFIG.new;
 
-/**
- * POST /api/admin/run-confirmations
- *
- * Body (optional): { force: true } — sends confirmation to ALL unconfirmed
- * registrations for upcoming free events regardless of time window.
- *
- * Normal mode (no force):
- *   Job 1 — events in 23-25h → send confirmation emails
- *   Job 2 — events in 0-2h   → cancel unconfirmed, promote waitlist
- */
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const windowMs = tierConfig.confirmationWindowHours * 60 * 60 * 1000;
+  const rawExpiry = new Date(Date.now() + windowMs);
+
+  const latestAllowed = new Date(
+    eventDate.getTime() - CONFIRMATION_CONFIG.minHoursBeforeEvent * 60 * 60 * 1000
+  );
+
+  if (rawExpiry > latestAllowed) {
+    const minExpiry = new Date(Date.now() + 30 * 60 * 1000);
+    return latestAllowed > minExpiry ? latestAllowed : minExpiry;
   }
 
-  await dbConnect();
-  const now = new Date();
+  return rawExpiry;
+}
 
-  let force = false;
+export async function GET(req: Request) {
   try {
-    const body = await req.json();
-    force = !!body?.force;
-  } catch { /* body is optional */ }
-
-  let confirmEmailsSent = 0;
-  let cancelledCount = 0;
-  let promotedCount = 0;
-
-  if (force) {
-    // ── FORCE MODE: send confirmation to all unconfirmed registrations
-    // for any upcoming free event that hasn't started yet
-    const upcomingFreeEvents = await Event.find({
-      feeType: 'free',
-      isActive: true,
-      isCancelled: { $ne: true },
-      date: { $gt: now },
-    }).lean() as any[];
-
-    for (const event of upcomingFreeEvents) {
-      const regs = await Registration.find({
-        eventId: event._id,
-        confirmed: false,
-        confirmToken: { $exists: false },
-      }).lean() as any[];
-
-      for (const reg of regs) {
-        const user = await User.findById(reg.userId).select('email name engagementTier').lean() as any;
-        if (!user?.email) continue;
-
-        const tier = (user.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
-        const benefits = getTierBenefits(tier);
-
-        const token = crypto.randomBytes(32).toString('hex');
-        await Registration.findByIdAndUpdate(reg._id, {
-          confirmToken: token,
-          confirmationEmailSent: true,
-          confirmTokenExpiry: new Date(Date.now() + benefits.confirmationWindowHours * 60 * 60 * 1000),
-        });
-
-        const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;
-        await sendAttendanceConfirmation({
-          to: user.email,
-          name: user.name,
-          eventName: event.title,
-          eventDate: format(new Date(event.date), 'PPP p'),
-          eventVenue: event.venue,
-          confirmUrl,
-        });
-        confirmEmailsSent++;
-      }
-    }
-  } else {
-    // ── NORMAL MODE ──────────────────────────────────────────────────────────
-
-    // Job 1: Send confirmation emails (events in 23-25 hours)
-    const confirmWindowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
-    const confirmWindowEnd   = new Date(now.getTime() + 25 * 60 * 60 * 1000);
-
-    const eventsNeedingConfirmation = await Event.find({
-      feeType: 'free',
-      isActive: true,
-      isCancelled: { $ne: true },
-      date: { $gte: confirmWindowStart, $lte: confirmWindowEnd },
-    }).lean() as any[];
-
-    for (const event of eventsNeedingConfirmation) {
-      const regs = await Registration.find({
-        eventId: event._id,
-        confirmed: false,
-        confirmToken: { $exists: false },
-      }).lean() as any[];
-
-      for (const reg of regs) {
-        const user = await User.findById(reg.userId).select('email name engagementTier').lean() as any;
-        if (!user?.email) continue;
-
-        const tier = (user.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
-        const benefits = getTierBenefits(tier);
-
-        const token = crypto.randomBytes(32).toString('hex');
-        await Registration.findByIdAndUpdate(reg._id, {
-          confirmToken: token,
-          confirmationEmailSent: true,
-          confirmTokenExpiry: new Date(Date.now() + benefits.confirmationWindowHours * 60 * 60 * 1000),
-        });
-
-        const confirmUrl = `${APP_URL}/api/confirm-attendance?token=${token}`;
-        await sendAttendanceConfirmation({
-          to: user.email,
-          name: user.name,
-          eventName: event.title,
-          eventDate: format(new Date(event.date), 'PPP p'),
-          eventVenue: event.venue,
-          confirmUrl,
-        });
-        confirmEmailsSent++;
-      }
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Job 2: Auto-cancel unconfirmed (events in 0-2 hours)
-    const cancelWindowStart = new Date(now.getTime());
-    const cancelWindowEnd   = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const eventId = searchParams.get('eventId');
 
-    const eventsStartingSoon = await Event.find({
-      feeType: 'free',
-      isActive: true,
-      isCancelled: { $ne: true },
-      date: { $gte: cancelWindowStart, $lte: cancelWindowEnd },
-    }).lean() as any[];
-
-    for (const event of eventsStartingSoon) {
-      const unconfirmed = await Registration.find({
-        eventId: event._id,
-        confirmed: false,
-        confirmToken: { $exists: true },
-      }).lean() as any[];
-
-      for (const reg of unconfirmed) {
-        await Registration.deleteOne({ _id: reg._id });
-        await Event.findByIdAndUpdate(event._id, { $inc: { registeredCount: -1 } });
-        cancelledCount++;
-
-        try {
-          await promoteTopWaitlistUser(event._id.toString());
-          promotedCount++;
-        } catch { /* no waitlist */ }
-      }
+    if (!eventId) {
+      return NextResponse.json({ error: 'eventId required' }, { status: 400 });
     }
+
+    const event = await Event.findById(eventId)
+      .select('title date isActive isCancelled')
+      .lean() as any;
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    const now = new Date();
+    const eventDate = new Date(event.date);
+    const daysUntilEvent = (eventDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+
+    const pending = await Registration.countDocuments({
+      eventId,
+      confirmed: false,
+      confirmationEmailSent: false,
+    });
+
+    const alreadySent = await Registration.countDocuments({
+      eventId,
+      confirmed: false,
+      confirmationEmailSent: true,
+    });
+
+    return NextResponse.json({
+      eventTitle: event.title,
+      eventDate: event.date,
+      daysUntilEvent: Math.round(daysUntilEvent),
+      pendingCount: pending,
+      alreadySentCount: alreadySent,
+      tooFarAway: daysUntilEvent > CONFIRMATION_CONFIG.manualTriggerMaxDays,
+    });
+  } catch (err) {
+    console.error('[GET /api/admin/run-confirmations]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
 
-  return NextResponse.json({
-    success: true,
-    mode: force ? 'force' : 'normal',
-    confirmEmailsSent,
-    cancelledCount,
-    promotedCount,
-    message: confirmEmailsSent === 0 && !force
-      ? 'No events in the 23-25h window. Use "Force Send" to send to all upcoming events.'
-      : undefined,
-  });
+export async function POST(req: Request) {
+  try {
+    await connectDB();
+    const body = await req.json();
+    const { eventId, force, _autoTriggered } = body;
+
+    if (!_autoTriggered) {
+      const session = await getServerSession(authOptions);
+      if (!session || session.user.role !== 'admin') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    const now = new Date();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+
+    // Collect events to process
+    let eventsToProcess: any[] = [];
+    if (eventId) {
+      const event = await Event.findById(eventId).lean() as any;
+      if (!event) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+      eventsToProcess = [event];
+    } else {
+      // No eventId — process all upcoming events that need confirmations
+      eventsToProcess = await Event.find({
+        isActive: true,
+        isCancelled: { $ne: true },
+        date: { $gte: now },
+      }).select('title date venue isActive isCancelled').lean() as any[];
+    }
+
+    let totalSent = 0;
+    let totalFailed = 0;
+    let processedCount = 0;
+
+    for (const event of eventsToProcess) {
+      const eventDate = new Date(event.date);
+      const daysUntilEvent = (eventDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+
+      if (daysUntilEvent > CONFIRMATION_CONFIG.manualTriggerMaxDays && !force) continue;
+      if (eventDate < now) continue;
+
+      const registrations = await Registration.find({
+        eventId: event._id,
+        confirmed: false,
+        confirmationEmailSent: false,
+      }).lean() as any[];
+
+      if (registrations.length === 0) continue;
+
+      let eventSent = 0;
+      let eventFailed = 0;
+
+      for (const reg of registrations) {
+        try {
+          const user = await User.findById(reg.userId)
+            .select('email name engagementTier')
+            .lean() as any;
+
+          if (!user) continue;
+
+          const tier = user.engagementTier ?? 'new';
+          const tierConfig = TIER_CONFIG[tier as keyof typeof TIER_CONFIG] ?? TIER_CONFIG.new;
+          const token = reg.confirmToken ?? crypto.randomBytes(32).toString('hex');
+          const expiry = computeConfirmExpiry(tier, eventDate);
+          const confirmUrl = `${appUrl}/api/confirm-attendance?token=${token}`;
+
+          await Registration.findByIdAndUpdate(reg._id, {
+            confirmToken: token,
+            confirmTokenExpiry: expiry,
+            confirmationEmailSent: true,
+          });
+
+          await sendAttendanceConfirmation({
+            to: user.email,
+            name: user.name,
+            eventName: event.title,
+            eventDate: eventDate.toLocaleDateString('en-NP', { dateStyle: 'full' }),
+            eventVenue: event.venue,
+            confirmUrl,
+            confirmWindowHours: tierConfig.confirmationWindowHours,
+          });
+
+          eventSent++;
+        } catch (emailErr) {
+          console.error('[Confirmations] Email failed for reg', reg._id, emailErr);
+          eventFailed++;
+        }
+      }
+
+      totalSent += eventSent;
+      totalFailed += eventFailed;
+      processedCount++;
+    }
+
+    return NextResponse.json({
+      success: true,
+      sent: totalSent,
+      failed: totalFailed,
+      eventsProcessed: processedCount,
+      message: `${totalSent} confirmation emails sent across ${processedCount} event(s)${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`,
+    });
+  } catch (err) {
+    console.error('[POST /api/admin/run-confirmations]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

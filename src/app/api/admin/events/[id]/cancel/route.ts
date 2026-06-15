@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       await event.save({ session: mongoSession });
 
       // 2. Find all registrations directly populated
-      const registrations = await Registration.find({ eventId }).populate('userId');
+      const registrations: any[] = await Registration.find({ eventId }).populate('userId').lean();
 
       // 3. Update all completed payments to 'refund_pending'
       const paymentUpdateResult = await Payment.updateMany(
@@ -52,8 +52,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
       await mongoSession.commitTransaction();
 
-      // 4. Send emails asynchronously
+      // 4. Send emails + push notifications asynchronously
       registrations.forEach((reg: any) => {
+        const uid = reg.userId?._id?.toString() || reg.userId?.toString();
+        if (uid) {
+          void import('@/lib/notifications').then(({ pushNotification }) => {
+            pushNotification({
+              userId: uid,
+              type: 'event_cancelled',
+              title: 'Event cancelled',
+              body: `${event.title} has been cancelled. Reason: ${reason}`,
+              eventId,
+              actionUrl: '/my-events',
+              actionLabel: 'View my events',
+              ttlHours: 72,
+            }).catch(() => {});
+          }).catch(() => {});
+        }
         if (reg.userId && reg.userId.email) {
           sendCancellationEmail({
             to: reg.userId.email,

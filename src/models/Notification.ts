@@ -13,6 +13,8 @@ import mongoose, { Schema, Document } from 'mongoose';
  * - payment_confirmed: Payment completed, QR emailed
  * - banned:            Account has been banned
  * - check_denied:      Check-in was denied by admin
+ * - event_cancelled:   Event has been cancelled by admin
+ * - ban_lifted:        Account restriction has been removed
  */
 export type NotificationType =
   | 'confirm_attendance'
@@ -25,7 +27,10 @@ export type NotificationType =
   | 'notify_me'
   | 'payment_confirmed'
   | 'banned'
-  | 'check_denied';
+  | 'check_denied'
+  | 'event_cancelled'
+  | 'ban_lifted'
+  | 'tier_override';
 
 export interface INotification extends Document {
   userId: mongoose.Types.ObjectId;

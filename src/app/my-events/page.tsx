@@ -11,6 +11,7 @@ import { HiCalendar, HiLocationMarker, HiCheckCircle, HiClock } from 'react-icon
 import toast from 'react-hot-toast'
 import TitleSetter from '@/components/TitleSetter'
 import { RegistrationCardSkeleton } from '@/components/ui/Skeleton'
+import { Ban, Ticket, Printer, CheckCircle, Smartphone } from 'lucide-react'
 
 export default function MyEventsPage() {
   return (
@@ -42,6 +43,8 @@ function MyEventsContent() {
   const [activeTab, setActiveTab] = useState<'registered' | 'waitlisted'>(defaultTab as 'registered' | 'waitlisted')
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [resendingId, setResendingId] = useState<string | null>(null)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState<string | null>(null)
   const [banStatus, setBanStatus] = useState<{ isBanned: boolean; banReason?: string } | null>(null)
 
   // Waitlist leave modal state
@@ -71,7 +74,7 @@ function MyEventsContent() {
     } else if (confirm === 'invalid') {
       toast.error('Invalid or expired confirmation link.')
     } else if (confirm === 'already') {
-      toast('Already confirmed!', { icon: '✅' })
+      toast('Already confirmed!')
     }
   }, [searchParams])
 
@@ -90,6 +93,13 @@ function MyEventsContent() {
       setLoading(false)
     }
   }, [])
+
+  // Poll waitlist position every 10s when on waitlist tab
+  useEffect(() => {
+    if (activeTab !== 'waitlisted') return;
+    const id = setInterval(fetchRegistrations, 10_000);
+    return () => clearInterval(id);
+  }, [activeTab, fetchRegistrations]);
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/auth/login'); return }
@@ -148,6 +158,28 @@ function MyEventsContent() {
     }
   }
 
+  const handleCancel = async (eventId: string) => {
+    setCancellingId(eventId);
+    try {
+      const res = await fetch('/api/register', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+
+      if (res.status === 400 && data.code === 'PAID_NON_REFUNDABLE') {
+        toast.error('Paid registrations cannot be cancelled. Contact admin.');
+        return;
+      }
+      if (!res.ok) { toast.error(data.error ?? 'Cancellation failed'); return; }
+
+      toast.success('Registration cancelled');
+      await fetchRegistrations();
+    } catch { toast.error('Something went wrong'); }
+    finally { setCancellingId(null); setShowCancelConfirm(null); }
+  };
+
   function openLeaveModal(eventId: string, eventTitle: string, position: number | null) {
     setLeaveModal({ open: true, eventId, eventTitle, position, loading: false })
   }
@@ -203,7 +235,7 @@ function MyEventsContent() {
             <div className="mb-6 p-4 rounded-2xl"
                  style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <div className="flex items-start gap-3">
-                <span className="text-xl">🚫</span>
+                <Ban size={24} className="text-red-400 flex-shrink-0" />
                 <div>
                   <p className="font-semibold text-red-400 mb-1">Account Restricted</p>
                   <p className="text-sm" style={{ color: '#94a3b8' }}>
@@ -248,7 +280,7 @@ function MyEventsContent() {
           ) : activeTab === 'registered' ? (
             registrations.length === 0 ? (
               <div className="text-center py-20">
-                <div className="text-6xl mb-4">🎫</div>
+                <Ticket size={48} className="text-gray-600 mx-auto mb-4" />
                 <h3 className="font-display font-bold text-2xl mb-2">No registrations yet</h3>
                 <p className="text-gray-400 mb-6">Browse events and register to see them here</p>
                 <button onClick={() => router.push('/events')} className="px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-semibold transition-colors">
@@ -318,7 +350,7 @@ function MyEventsContent() {
                           {/* Consequence warning for pending confirmation */}
                           {!reg.confirmed && !reg.checkedIn && !isPaid && reg.reviewStatus !== 'denied' && (
                             <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                              <p className="text-amber-400 font-semibold mb-1">⚠️ Confirmation required</p>
+                              <p className="text-amber-400 font-semibold mb-1">Confirmation required</p>
                               <p className="text-gray-400">
                                 You must confirm your attendance before the event. If you don&apos;t confirm, your spot will be automatically released to the next student on the waitlist 2 hours before the event starts.
                               </p>
@@ -328,14 +360,58 @@ function MyEventsContent() {
                           {/* Denied info */}
                           {reg.reviewStatus === 'denied' && (
                             <div className="mt-3 p-3 rounded-xl text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                              <p className="text-red-400 font-semibold mb-1">⛔ Check-in denied</p>
+                              <p className="text-red-400 font-semibold mb-1">Check-in denied</p>
                               {reg.flagReason && (
-                                <p className="text-gray-400 mb-1">Reason: {reg.flagReason}</p>
+                                <p className="text-gray-300 mb-1">Reason: {reg.flagReason}</p>
                               )}
                               {reg.adminNote && (
-                                <p className="text-gray-400">{reg.adminNote}</p>
+                                <p className="text-red-300">{reg.adminNote}</p>
                               )}
                             </div>
+                          )}
+
+                          {/* Attendance confirmed indicator */}
+                          {reg.confirmed && !reg.checkedIn && (
+                            <div className="flex items-center gap-1.5 mt-1" style={{ color: '#14b8a6' }}>
+                              <CheckCircle size={12} />
+                              <span className="text-xs font-medium">Attendance confirmed</span>
+                            </div>
+                          )}
+
+                          {/* Cancel registration — only if NOT confirmed */}
+                          {!isPaid && !reg.confirmed && !reg.checkedIn && reg.eventId?.date && new Date(reg.eventId.date) > new Date() && reg.reviewStatus !== 'denied' && (
+                            <>
+                              {showCancelConfirm === reg.eventId._id ? (
+                                <div className="flex items-center gap-2 mt-3">
+                                  <span className="text-xs" style={{ color: '#94a3b8' }}>Cancel registration?</span>
+                                  <button onClick={() => handleCancel(reg.eventId._id)}
+                                    disabled={cancellingId === reg.eventId._id}
+                                    className="text-xs px-2 py-1 rounded-lg"
+                                    style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171',
+                                             border: '1px solid rgba(239,68,68,0.2)' }}>
+                                    {cancellingId === reg.eventId._id ? 'Cancelling...' : 'Yes, cancel'}
+                                  </button>
+                                  <button onClick={() => setShowCancelConfirm(null)}
+                                    className="text-xs px-2 py-1 rounded-lg"
+                                    style={{ background: 'rgba(255,255,255,0.05)', color: '#94a3b8',
+                                             border: '1px solid rgba(255,255,255,0.08)' }}>
+                                    Keep it
+                                  </button>
+                                </div>
+                              ) : (
+                                <button onClick={() => setShowCancelConfirm(reg.eventId._id)}
+                                  className="text-xs mt-2 font-medium px-3 py-1.5 rounded-lg transition-all"
+                                  style={{
+                                    color: '#f87171',
+                                    background: 'rgba(239,68,68,0.08)',
+                                    border: '1px solid rgba(239,68,68,0.15)',
+                                  }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.15)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}>
+                                  Cancel registration
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
 
@@ -346,21 +422,42 @@ function MyEventsContent() {
                               Check-in denied
                             </span>
                           ) : reg.qrCode || isPaid ? (
-                            <>
+                            <div className="flex gap-2">
                               <button
                                 onClick={() => router.push(`/my-events/checkin/${reg.registrationId}`)}
-                                className="px-5 py-2.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-xl text-sm font-semibold transition-all"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                style={{
+                                  background: 'rgba(20,184,166,0.1)',
+                                  border: '1px solid rgba(20,184,166,0.25)',
+                                  color: '#2dd4bf',
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(20,184,166,0.18)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(20,184,166,0.1)')}
                               >
-                                📱 Open Ticket
+                                <Smartphone size={15} />
+                                Open Ticket
                               </button>
                               <a
                                 href={`/my-events/ticket/${reg.registrationId}`}
-                                className="text-xs text-gray-500 hover:text-teal-400 transition-colors flex items-center justify-center gap-1"
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                                style={{
+                                  background: 'rgba(255,255,255,0.04)',
+                                  border: '1px solid rgba(255,255,255,0.08)',
+                                  color: '#94a3b8',
+                                }}
+                                onMouseEnter={e => {
+                                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
+                                  (e.currentTarget as HTMLElement).style.color = '#2dd4bf';
+                                }}
+                                onMouseLeave={e => {
+                                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                                  (e.currentTarget as HTMLElement).style.color = '#94a3b8';
+                                }}
                               >
-                                <span>🖨</span>
-                                <span>Print ticket</span>
+                                <Printer size={14} />
+                                Print
                               </a>
-                            </>
+                            </div>
                           ) : isPaid ? (
                             <span className="px-4 py-2 text-xs text-gray-500 bg-gray-500/10 border border-gray-500/20 rounded-xl block text-center">
                               QR after confirmation
@@ -369,7 +466,7 @@ function MyEventsContent() {
                             <>
                               {reg.confirmed && (
                                 <div className="flex items-center gap-1.5 text-teal-400 text-sm font-medium">
-                                  <span>✓</span>
+                                  <CheckCircle size={14} />
                                   <span>Confirmed</span>
                                 </div>
                               )}

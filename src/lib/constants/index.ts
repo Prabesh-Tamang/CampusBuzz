@@ -37,9 +37,14 @@ export const TIER_CONFIG: Record<EngagementTierType, {
   confirmationWindowHours: number;
   waitlistMultiplier: number;
   waitlistPenaltyHours: number;
+  tierBasePriorityHours: number;
   color: string;
   bgColor: string;
   borderColor: string;
+  minAttended: number;
+  minAttendanceRate: number;
+  minRecentRate: number;
+  maxWaitlistAbandon: number;
 }> = {
   champion: {
     label: 'Champion',
@@ -47,9 +52,14 @@ export const TIER_CONFIG: Record<EngagementTierType, {
     confirmationWindowHours: 48,
     waitlistMultiplier: 2,
     waitlistPenaltyHours: 0,
+    tierBasePriorityHours: 48,
     color: 'text-amber-400',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-amber-500/20',
+    minAttended: 8,
+    minAttendanceRate: 0.70,
+    minRecentRate: 0.60,
+    maxWaitlistAbandon: 0.20,
   },
   regular: {
     label: 'Regular',
@@ -57,9 +67,14 @@ export const TIER_CONFIG: Record<EngagementTierType, {
     confirmationWindowHours: 24,
     waitlistMultiplier: 1,
     waitlistPenaltyHours: 0,
+    tierBasePriorityHours: 24,
     color: 'text-teal-400',
     bgColor: 'bg-teal-500/10',
     borderColor: 'border-teal-500/20',
+    minAttended: 3,
+    minAttendanceRate: 0.40,
+    minRecentRate: 0.00,
+    maxWaitlistAbandon: 0.50,
   },
   new: {
     label: 'New',
@@ -67,9 +82,14 @@ export const TIER_CONFIG: Record<EngagementTierType, {
     confirmationWindowHours: 24,
     waitlistMultiplier: 0,
     waitlistPenaltyHours: 0,
+    tierBasePriorityHours: 0,
     color: 'text-blue-400',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-blue-500/20',
+    minAttended: 0,
+    minAttendanceRate: 0.00,
+    minRecentRate: 0.00,
+    maxWaitlistAbandon: 1.00,
   },
   unreliable: {
     label: 'Low History',
@@ -77,9 +97,14 @@ export const TIER_CONFIG: Record<EngagementTierType, {
     confirmationWindowHours: 12,
     waitlistMultiplier: 0,
     waitlistPenaltyHours: 2,
+    tierBasePriorityHours: -2,
     color: 'text-orange-400',
     bgColor: 'bg-orange-500/10',
     borderColor: 'border-orange-500/20',
+    minAttended: 0,
+    minAttendanceRate: 0.00,
+    minRecentRate: 0.00,
+    maxWaitlistAbandon: 1.00,
   },
 };
 
@@ -94,19 +119,28 @@ export const ML_THRESHOLDS = {
   },
   reliability: {
     unreliableAnomalyScore: 0.70,
-    championMinAttendance: 0.70,
-    regularMinAttendance: 0.40,
     unreliableMaxAttendance: 0.25,
-    unreliableMaxWaitlistAbandon: 0.50,
     unreliableMaxBulkRegistrations: 6,
     minRegistrationsToScore: 3,
     minStudentsToTrain: 10,
     retrainAfter: 50,
+    recentWindowSize: 5,
+    maxCancellationRate: 0.50,
+    maxResponseTimeHours: 40,
+    minWaitlistConversion: 0.30,
   },
 } as const;
 
 export const WAITLIST_CONFIG = {
   HOUR_DISCOUNT_MS: 3_600_000,
+  showTierWarningAbove: 0,
+} as const;
+
+export const CONFIRMATION_CONFIG = {
+  autoTriggerDaysBefore: 3,
+  manualTriggerMaxDays: 14,
+  minHoursBeforeEvent: 2,
+  rejoinPenaltyHours: 4,
 } as const;
 
 export const RECOMMENDATION_CONFIG = {
@@ -128,11 +162,16 @@ export const SESSION_CONFIG = {
   MAX_AGE_SECONDS: 24 * 60 * 60,
 } as const;
 
-export const QR_CONFIG = {
-  CHECKIN_WINDOW_BEFORE_MS: 30 * 60 * 1000,
-  CHECKIN_WINDOW_AFTER_MS:  2  * 60 * 60 * 1000,
-  STALE_AFTER_DAYS: 7,
+export const TIME_UNITS = {
+  HOUR_MS: 60 * 60 * 1000,
+  DAY_MS:  24 * 60 * 60 * 1000,
 } as const;
+
+// export const QR_CONFIG = {
+//   CHECKIN_WINDOW_BEFORE_MS: 30 * 60 * 1000,
+//   CHECKIN_WINDOW_AFTER_MS:  2 * TIME_UNITS.HOUR_MS,
+//   STALE_AFTER_DAYS: 7,
+// } as const;
 
 export const PAGINATION = {
   EVENTS_PER_PAGE: 12,
@@ -173,7 +212,7 @@ export const REGISTRATION_ID_PREFIX = 'CP-';
 // TIP: `git stash` before deploying to revert instantly
 // ─────────────────────────────────────────────────────────────────────────────
 
-/*
+
 // ═══════════════════ TESTING VALUES (uncomment to use) ═══════════════════════
 
 // Confirmation windows shrunk to minutes for rapid testing
@@ -184,10 +223,10 @@ export const TIER_CONFIRMATION_WINDOWS = {
   unreliable: 0.0083, // ~30 seconds (production: 12h)
 } as const;
 
-// Session expires in 2 minutes instead of 24 hours
-export const SESSION_CONFIG = {
-  MAX_AGE_SECONDS: 120,
-} as const;
+// Session expires in 1 minutes instead of 24 hours
+// export const SESSION_CONFIG = {
+//   MAX_AGE_SECONDS: 60,
+// } as const;
 
 // QR windows shrunk for rapid check-in testing
 export const QR_CONFIG = {
@@ -197,4 +236,4 @@ export const QR_CONFIG = {
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════════════
-*/
+

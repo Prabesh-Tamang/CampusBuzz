@@ -16,14 +16,14 @@ jest.mock('qrcode', () => ({
 }));
 
 const mockCountDocuments = jest.fn();
-const mockRegistrationCreate = jest.fn();
+const mockRegistrationFindOneAndUpdate = jest.fn();
 const mockRegistrationFindOne = jest.fn();
 
 jest.mock('@/models/Registration', () => ({
   __esModule: true,
   default: {
     countDocuments: mockCountDocuments,
-    create: mockRegistrationCreate,
+    findOneAndUpdate: mockRegistrationFindOneAndUpdate,
     findOne: mockRegistrationFindOne,
   },
 }));
@@ -60,7 +60,12 @@ jest.mock('@/models/User', () => ({
   __esModule: true,
   default: {
     findById: jest.fn().mockReturnValue({
-      select: jest.fn().mockResolvedValue({ email: 'test@test.com', name: 'Test' }),
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ email: 'test@test.com', name: 'Test', engagementTier: 'regular' }),
+        then: jest.fn().mockImplementation((resolve: (value: unknown) => void) => {
+          resolve({ email: 'test@test.com', name: 'Test' });
+        }),
+      }),
     }),
   },
 }));
@@ -171,25 +176,27 @@ describe('promoteTopWaitlistUser', () => {
     });
 
     mockWaitlistDeleteOne.mockResolvedValue({ deletedCount: 1 });
-    mockRegistrationCreate.mockResolvedValue([{ _id: 'reg1' }]);
+    mockRegistrationFindOneAndUpdate.mockResolvedValue({ _id: 'reg1', registrationId: 'CP-TEST' });
     mockEventFindByIdAndUpdate.mockResolvedValue({ registeredCount: 1 });
     mockEventFindById.mockReturnValue({
       select: jest.fn().mockResolvedValue({ title: 'Test Event', date: new Date(), venue: 'Hall A' }),
     });
   });
 
-  test('calls Registration.create when promoting top user', async () => {
+  test('calls Registration.findOneAndUpdate with upsert when promoting top user', async () => {
     const { promoteTopWaitlistUser } = await import('@/lib/algorithms/waitlistManager');
     await promoteTopWaitlistUser(eventId);
 
-    expect(mockRegistrationCreate).toHaveBeenCalledTimes(1);
-    const [docs] = mockRegistrationCreate.mock.calls[0];
-    expect(docs[0]).toMatchObject({
-      userId: 'user1',
-      eventId,
-      checkedIn: false,
+    expect(mockRegistrationFindOneAndUpdate).toHaveBeenCalledTimes(1);
+    const [filter, update, options] = mockRegistrationFindOneAndUpdate.mock.calls[0];
+    expect(filter).toMatchObject({ userId: 'user1', eventId });
+    expect(update.$set).toMatchObject({
+      confirmed: true,
+      confirmationEmailSent: true,
+      promotedFromWaitlist: true,
     });
-    expect(docs[0].registrationId).toMatch(/^CP-/);
+    expect(update.$set.registrationId).toMatch(/^CP-/);
+    expect(options).toMatchObject({ upsert: true, new: true, session: mockSession });
   });
 
   test('calls Event.findByIdAndUpdate with $inc registeredCount', async () => {
@@ -231,12 +238,12 @@ describe('promoteTopWaitlistUser', () => {
     const { promoteTopWaitlistUser } = await import('@/lib/algorithms/waitlistManager');
     await expect(promoteTopWaitlistUser(eventId)).resolves.toBeUndefined();
 
-    expect(mockRegistrationCreate).not.toHaveBeenCalled();
+    expect(mockRegistrationFindOneAndUpdate).not.toHaveBeenCalled();
     expect(mockWaitlistDeleteOne).not.toHaveBeenCalled();
   });
 
   test('aborts transaction and rethrows on DB error', async () => {
-    mockRegistrationCreate.mockRejectedValue(new Error('DB write failed'));
+    mockRegistrationFindOneAndUpdate.mockRejectedValue(new Error('DB write failed'));
 
     const { promoteTopWaitlistUser } = await import('@/lib/algorithms/waitlistManager');
     await expect(promoteTopWaitlistUser(eventId)).rejects.toThrow('DB write failed');

@@ -8,8 +8,11 @@ let checkinsSinceRetrain = 0;
 let trainingCount = 0;
 
 export async function trainModel(): Promise<void> {
-  const checkins = await Registration.find({ checkedIn: true, adminOverride: { $ne: true } })
-    .populate('eventId', 'category date')
+  const checkins = await Registration.find({
+    checkedIn: true,
+    adminOverride: { $ne: true },
+  })
+    .populate('eventId', 'category date isActive isCancelled')
     .lean();
 
   const featureVectors: number[][] = [];
@@ -17,7 +20,7 @@ export async function trainModel(): Promise<void> {
   for (const reg of checkins) {
     try {
       const event = reg.eventId as any;
-      if (!event) continue;
+      if (!event || event.isCancelled || event.isActive === false) continue;
       const features = await extractFeatures({
         userId: reg.userId.toString(),
         eventId: reg.eventId.toString(),
@@ -27,8 +30,8 @@ export async function trainModel(): Promise<void> {
         checkinTime: reg.checkedInAt!,
       });
       featureVectors.push(features);
-    } catch {
-      // Skip malformed records
+    } catch (err) {
+      console.warn('[IsolationForest] Skipping malformed check-in record:', err);
     }
   }
 
@@ -37,11 +40,17 @@ export async function trainModel(): Promise<void> {
     return;
   }
 
-  model = new IsolationForest(100, 256);
+  model = new IsolationForest(ML_THRESHOLDS.checkin.numTrees, ML_THRESHOLDS.checkin.subsampleSize);
   model.train(featureVectors);
   trainingCount = featureVectors.length;
   checkinsSinceRetrain = 0;
   console.log(`[IsolationForest] Trained on ${featureVectors.length} samples`);
+}
+
+export async function ensureModelTraining(): Promise<void> {
+  if (!model || !model.isTrained) {
+    await trainModel();
+  }
 }
 
 export async function getModel(): Promise<IsolationForest | null> {
@@ -52,6 +61,8 @@ export async function getModel(): Promise<IsolationForest | null> {
 export function isModelReady(): boolean {
   return model !== null && model.isTrained && trainingCount >= ML_THRESHOLDS.checkin.minTrainSamples;
 }
+
+export { ensureModelTraining as ensureCheckinModel };
 
 export function recordCheckin(): void {
   checkinsSinceRetrain++;

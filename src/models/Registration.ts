@@ -65,7 +65,7 @@ const RegistrationSchema = new Schema<IRegistration>(
 RegistrationSchema.index({ userId: 1, eventId: 1 }, { unique: true });
 RegistrationSchema.index({ eventId: 1, checkedIn: 1 });
 RegistrationSchema.index({ flagged: 1, reviewedAt: 1 });
-RegistrationSchema.index({ paymentStatus: 1 });
+
 RegistrationSchema.index({ anomalyScore: 1 });
 
 export default mongoose.models.Registration ||

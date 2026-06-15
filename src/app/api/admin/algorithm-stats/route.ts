@@ -28,6 +28,7 @@ export async function GET() {
       totalCheckins,
       tierDistribution,
       reliabilityAvg,
+      eligibleReliabilityStudents,
     ] = await Promise.all([
       Registration.countDocuments({}),
       Registration.distinct('userId'),
@@ -49,6 +50,12 @@ export async function GET() {
         { $match: { role: 'student', reliabilityScore: { $ne: null } } },
         { $group: { _id: null, avg: { $avg: '$reliabilityScore' } } },
       ]),
+      // Count students with 3+ registrations (eligible for reliability scoring)
+      Registration.aggregate([
+        { $group: { _id: '$userId', count: { $sum: 1 } } },
+        { $match: { count: { $gte: 3 } } },
+        { $count: 'total' },
+      ]).then(r => r[0]?.total ?? 0),
     ]);
 
     const tierMap: Record<string, number> = { champion: 0, regular: 0, new: 0, unreliable: 0 };
@@ -56,17 +63,18 @@ export async function GET() {
       tierMap[t._id] = t.count;
     }
 
+    // Ensure models are trained before reading stats
+    const { ensureCheckinModel, getModelStats } = await import('@/lib/ml/modelManager');
+    await ensureCheckinModel().catch(() => {});
+    const mlStats = getModelStats();
+
+    const { ensureReliabilityTraining, getReliabilityModelStats } = await import('@/lib/ml/reliabilityScoring');
+    await ensureReliabilityTraining().catch(() => {});
+    const relStats = getReliabilityModelStats();
+
     // Get cache stats
     const { recommendationCache } = await import('@/lib/recommendations/recommendationCache');
     const cacheStats = recommendationCache.stats();
-
-    // Get ML model stats
-    const { getModelStats } = await import('@/lib/ml/modelManager');
-    const mlStats = getModelStats();
-
-    // Get reliability model stats
-    const { getReliabilityModelStats } = await import('@/lib/ml/reliabilityScoring');
-    const relStats = getReliabilityModelStats();
 
     return NextResponse.json({
       collaborativeFiltering: {
@@ -91,9 +99,12 @@ export async function GET() {
       reliability: {
         trained: relStats.trained,
         trainingCount: relStats.trainingCount,
+        totalStudents: await User.countDocuments({ role: 'student' }),
         tierDistribution: tierMap,
         averageScore: reliabilityAvg.length > 0 ? Math.round(reliabilityAvg[0].avg) : null,
         status: relStats.trained ? 'active' : 'warming_up',
+        minStudentsNeeded: 10,
+        eligibleStudents: eligibleReliabilityStudents,
       },
     });
   } catch (err) {

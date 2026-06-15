@@ -15,8 +15,8 @@
 // Mocks — declared before imports
 // ---------------------------------------------------------------------------
 
-// Track calls to Registration.create
-const mockRegistrationCreate = jest.fn();
+// Track calls to Registration.findOneAndUpdate (upsert)
+const mockRegistrationUpsert = jest.fn();
 // Track calls to Event.findById (with session)
 const mockEventFindById = jest.fn();
 // Track calls to Event.findByIdAndUpdate (increment registeredCount)
@@ -29,7 +29,10 @@ const mockPaymentFindByIdAndUpdate = jest.fn();
 jest.mock('@/models/Registration', () => ({
   __esModule: true,
   default: {
-    create: (...args: unknown[]) => mockRegistrationCreate(...args),
+    create: jest.fn(),
+    findOne: jest.fn().mockResolvedValue(null),
+    findOneAndUpdate: (...args: unknown[]) => mockRegistrationUpsert(...args),
+    findByIdAndUpdate: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -160,7 +163,7 @@ describe('Property 2 — completeRegistration failure leaves no partial state', 
       completeRegistration('payment-id-1', 'user-id-1', 'event-id-1')
     ).rejects.toThrow('Event is full');
 
-    expect(mockRegistrationCreate).not.toHaveBeenCalled();
+    expect(mockRegistrationUpsert).not.toHaveBeenCalled();
   });
 
   test('does NOT increment event.registeredCount when event is at capacity', async () => {
@@ -212,7 +215,7 @@ describe('Property 2 — completeRegistration failure leaves no partial state', 
       completeRegistration('nonexistent-payment', 'user-id-1', 'event-id-1')
     ).rejects.toThrow('Payment not completed');
 
-    expect(mockRegistrationCreate).not.toHaveBeenCalled();
+    expect(mockRegistrationUpsert).not.toHaveBeenCalled();
     expect(mockEventFindByIdAndUpdate).not.toHaveBeenCalled();
   });
 
@@ -223,7 +226,7 @@ describe('Property 2 — completeRegistration failure leaves no partial state', 
       completeRegistration('payment-id-1', 'user-id-1', 'event-id-1')
     ).rejects.toThrow('Payment not completed');
 
-    expect(mockRegistrationCreate).not.toHaveBeenCalled();
+    expect(mockRegistrationUpsert).not.toHaveBeenCalled();
     expect(mockEventFindByIdAndUpdate).not.toHaveBeenCalled();
   });
 
@@ -258,7 +261,7 @@ describe('Property 2 — completeRegistration failure leaves no partial state', 
       ).rejects.toThrow();
 
       // Invariant: no Registration created, no count increment, transaction aborted
-      expect(mockRegistrationCreate).not.toHaveBeenCalled();
+      expect(mockRegistrationUpsert).not.toHaveBeenCalled();
       expect(mockEventFindByIdAndUpdate).not.toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ $inc: { registeredCount: 1 } }),
@@ -288,7 +291,7 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
     mockEventFindById.mockReturnValue({
       session: jest.fn().mockResolvedValue(makeEvent({ capacity, registeredCount })),
     });
-    mockRegistrationCreate.mockResolvedValue(makeRegistration());
+    mockRegistrationUpsert.mockResolvedValue({ _id: 'reg-id-1', registrationId: 'CP-ABCDEF1234567890', qrCode: 'data:image/png;base64,MOCK_QR' });
     mockEventFindByIdAndUpdate.mockResolvedValue({ registeredCount: registeredCount + 1 });
     mockPaymentFindByIdAndUpdate.mockResolvedValue({});
   }
@@ -298,15 +301,16 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
 
     await completeRegistration('payment-id-1', 'user-id-1', 'event-id-1');
 
-    expect(mockRegistrationCreate).toHaveBeenCalledTimes(1);
-    expect(mockRegistrationCreate).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
+    expect(mockRegistrationUpsert).toHaveBeenCalledTimes(1);
+    expect(mockRegistrationUpsert).toHaveBeenCalledWith(
+      { userId: 'user-id-1', eventId: 'event-id-1' },
+      expect.objectContaining({
+        $setOnInsert: expect.objectContaining({
           userId: 'user-id-1',
           eventId: 'event-id-1',
           paymentId: 'payment-id-1',
         }),
-      ]),
+      }),
       expect.objectContaining({ session: mockSession })
     );
   });
@@ -350,7 +354,7 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
     await completeRegistration('payment-id-1', 'user-id-1', 'event-id-1');
 
     // All three must happen — none can be missing
-    expect(mockRegistrationCreate).toHaveBeenCalledTimes(1);
+    expect(mockRegistrationUpsert).toHaveBeenCalledTimes(1);
     expect(mockEventFindByIdAndUpdate).toHaveBeenCalledTimes(1);
     expect(mockPaymentFindByIdAndUpdate).toHaveBeenCalledTimes(1);
     expect(mockCommitTransaction).toHaveBeenCalledTimes(1);
@@ -379,7 +383,7 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
       await completeRegistration('payment-id-1', 'user-id-1', 'event-id-1');
 
       // Invariant: all three side-effects must occur
-      expect(mockRegistrationCreate).toHaveBeenCalledTimes(1);
+      expect(mockRegistrationUpsert).toHaveBeenCalledTimes(1);
       expect(mockEventFindByIdAndUpdate).toHaveBeenCalledWith(
         'event-id-1',
         { $inc: { registeredCount: 1 } },
@@ -396,9 +400,9 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
 
     await completeRegistration('payment-id-1', 'user-id-1', 'event-id-1');
 
-    const createCall = mockRegistrationCreate.mock.calls[0][0];
-    const registrationDoc = createCall[0];
-    expect(registrationDoc.registrationId).toMatch(/^CP-/);
+    const upsertCall = mockRegistrationUpsert.mock.calls[0];
+    const setOnInsert = upsertCall[1].$setOnInsert;
+    expect(setOnInsert.registrationId).toMatch(/^CP-/);
   });
 
   test('Registration document contains a qrCode', async () => {
@@ -406,9 +410,9 @@ describe('Property 2 — completeRegistration success path is fully atomic', () 
 
     await completeRegistration('payment-id-1', 'user-id-1', 'event-id-1');
 
-    const createCall = mockRegistrationCreate.mock.calls[0][0];
-    const registrationDoc = createCall[0];
-    expect(registrationDoc.qrCode).toBeTruthy();
+    const upsertCall = mockRegistrationUpsert.mock.calls[0];
+    const setOnInsert = upsertCall[1].$setOnInsert;
+    expect(setOnInsert.qrCode).toBeTruthy();
   });
 
   test('session is always ended regardless of success or failure', async () => {

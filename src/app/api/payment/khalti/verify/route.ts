@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     await dbConnect();
     const { paymentId, pidx, transactionId, amount } = await req.json();
 
-    const payment = await Payment.findById(paymentId);
+    const payment: any = await Payment.findById(paymentId).lean();
     if (!payment) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }

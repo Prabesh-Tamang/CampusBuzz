@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { HiCheckCircle, HiXCircle, HiQrcode, HiRefresh, HiCheck, HiClock, HiCamera } from 'react-icons/hi'
 import TitleSetter from '@/components/TitleSetter'
+import { AlertTriangle } from 'lucide-react'
 
 export default function ScannerPage() {
   const { data: session, status } = useSession()
@@ -85,8 +86,8 @@ export default function ScannerPage() {
         setResult({
           type: data.blocked ? 'blocked' : 'flagged',
           message: data.blocked
-            ? '🚫 Access Blocked — Review in Flagged Section'
-            : '⚠ Held for Review — Check Flagged Section',
+            ? 'Access Blocked — Review in Flagged Section'
+            : 'Held for Review — Check Flagged Section',
           anomalyScore: data.anomalyScore,
           requiresReview: true,
         })
@@ -96,7 +97,7 @@ export default function ScannerPage() {
 
       if (res.ok) {
         setResult({ success: true, ...data })
-        if (data.success) toast.success(`✅ ${data.registration?.attendeeName} checked in!`)
+        if (data.success) toast.success(`${data.registration?.attendeeName} checked in!`)
       } else {
         setResult({
           success: false,
@@ -107,7 +108,7 @@ export default function ScannerPage() {
           registration: data.registration || null,
           anomalyScore: data.anomalyScore ?? null,
         })
-        if (data.eventEnded) toast.error('⏰ Event has already ended')
+        if (data.eventEnded) toast.error('Event has already ended')
       }
     } catch {
       toast.error('Failed to process QR code')
@@ -262,7 +263,7 @@ export default function ScannerPage() {
                           'bg-yellow-500/10 border-yellow-500/30'
                         }`}>
                           <div className="flex items-center gap-2">
-                            <span className="text-xl">⚠️</span>
+                            <AlertTriangle size={20} className="text-amber-400 flex-shrink-0" />
                             <div>
                               <span className="block text-white font-bold">
                                 {result.anomalyScore >= 0.8 ? 'High Risk — Verify ID' :

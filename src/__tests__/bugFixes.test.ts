@@ -40,6 +40,12 @@ jest.mock('@/models/User', () => ({
   default: {
     create: (...args: unknown[]) => mockUserCreate(...args),
     findOne: (...args: unknown[]) => mockUserFindOne(...args),
+    findById: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
+      }),
+      lean: jest.fn().mockResolvedValue(null),
+    }),
   },
 }));
 
@@ -87,6 +93,26 @@ jest.mock('@/lib/ml/isolationForest', () => ({
 jest.mock('@/lib/ml/checkinFeatures', () => ({
   extractFeatures: jest.fn().mockResolvedValue([0, 0, 0, 0, 0, 0]),
 }));
+
+// Mock mongoose session/transaction (needed for register route)
+const mockCommitTransaction = jest.fn().mockResolvedValue(undefined);
+const mockAbortTransaction = jest.fn().mockResolvedValue(undefined);
+const mockEndSession = jest.fn().mockResolvedValue(undefined);
+
+const mockMongoSession = {
+  startTransaction: jest.fn(),
+  commitTransaction: mockCommitTransaction,
+  abortTransaction: mockAbortTransaction,
+  endSession: mockEndSession,
+};
+
+jest.mock('mongoose', () => {
+  const actual = jest.requireActual('mongoose');
+  return {
+    ...actual,
+    startSession: jest.fn().mockResolvedValue(mockMongoSession),
+  };
+});
 
 // ---------------------------------------------------------------------------
 // Imports (after mocks)
@@ -165,7 +191,7 @@ describe('FIX-02: Atomic check-in prevents double check-in', () => {
 describe('FIX-01: Signup never assigns admin role', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUserFindOne.mockResolvedValue(null); // no existing user
+    mockUserFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }); // no existing user
     mockUserCreate.mockResolvedValue({ _id: 'user123', role: 'student' });
   });
 
@@ -282,11 +308,13 @@ describe('FIX-03: Register route rejects paid events', () => {
     });
 
     // Mock event lookup returning a paid event
-    mockEventFindById.mockResolvedValue({
-      _id: 'event123',
-      feeType: 'paid',
-      title: 'Paid Workshop',
-      date: new Date(Date.now() + 86_400_000), // tomorrow
+    mockEventFindById.mockReturnValue({
+      lean: jest.fn().mockResolvedValue({
+        _id: 'event123',
+        feeType: 'paid',
+        title: 'Paid Workshop',
+        date: new Date(Date.now() + 86_400_000), // tomorrow
+      }),
     });
 
     const { POST } = await import('@/app/api/register/route');
@@ -308,18 +336,20 @@ describe('FIX-03: Register route rejects paid events', () => {
     });
 
     // Mock a free event that is in the future
-    mockEventFindById.mockResolvedValue({
-      _id: 'event456',
-      feeType: 'free',
-      title: 'Free Seminar',
-      date: new Date(Date.now() + 86_400_000),
-      venue: 'Hall A',
-      capacity: 100,
-      registeredCount: 0,
+    mockEventFindById.mockReturnValue({
+      lean: jest.fn().mockResolvedValue({
+        _id: 'event456',
+        feeType: 'free',
+        title: 'Free Seminar',
+        date: new Date(Date.now() + 86_400_000),
+        venue: 'Hall A',
+        capacity: 100,
+        registeredCount: 0,
+      }),
     });
 
     // No existing registration
-    mockFindOne.mockResolvedValue(null);
+    mockFindOne.mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
 
     const { POST } = await import('@/app/api/register/route');
 

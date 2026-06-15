@@ -58,6 +58,7 @@ EventSchema.index({ isActive: 1, date: 1 });
 EventSchema.index({ isCancelled: 1 });
 EventSchema.index({ createdBy: 1 });
 EventSchema.index({ registeredCount: -1 });
+EventSchema.index({ category: 1, date: 1 });
 
 EventSchema.pre('save', function (next) {
   if (this.endDate <= this.date) {
