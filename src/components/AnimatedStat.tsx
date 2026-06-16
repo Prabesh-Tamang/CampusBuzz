@@ -8,6 +8,8 @@ export default function AnimatedStat({
   const [display, setDisplay] = useState(targetValue);
   const ref = useRef<HTMLDivElement>(null);
   const hasAnimated = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const numericTarget = parseInt(targetValue.replace(/[^0-9]/g, ''), 10);
   const suffix = targetValue.replace(/[0-9]/g, '');
@@ -28,25 +30,28 @@ export default function AnimatedStat({
       const duration = 1600;
       const steps = 50;
       const increment = numericTarget / steps;
-      const interval = duration / steps;
+      const animInterval = duration / steps;
       let current = 0;
 
-      const timer = setInterval(() => {
+      timerRef.current = setInterval(() => {
         current += increment;
         if (current >= numericTarget) {
           setDisplay(`${numericTarget}${suffix}`);
-          clearInterval(timer);
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
         } else {
           setDisplay(`${Math.round(current)}${suffix}`);
         }
-      }, interval);
+      }, animInterval);
     };
 
     const rect = el.getBoundingClientRect();
     const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
 
     if (isVisible) {
-      requestAnimationFrame(() => startAnimation());
+      rafRef.current = requestAnimationFrame(() => startAnimation());
     } else {
       const observer = new IntersectionObserver(
         ([entry]) => {
@@ -58,8 +63,29 @@ export default function AnimatedStat({
         { threshold: 0.2 }
       );
       observer.observe(el);
-      return () => observer.disconnect();
+      return () => {
+        observer.disconnect();
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
     }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
   }, [isNumeric, numericTarget, suffix]);
 
   return (

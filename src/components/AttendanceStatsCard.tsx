@@ -19,7 +19,7 @@ export default function AttendanceStatsCard() {
     fetch('/api/user/attendance-stats')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setStats(data); })
-      .catch(() => {})
+      .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 

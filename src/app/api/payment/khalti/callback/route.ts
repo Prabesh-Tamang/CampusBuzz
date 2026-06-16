@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const purchaseOrderId = searchParams.get('purchase_order_id');
   const transactionId = searchParams.get('transaction_id') || searchParams.get('tidx');
 
-  console.log('[Khalti callback] params:', { pidx, status, purchaseOrderId, transactionId });
+  console.log('[Khalti callback] status:', status, 'order:', purchaseOrderId?.slice(0, 8));
 
   await dbConnect();
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     });
 
     const lookupData = await lookupRes.json();
-    console.log('[Khalti lookup] response:', JSON.stringify(lookupData));
+    console.log('[Khalti lookup] status:', lookupData.status);
 
     if (!lookupRes.ok || lookupData.status !== 'Completed') {
       await Payment.findByIdAndUpdate(payment._id, { status: 'failed' });

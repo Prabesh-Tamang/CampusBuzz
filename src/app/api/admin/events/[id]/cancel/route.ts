@@ -66,8 +66,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               actionUrl: '/my-events',
               actionLabel: 'View my events',
               ttlHours: 72,
-            }).catch(() => {});
-          }).catch(() => {});
+            }).catch(err => console.error(err));
+          }).catch(err => console.error(err));
         }
         if (reg.userId && reg.userId.email) {
           sendCancellationEmail({

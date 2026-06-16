@@ -1,13 +1,14 @@
 'use client'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { motion } from 'framer-motion'
+import { cacheGet, cacheSet } from '@/lib/client-cache'
 import {
   ShieldCheck, TrendingUp, AlertTriangle, HelpCircle, ArrowLeft,
-  CheckCircle, XCircle, Clock, Activity, Loader2, Ticket, LogIn, ArrowUpRight,
+  CheckCircle, XCircle, Clock, Activity, Loader2, Ticket, ArrowUpRight,
 } from 'lucide-react'
 
 interface Metrics {
@@ -76,6 +77,21 @@ export default function MyReliabilityPage() {
   const [activityHasMore, setActivityHasMore] = useState(false)
   const [activityLoading, setActivityLoading] = useState(false)
 
+  // Hydrate from cache before first paint (synchronous)
+  useLayoutEffect(() => {
+    const cached = cacheGet<any>('my_reliability')
+    if (cached) {
+      setTier(cached.tier)
+      setScore(cached.score)
+      setMetrics(cached.metrics)
+      setBenefits(cached.benefits)
+      setScoreHistory(cached.scoreHistory ?? [])
+      setImprovementTip(cached.improvementTip ?? '')
+      setModelActive(cached.modelActive ?? false)
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -93,8 +109,9 @@ export default function MyReliabilityPage() {
         setScoreHistory(d.scoreHistory ?? [])
         setImprovementTip(d.improvementTip ?? '')
         setModelActive(d.modelActive ?? false)
+        cacheSet('my_reliability', d, 300_000)
       })
-      .catch(() => {})
+      .catch(err => console.error(err))
       .finally(() => setLoading(false))
   }, [status, router])
 

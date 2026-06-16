@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     void import('@/lib/reminders').then(({ autoTriggerConfirmations, sendPendingReminders }) => {
       autoTriggerConfirmations();
       sendPendingReminders();
-    }).catch(() => {});
+    }).catch(err => console.error(err));
 
     return NextResponse.json(events);
   } catch (err) {

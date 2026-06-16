@@ -10,6 +10,26 @@ import { WAITLIST_CONFIG, TIER_CONFIG, CONFIRMATION_CONFIG } from '@/lib/constan
 import { updateStudentReliability } from '@/lib/ml/reliabilityScoring';
 import { logActivity } from '@/lib/activityLog';
 
+function computeScoreInline(
+  userId: string,
+  joinedAt: Date,
+  wasPromotedBefore: boolean,
+  engagementTier: string,
+  attendanceCount: number
+): number {
+  const tier = (engagementTier ?? 'new') as keyof typeof TIER_CONFIG;
+  const tierConfig = TIER_CONFIG[tier];
+
+  let score = joinedAt.getTime();
+  score -= tierConfig.tierBasePriorityHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+  score -= attendanceCount * WAITLIST_CONFIG.HOUR_DISCOUNT_MS * tierConfig.waitlistMultiplier;
+  score += tierConfig.waitlistPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+  if (wasPromotedBefore) {
+    score += CONFIRMATION_CONFIG.rejoinPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
+  }
+  return score;
+}
+
 export async function computePriorityScore(
   userId: string,
   joinedAt: Date,
@@ -18,34 +38,14 @@ export async function computePriorityScore(
   const user = await User.findById(userId)
     .select('engagementTier')
     .lean() as any;
-
   const tier = (user?.engagementTier ?? 'new') as keyof typeof TIER_CONFIG;
-  const tierConfig = TIER_CONFIG[tier];
-  const multiplier = tierConfig.waitlistMultiplier;
-  const penaltyHours = tierConfig.waitlistPenaltyHours;
-  const basePriorityHours = tierConfig.tierBasePriorityHours;
 
   const attendanceCount = await Registration.countDocuments({
     userId,
     checkedIn: true,
   });
 
-  let score = joinedAt.getTime();
-
-  // Tier base priority — higher-tier students get a head start
-  score -= basePriorityHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
-
-  // Attendance-based discount — scales by tier multiplier
-  score -= attendanceCount * WAITLIST_CONFIG.HOUR_DISCOUNT_MS * multiplier;
-
-  // Unreliable penalty
-  score += penaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
-
-  if (wasPromotedBefore) {
-    score += CONFIRMATION_CONFIG.rejoinPenaltyHours * WAITLIST_CONFIG.HOUR_DISCOUNT_MS;
-  }
-
-  return score;
+  return computeScoreInline(userId, joinedAt, wasPromotedBefore, tier, attendanceCount);
 }
 
 export async function getSortedWaitlist(eventId: string): Promise<Array<{
@@ -59,18 +59,40 @@ export async function getSortedWaitlist(eventId: string): Promise<Array<{
     abandonedAt: null,
   }).lean() as any[];
 
-  const withScores = await Promise.all(
-    entries.map(async (entry) => ({
-      userId: entry.userId.toString(),
+  if (entries.length === 0) return [];
+
+  const userIds = entries.map((e: any) => e.userId.toString());
+
+  const users = await User.find({ _id: { $in: userIds } })
+    .select('engagementTier')
+    .lean() as any[];
+  const tierMap = new Map<string, string>(
+    users.map((u: any) => [u._id.toString(), u.engagementTier ?? 'new'])
+  );
+
+  const counts = await Registration.aggregate([
+    { $match: { userId: { $in: userIds.map((id: string) => new mongoose.Types.ObjectId(id)) }, checkedIn: true } },
+    { $group: { _id: '$userId', count: { $sum: 1 } } },
+  ]);
+  const countMap = new Map<string, number>(
+    (counts as Array<{ _id: string; count: number }>).map((c) => [c._id.toString(), c.count])
+  );
+
+  const withScores = entries.map((entry: any) => {
+    const uid = entry.userId.toString();
+    return {
+      userId: uid,
       joinedAt: entry.joinedAt,
       wasPromoted: entry.wasPromoted ?? false,
-      priorityScore: await computePriorityScore(
-        entry.userId.toString(),
+      priorityScore: computeScoreInline(
+        uid,
         entry.joinedAt,
-        entry.wasPromoted ?? false
+        entry.wasPromoted ?? false,
+        tierMap.get(uid) ?? 'new',
+        countMap.get(uid) ?? 0
       ),
-    }))
-  );
+    };
+  });
 
   return withScores.sort((a, b) => a.priorityScore - b.priorityScore);
 }
@@ -169,7 +191,7 @@ export async function promoteTopWaitlistUser(eventId: string): Promise<void> {
     eventId,
     eventTitle: event?.title ?? '',
     details: `Promoted from waitlist for ${event?.title ?? 'event'}`,
-  }).catch(() => {});
+  }).catch(err => console.error(err));
 
   void updateStudentReliability(userId).catch(err =>
     console.error('[Reliability] Post-promotion update failed:', err)

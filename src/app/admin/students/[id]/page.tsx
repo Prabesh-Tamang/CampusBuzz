@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Award, Ban, RotateCcw, RefreshCw, Shield, UserCheck, Check } from 'lucide-react';
+import { ArrowLeft, Award, Ban, RotateCcw, RefreshCw, Shield, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import TierBadge from '@/components/TierBadge';

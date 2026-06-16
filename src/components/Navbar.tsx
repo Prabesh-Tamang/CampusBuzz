@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { Zap, LogOut, LayoutDashboard, ScanLine, Menu, X, Plus, Calendar, CreditCard, Activity } from 'lucide-react';
 import NotificationBell from '@/components/NotificationBell';
@@ -10,7 +10,6 @@ interface NavbarProps { showAdminLinks?: boolean; }
 
 export default function Navbar({ showAdminLinks = true }: NavbarProps) {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const pathname = usePathname();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);

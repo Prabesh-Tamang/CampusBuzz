@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, AlertTriangle } from 'lucide-react';
 
@@ -12,7 +12,7 @@ interface LeaveWaitlistModalProps {
   loading?: boolean;
 }
 
-export default function LeaveWaitlistModal({
+const LeaveWaitlistModal = memo(function LeaveWaitlistModal({
   isOpen,
   eventTitle,
   position,
@@ -182,4 +182,6 @@ export default function LeaveWaitlistModal({
       )}
     </AnimatePresence>
   );
-}
+});
+
+export default LeaveWaitlistModal;

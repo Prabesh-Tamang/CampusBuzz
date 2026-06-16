@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'cb_'
-const DEFAULT_TTL = 30_000
+const DEFAULT_TTL = 300_000
 
 interface CacheEntry<T> {
   data: T

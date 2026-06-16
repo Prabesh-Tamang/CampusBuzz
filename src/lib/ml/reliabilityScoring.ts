@@ -349,7 +349,7 @@ export async function updateStudentReliability(userId: string): Promise<Reliabil
     const existingTier = freshData.engagementTier ?? 'new';
     const existingIdx = TIER_ORDER.indexOf(existingTier);
     const newIdx = TIER_ORDER.indexOf(tier);
-    if (newIdx <= existingIdx) {
+    if (newIdx >= existingIdx) {
       // Upgrade or same tier — allow it and clear override
       // (falls through to the write below)
     } else {

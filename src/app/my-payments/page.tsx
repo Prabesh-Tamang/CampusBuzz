@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
 import Navbar from '@/components/Navbar'
 import { motion } from 'framer-motion'
 import { format } from 'date-fns'
-import { CreditCard, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react'
+import { CreditCard, CheckCircle, XCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
 import EmptyState from '@/components/ui/EmptyState'
 import TitleSetter from '@/components/TitleSetter'
@@ -26,8 +26,8 @@ export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Hydrate from cache on mount
-  useEffect(() => {
+  // Hydrate from cache before first paint (synchronous)
+  useLayoutEffect(() => {
     const p = cacheGet<any[]>('my_payments')
     if (p) { setPayments(p); setLoading(false) }
   }, [])

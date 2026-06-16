@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { cacheGet, cacheSet } from '@/lib/client-cache';
 import { useSession } from "next-auth/react";
 import Navbar from "@/components/Navbar";
 import PaymentModal from "@/components/PaymentModal";
@@ -14,7 +15,6 @@ import {
   Ticket,
   CheckCircle,
   XCircle,
-  Clock3,
   CreditCard,
   Share2,
   AlertTriangle,
@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
-import { QRCodeSVG } from "qrcode.react";
 import Link from "next/link";
 import TitleSetter from '@/components/TitleSetter';
 import SoldOutStamp from '@/components/ui/SoldOutStamp';
@@ -94,11 +93,21 @@ export default function EventDetailPage() {
   // Leave waitlist modal
   const [leaveWaitlistModal, setLeaveWaitlistModal] = useState(false);
   const [leavingWaitlist, setLeavingWaitlist] = useState(false);
+  // Hydrate event from cache before first paint (synchronous)
+  useLayoutEffect(() => {
+    const cached = cacheGet<any>(`event_detail_${id}`)
+    if (cached) {
+      setEvent(cached);
+      setLoading(false);
+    }
+  }, [id])
+
   useEffect(() => {
     fetch(`/api/events/${id}`)
       .then((r) => r.json())
       .then((data) => {
         setEvent(data);
+        cacheSet(`event_detail_${id}`, data, 300_000);
         setLoading(false);
       });
 
@@ -107,7 +116,7 @@ export default function EventDetailPage() {
       fetch('/api/user/ban-status')
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) setBanStatus(d); })
-        .catch(() => {})
+        .catch(err => console.error(err))
         .finally(() => setBanStatusLoading(false));
       // Fetch student's tier for context below register button
       fetch('/api/user/reliability')
@@ -120,7 +129,7 @@ export default function EventDetailPage() {
             waitlistPenaltyHours: d.benefits.waitlistPenaltyHours ?? 0,
           });
         })
-        .catch(() => {});
+        .catch(err => console.error(err));
 
       fetch('/api/registrations')
         .then((r) => r.json())
@@ -162,13 +171,13 @@ export default function EventDetailPage() {
             });
           }
         })
-        .catch(() => {});
+        .catch(err => console.error(err));
 
       // Check paid event interest
       fetch(`/api/event-interest?eventId=${id}`)
         .then((r) => r.json())
         .then((data) => { if (data.interested) setInterested(true); })
-        .catch(() => {});
+        .catch(err => console.error(err));
     } else {
       // Not logged in — no ban check needed, clear loading state immediately
       setBanStatusLoading(false);
@@ -192,7 +201,7 @@ export default function EventDetailPage() {
             });
           }
         })
-        .catch(() => {});
+        .catch(err => console.error(err));
     };
     const id_ = setInterval(refresh, 10_000);
     return () => clearInterval(id_);
@@ -1192,7 +1201,7 @@ function RecommendationsStrip({ currentEvent }: { currentEvent: EventData }) {
         const recs = data.filter(e => e._id !== currentEvent._id).slice(0, 3);
         setRecommendations(recs);
       })
-      .catch(() => {})
+      .catch(err => console.error(err))
       .finally(() => setLoading(false));
   }, [currentEvent._id, currentEvent.category]);
 

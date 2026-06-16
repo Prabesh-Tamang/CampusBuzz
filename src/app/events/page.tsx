@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
@@ -80,8 +80,8 @@ function EventsContent() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
-  // Hydrate registrations from cache on mount
-  useEffect(() => {
+  // Hydrate registrations from cache before first paint (synchronous)
+  useLayoutEffect(() => {
     const r = cacheGet<Registration[]>('events_registrations')
     if (r) { setRegistrations(r); setRegLoading(false) }
   }, [])
@@ -94,7 +94,7 @@ function EventsContent() {
         .then(d => {
           if (d.recommendations) setRecommendations(d.recommendations)
         })
-        .catch(() => {})
+        .catch(err => console.error(err));
       fetchRegistrations()
       fetch('/api/waitlist/my')
         .then(r => r.json())
@@ -103,7 +103,7 @@ function EventsContent() {
             setWaitlistedEventIds(new Set(d.entries.map((e: any) => e.eventId)))
           }
         })
-        .catch(() => {})
+        .catch(err => console.error(err));
     }
   }, [session, search, category, statusFilter, feeFilter])
 

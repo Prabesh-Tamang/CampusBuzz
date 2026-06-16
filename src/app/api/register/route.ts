@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
         eventId,
         eventTitle: event.title,
         details: `Registered for ${event.title}`,
-      }).catch(() => {});
+      }).catch(err => console.error(err));
 
       // Never expose registrationId for unconfirmed free registrations
       // A student must confirm via email before they can check in
@@ -221,7 +221,7 @@ export async function DELETE(req: NextRequest) {
     void import('@/lib/ml/reliabilityScoring').then(({ updateStudentReliability }) => {
       updateStudentReliability(userId)
         .catch(err => console.error('[Reliability] Post-cancel update failed:', err));
-    }).catch(() => {});
+    }).catch(err => console.error(err));
 
     // Log activity
     void (async () => {

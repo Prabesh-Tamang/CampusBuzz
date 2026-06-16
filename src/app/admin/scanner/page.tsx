@@ -54,7 +54,7 @@ export default function ScannerPage() {
 
     return () => {
       if (html5QrCode) {
-        html5QrCode.clear().catch(() => {})
+        html5QrCode.clear().catch(err => console.error(err));
       }
     }
   }, [scanning])

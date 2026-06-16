@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader2, ShieldCheck, Lock, AlertTriangle } from 'lucide-react'
 
@@ -12,7 +12,7 @@ interface PaymentModalProps {
   onSuccess: () => void
 }
 
-export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amount, onSuccess }: PaymentModalProps) {
+const PaymentModal = memo(function PaymentModal({ isOpen, onClose, eventId, eventTitle, amount, onSuccess }: PaymentModalProps) {
   const [loading, setLoading] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<'khalti' | 'esewa' | null>(null)
   const [error, setError] = useState('')
@@ -279,4 +279,6 @@ export default function PaymentModal({ isOpen, onClose, eventId, eventTitle, amo
       )}
     </AnimatePresence>
   )
-}
+})
+
+export default PaymentModal

@@ -113,6 +113,6 @@ export async function POST(req: NextRequest) {
     }
   } catch (err: any) {
     console.error('[Verify API error]', err);
-    return NextResponse.json({ success: false, error: err.message || 'Server error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 });
   }
 }

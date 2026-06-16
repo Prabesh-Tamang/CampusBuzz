@@ -46,8 +46,8 @@ async function fixPaymentIndexes() {
     }
 
     // Recreate as sparse unique (no-op if already correct)
-    await collection.createIndex({ transactionId: 1 }, { unique: true, sparse: true, background: true }).catch(() => {});
-    await collection.createIndex({ purchaseOrderId: 1 }, { unique: true, sparse: true, background: true }).catch(() => {});
+    await collection.createIndex({ transactionId: 1 }, { unique: true, sparse: true, background: true }).catch(err => console.error(err));
+    await collection.createIndex({ purchaseOrderId: 1 }, { unique: true, sparse: true, background: true }).catch(err => console.error(err));
 
     // Clean up any documents with empty string transactionId
     await collection.updateMany({ transactionId: '' }, { $unset: { transactionId: 1 } });
@@ -81,14 +81,14 @@ async function dbConnect() {
         trainModel().catch(err =>
           console.error('[IsolationForest] Startup training failed:', err)
         );
-      }).catch(() => {});
+      }).catch(err => console.error(err));
 
       // Train the reliability scoring model on startup
       import('@/lib/ml/reliabilityScoring').then(({ trainReliabilityModel }) => {
         trainReliabilityModel().catch(err =>
           console.error('[Reliability] Startup training failed:', err)
         );
-      }).catch(() => {});
+      }).catch(err => console.error(err));
 
       return mongooseInstance;
     });

@@ -200,22 +200,25 @@ export async function GET() {
       }
     }
 
-    // 5e. Waitlist positions
+    // 5e. Waitlist positions (batched by event)
+    const sortedWaitlistCache = new Map<string, Awaited<ReturnType<typeof getSortedWaitlist>>>();
     for (const entry of waitlistEntries) {
       const event = entry.eventId as any;
       if (!event) continue;
 
       const eventDate = new Date(event.date);
-      if (eventDate < now) continue; // event passed
+      if (eventDate < now) continue;
 
-      const posData = await getWaitlistPosition(
-        event._id.toString(),
-        entry.userId.toString()
-      );
-      if (!posData) continue;
+      const eventId = event._id.toString();
+      if (!sortedWaitlistCache.has(eventId)) {
+        sortedWaitlistCache.set(eventId, await getSortedWaitlist(eventId));
+      }
+      const sorted = sortedWaitlistCache.get(eventId)!;
+      const index = sorted.findIndex(e => e.userId === entry.userId.toString());
+      if (index === -1) continue;
 
-      const position = posData.position;
-      const queueLength = posData.queueLength;
+      const position = index + 1;
+      const queueLength = sorted.length;
 
       liveNotifs.push({
         _id: `waitlist-${entry._id}`,

@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Trophy, Star, Shield, AlertTriangle, Sparkles } from 'lucide-react';
+import { Trophy, Shield, AlertTriangle, Sparkles } from 'lucide-react';
 
 type Tier = 'champion' | 'regular' | 'new' | 'unreliable';
 

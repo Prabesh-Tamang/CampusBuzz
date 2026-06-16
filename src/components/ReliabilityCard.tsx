@@ -98,7 +98,7 @@ function ReliabilityCard() {
       fetch('/api/user/reliability')
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) setData(d); })
-        .catch(() => {})
+        .catch(err => console.error(err))
         .finally(() => setLoading(false));
     };
     fetchData();
@@ -204,11 +204,17 @@ function ReliabilityCard() {
         </div>
       </div>
       {(data.benefits.waitlistPenaltyHours ?? 0) > 0 && (
-        <div className="flex items-center gap-2 text-xs p-2 rounded-lg mb-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
+        <div className="flex items-center gap-2 text-xs p-2.5 rounded-lg mb-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
           <Clock size={12} className="text-red-400 flex-shrink-0" />
-          <span className="text-red-400 font-medium">
-            {data.benefits.waitlistPenaltyHours}h penalty before you can join another waitlist
-          </span>
+          <div>
+            <span className="text-red-400 font-medium">
+              {data.benefits.waitlistPenaltyHours}h waitlist penalty active
+            </span>
+            <p className="text-gray-500 mt-0.5 leading-tight">
+              When on a waitlist, your position is pushed back by {data.benefits.waitlistPenaltyHours}h worth of priority points.
+              This penalty decreases as you attend more events and improve your reliability.
+            </p>
+          </div>
         </div>
       )}
 
@@ -253,26 +259,75 @@ function ReliabilityCard() {
         </div>
       )}
 
-      {/* Score history */}
+      {/* Score history - newest first (index 0 = latest) */}
       {data.scoreHistory && data.scoreHistory.length > 0 && (
         <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p className="text-xs font-medium mb-3" style={{ color: '#64748b' }}>
-            Recent changes
-          </p>
-          <div className="space-y-2">
-            {data.scoreHistory.map((entry, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: '#94a3b8' }}>
-                  {entry.reason}
-                </span>
-                <span className="text-xs font-semibold" style={{
-                  color: entry.score >= (data.scoreHistory[i + 1]?.score ?? 0)
-                    ? '#14b8a6' : '#f97316'
-                }}>
-                  {entry.score}
-                </span>
-              </div>
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#64748b' }}>
+              Score History
+            </p>
+          </div>
+          <div className="space-y-1">
+            {data.scoreHistory.slice(0, 8).map((entry, i) => {
+              const prevScore = data.scoreHistory[i + 1]?.score;
+              const scoreDiff = prevScore !== undefined ? entry.score - prevScore : 0;
+              const isUp = scoreDiff > 0;
+              const isDown = scoreDiff < 0;
+              const isFirst = i === 0;
+
+              const tierColor =
+                entry.tier === 'champion' ? '#f59e0b' :
+                entry.tier === 'regular' ? '#14b8a6' :
+                entry.tier === 'unreliable' ? '#f97316' :
+                '#60a5fa';
+
+              const changedDate = new Date(entry.changedAt);
+              const dateStr = changedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + changedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+              return (
+                <div key={i} className="px-3 py-3 rounded-xl"
+                  style={{
+                    background: isFirst ? 'rgba(20,184,166,0.05)' : 'transparent',
+                    border: isFirst ? '1px solid rgba(20,184,166,0.12)' : '1px solid transparent',
+                  }}>
+                  <div className="flex items-start gap-3">
+                    {/* Score badge */}
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm"
+                      style={{
+                        background: isFirst ? 'rgba(20,184,166,0.12)' : 'rgba(255,255,255,0.04)',
+                        color: isFirst ? '#14b8a6' : '#64748b',
+                      }}>
+                      {entry.score}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      {/* Tier badge + change indicator + date */}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: `${tierColor}15`, color: tierColor }}>
+                          {entry.tier === 'champion' ? 'Champion' : entry.tier === 'regular' ? 'Regular' : entry.tier === 'unreliable' ? 'Low History' : 'Getting Started'}
+                        </span>
+                        {prevScore !== undefined && scoreDiff !== 0 && (
+                          <span className={`text-[11px] font-mono font-bold ${
+                            isUp ? 'text-teal-500' : 'text-orange-400'
+                          }`}>
+                            {isUp ? '↑' : '↓'} {Math.abs(scoreDiff)}
+                          </span>
+                        )}
+                        <span className="text-[10px] ml-auto flex-shrink-0 whitespace-nowrap" style={{ color: '#475569' }}>
+                          {dateStr}
+                        </span>
+                      </div>
+                      {/* Reason */}
+                      <p className="text-[12px] leading-relaxed" style={{ color: '#94a3b8' }}>
+                        {entry.reason}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

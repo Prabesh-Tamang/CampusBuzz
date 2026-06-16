@@ -10,7 +10,6 @@ import {
   Clock,
   ArrowLeft,
   Building,
-  DollarSign,
   Tag,
   Edit2,
   Eye,
@@ -116,14 +115,14 @@ export default function AdminEventViewPage() {
           setWaitlistCount(d.waitlistCount || 0);
           setNotifyCount(d.notifyCount || 0);
         })
-        .catch(() => {});
+        .catch(err => console.error(err));
 
       fetch(`/api/admin/events/${id}/stats`)
         .then((r) => r.json())
         .then((d) => {
           setEventStats(d);
         })
-        .catch(() => {});
+        .catch(err => console.error(err));
     }
   }, [id, session, status]);
 

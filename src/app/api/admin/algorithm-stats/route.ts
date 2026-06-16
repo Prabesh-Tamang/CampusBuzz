@@ -65,11 +65,11 @@ export async function GET() {
 
     // Ensure models are trained before reading stats
     const { ensureCheckinModel, getModelStats } = await import('@/lib/ml/modelManager');
-    await ensureCheckinModel().catch(() => {});
+    await ensureCheckinModel().catch(err => console.error(err));
     const mlStats = getModelStats();
 
     const { ensureReliabilityTraining, getReliabilityModelStats } = await import('@/lib/ml/reliabilityScoring');
-    await ensureReliabilityTraining().catch(() => {});
+    await ensureReliabilityTraining().catch(err => console.error(err));
     const relStats = getReliabilityModelStats();
 
     // Get cache stats

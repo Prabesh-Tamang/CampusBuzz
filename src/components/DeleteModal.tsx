@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 
@@ -14,7 +14,7 @@ interface DeleteModalProps {
   showReasonInput?: boolean
 }
 
-export default function DeleteModal({
+const DeleteModal = memo(function DeleteModal({
   isOpen,
   onClose,
   onConfirm,
@@ -105,4 +105,6 @@ export default function DeleteModal({
       )}
     </AnimatePresence>
   )
-}
+})
+
+export default DeleteModal

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useLayoutEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cacheGet, cacheSet } from '@/lib/client-cache'
@@ -33,8 +33,8 @@ function MyEventsContent() {
   const [waitlists, setWaitlists] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Hydrate from cache on mount
-  useEffect(() => {
+  // Hydrate from cache before first paint (synchronous)
+  useLayoutEffect(() => {
     const r = cacheGet<any[]>('my_registrations')
     const w = cacheGet<any[]>('my_waitlists')
     if (r) { setRegistrations(r); setWaitlists(w || []); setLoading(false) }
@@ -56,12 +56,17 @@ function MyEventsContent() {
     loading: boolean;
   }>({ open: false, eventId: '', eventTitle: '', position: null, loading: false })
 
-  // Fetch ban status on mount
+  // Fetch ban status on mount and poll every 15s
   useEffect(() => {
-    fetch('/api/user/ban-status')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setBanStatus(d); })
-      .catch(() => {});
+    const fetchBan = () => {
+      fetch('/api/user/ban-status')
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setBanStatus(d); })
+        .catch(err => console.error(err));
+    };
+    fetchBan();
+    const id = setInterval(fetchBan, 15_000);
+    return () => clearInterval(id);
   }, [])
 
   // Handle query param toasts on mount
@@ -106,7 +111,11 @@ function MyEventsContent() {
     if (status === 'authenticated' && (session?.user as any)?.role === 'admin') {
       router.replace('/admin/dashboard'); return
     }
-    if (status === 'authenticated') fetchRegistrations()
+    if (status === 'authenticated') {
+      fetchRegistrations()
+      const id = setInterval(fetchRegistrations, 30_000)
+      return () => clearInterval(id)
+    }
   }, [status, session, router, fetchRegistrations])
 
   const handleDirectConfirm = async (registrationId: string) => {
@@ -252,9 +261,8 @@ function MyEventsContent() {
 
           {/* Attendance Stats Card — TASK-08 */}
           <AttendanceStatsCardWrapper />
-
-          {/* Reliability Score Card */}
-          <ReliabilityCardWrapper />
+          {/* Score History */}
+          <ScoreHistoryCardWrapper />
 
           <div className="flex gap-4 mb-6 border-b border-border">
             <button
@@ -595,11 +603,12 @@ function AttendanceStatsCardWrapper() {
   return <div className="mb-6"><Component /></div>
 }
 
-function ReliabilityCardWrapper() {
+function ScoreHistoryCardWrapper() {
   const [Component, setComponent] = useState<React.ComponentType | null>(null)
   useEffect(() => {
-    import('@/components/ReliabilityCard').then(m => setComponent(() => m.default))
+    import('@/components/ScoreHistoryCard').then(m => setComponent(() => m.default))
   }, [])
   if (!Component) return null
   return <div className="mb-6"><Component /></div>
 }
+

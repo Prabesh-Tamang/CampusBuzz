@@ -47,8 +47,8 @@ export async function POST(
         actionUrl: '/my-events',
         actionLabel: 'View my events',
         ttlHours: 24 * 30, // 30 days
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch(err => console.error(err));
+    }).catch(err => console.error(err));
 
     return NextResponse.json({ success: true, message: 'Student has been banned' });
   } catch (err) {
@@ -87,8 +87,8 @@ export async function DELETE(
         actionUrl: '/events',
         actionLabel: 'Browse events',
         ttlHours: 72,
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch(err => console.error(err));
+    }).catch(err => console.error(err));
 
     return NextResponse.json({ success: true, message: 'Ban has been lifted' });
   } catch (err) {

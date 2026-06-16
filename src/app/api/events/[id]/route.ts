@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
                 eventUrl: `${appUrl}/events/${params.id}`,
                 eventId: params.id,
                 feeAmount: event.feeAmount ?? 0,
-              }).catch(() => {});
+              }).catch(err => console.error(err));
             }
           })
           .catch(err => console.error('[Capacity increase] notification error:', err));

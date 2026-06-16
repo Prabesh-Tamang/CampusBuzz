@@ -117,12 +117,11 @@ export async function GET(req: Request) {
     const myIndex = sorted.findIndex(e => e.userId === userId);
     const aheadUsers = sorted.slice(0, myIndex);
 
-    const aheadUserTiers = await Promise.all(
-      aheadUsers.map(async (e) => {
-        const u = await User.findById(e.userId).select('engagementTier').lean() as any;
-        return u?.engagementTier ?? 'new';
-      })
-    );
+    const aheadUserTiers = aheadUsers.length > 0
+      ? (await User.find({ _id: { $in: aheadUsers.map(e => e.userId) } })
+          .select('engagementTier')
+          .lean() as any[]).map((u: any) => u?.engagementTier ?? 'new')
+      : [];
 
     const championsAhead = aheadUserTiers.filter(t => t === 'champion').length;
 

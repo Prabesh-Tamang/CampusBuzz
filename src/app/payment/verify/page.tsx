@@ -10,30 +10,51 @@ function VerifyContent() {
   const router = useRouter()
   const [verificationState, setVerificationState] = useState<'loading' | 'success' | 'failed'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [fetchedEventName, setFetchedEventName] = useState<string | null>(null)
 
-  const eventName = searchParams.get('event')
+  const eventName = searchParams.get('event') || fetchedEventName
+  const eventId = searchParams.get('eventId')
+
+  // Fetch event name if not provided but eventId is
+  useEffect(() => {
+    if (eventName || !eventId) return
+    fetch(`/api/events/${eventId}`)
+      .then(r => r.json())
+      .then(d => { if (d?.title) setFetchedEventName(d.title) })
+      .catch(() => {})
+  }, [eventName, eventId])
   
   useEffect(() => {
     let cancelled = false
 
     async function verify() {
       const pidx = searchParams.get('pidx')
-      let provider = searchParams.get('provider') || (pidx ? 'khalti' : searchParams.get('data') ? 'esewa' : null)
-      let data = searchParams.get('data')
+      const provider = searchParams.get('provider')
       const status = searchParams.get('status')
-      const purchase_order_id = searchParams.get('purchase_order_id')
-      const transaction_id = searchParams.get('transaction_id')
-      const tidx = searchParams.get('tidx')
+      const eventId = searchParams.get('eventId')
+      const reason = searchParams.get('reason')
 
-      if (provider && provider.includes('esewa?data=')) {
-        data = provider.split('esewa?data=')[1];
-        provider = 'esewa';
-      } else if (provider && provider.includes('?data=')) {
-        data = provider.split('?data=')[1];
-        provider = 'esewa';
+      // eSewa: verification already done server-side in callback
+      if (provider === 'esewa') {
+        if (status === 'success') {
+          setVerificationState('success')
+        } else {
+          setErrorMsg(reason || 'Payment verification failed.')
+          setVerificationState('failed')
+        }
+        return
       }
 
-      if (!provider) {
+      const resolvedProvider = provider || (pidx ? 'khalti' : searchParams.get('data') ? 'esewa' : null)
+      let data = searchParams.get('data')
+
+      if (resolvedProvider && resolvedProvider.includes('esewa?data=')) {
+        data = resolvedProvider.split('esewa?data=')[1];
+      } else if (resolvedProvider && resolvedProvider.includes('?data=')) {
+        data = resolvedProvider.split('?data=')[1];
+      }
+
+      if (!resolvedProvider) {
         if (searchParams.get('payment') === 'success') {
           setVerificationState('success')
         } else {
@@ -43,9 +64,9 @@ function VerifyContent() {
         return
       }
 
-      const payload = provider === 'khalti' 
-        ? { provider, pidx, status, purchase_order_id, transaction_id, tidx }
-        : { provider, data }
+      const payload = resolvedProvider === 'khalti' 
+        ? { provider: resolvedProvider, pidx, status, purchase_order_id: searchParams.get('purchase_order_id'), transaction_id: searchParams.get('transaction_id'), tidx: searchParams.get('tidx') }
+        : { provider: resolvedProvider, data }
 
       const minDuration = new Promise(resolve => setTimeout(resolve, 1500))
 
@@ -135,7 +156,7 @@ function VerifyContent() {
                 {errorMsg || 'We could not verify your payment. Please try again.'}
               </p>
               <Link
-                href="/events"
+                href={eventId ? `/events/${eventId}` : "/events"}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 bg-slate-600 hover:bg-slate-500"
               >
                 Try Again <HiArrowRight />

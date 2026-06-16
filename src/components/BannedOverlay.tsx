@@ -11,8 +11,8 @@ interface BanInfo {
   bannedAt?: string;
 }
 
-function storageKey(userId: string, key: string): string {
-  return `${key}_${userId}`;
+function storageKey(key: string): string {
+  return `${key}`;
 }
 
 export default function BannedOverlay() {
@@ -30,9 +30,9 @@ export default function BannedOverlay() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.isBanned) {
-          sessionStorage.setItem(storageKey(userId, 'lastBanStatus'), 'banned');
+          localStorage.setItem(storageKey('lastBanStatus'), 'banned');
           // Check if dismissed for this user
-          const dismissed = sessionStorage.getItem(storageKey(userId, 'bannedOverlayDismissed'));
+          const dismissed = localStorage.getItem(storageKey('bannedOverlayDismissed'));
           if (dismissed === 'true') return;
           setBanInfo(data);
           setTimeout(() => setVisible(true), 100);
@@ -41,7 +41,7 @@ export default function BannedOverlay() {
           setTimeout(() => setBanInfo(null), 300);
         }
       })
-      .catch(() => {});
+      .catch(err => console.error(err));
   }
 
   useEffect(() => {
@@ -68,8 +68,7 @@ export default function BannedOverlay() {
   }, [status, userId]);
 
   const handleDismiss = () => {
-    if (!userId) return;
-    sessionStorage.setItem(storageKey(userId, 'bannedOverlayDismissed'), 'true');
+    localStorage.setItem(storageKey('bannedOverlayDismissed'), 'true');
     setVisible(false);
     setTimeout(() => setBanInfo(null), 300);
   };

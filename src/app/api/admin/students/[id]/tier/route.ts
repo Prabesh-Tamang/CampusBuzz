@@ -61,8 +61,8 @@ export async function POST(
         actionUrl: '/my-reliability',
         actionLabel: 'View details',
         ttlHours: 72,
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch(err => console.error(err));
+    }).catch(err => console.error(err));
 
     return NextResponse.json({ success: true, tier, score });
   } catch (err) {

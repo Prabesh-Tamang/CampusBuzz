@@ -12,7 +12,6 @@ import {
   XCircle, 
   RefreshCcw, 
   Filter,
-  Download,
   DollarSign,
   ChevronLeft,
   ChevronRight

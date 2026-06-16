@@ -309,11 +309,13 @@ export default function NotificationBell() {
       if (!res.ok) return;
       const data = await res.json();
       let items = data.notifications ?? [];
-      // Filter out live notifications the user has already dismissed
+      // Filter out notifications the user has already dismissed on this device
       try {
-        const readSet = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
-        if (readSet.size > 0) {
-          items = items.filter((n: Notification) => !isLiveId(n._id) || !readSet.has(n._id));
+        const liveDismissed = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
+        const allDismissed = new Set(JSON.parse(sessionStorage.getItem('readNotifIds') || '[]'));
+        const dismissed = new Set([...liveDismissed, ...allDismissed]);
+        if (dismissed.size > 0) {
+          items = items.filter((n: Notification) => !dismissed.has(n._id));
         }
       } catch {}
       setNotifications(items);
@@ -355,19 +357,19 @@ export default function NotificationBell() {
     ));
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    if (isLiveId(id)) {
-      // Persist live notification read state in sessionStorage
-      try {
-        const readSet = new Set(JSON.parse(sessionStorage.getItem('readLiveNotifs') || '[]'));
-        readSet.add(id);
-        sessionStorage.setItem('readLiveNotifs', JSON.stringify([...readSet]));
-      } catch {}
-    } else {
+    // Persist read state in sessionStorage so it survives navigation
+    try {
+      const dismissed = new Set(JSON.parse(sessionStorage.getItem('readNotifIds') || '[]'));
+      dismissed.add(id);
+      sessionStorage.setItem('readNotifIds', JSON.stringify([...dismissed]));
+    } catch {}
+
+    if (!isLiveId(id)) {
       await fetch('/api/notifications/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] }),
-      }).catch(() => {});
+      }).catch(err => console.error(err));
     }
   }, []);
 
@@ -384,7 +386,7 @@ export default function NotificationBell() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] }),
-      }).catch(() => {});
+      }).catch(err => console.error(err));
     }
   }, []);
 
@@ -408,7 +410,7 @@ export default function NotificationBell() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
-    }).catch(() => {});
+    }).catch(err => console.error(err));
     setLoading(false);
   }, []);
 

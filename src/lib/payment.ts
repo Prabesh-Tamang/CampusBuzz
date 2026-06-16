@@ -103,7 +103,7 @@ export async function initializePayment(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        return_url: `${appUrl}/payment/verify?provider=khalti`,
+        return_url: `${appUrl}/payment/verify?provider=khalti&eventId=${eventId}`,
         website_url: appUrl,
         amount: amount * 100, // paisa
         purchase_order_id: purchaseOrderId,
@@ -169,7 +169,7 @@ export async function initializePayment(
         productName: purchaseOrderName,
         merchantId: ESEWA_MERCHANT_ID,
         merchantSecret: ESEWA_SECRET_KEY,
-        merchantCallbackUrl: `${appUrl}/payment/verify`,
+        merchantCallbackUrl: `${appUrl}/api/payment/esewa/callback`,
       },
     };
   }
@@ -364,8 +364,8 @@ export async function completeRegistration(paymentId: string, userId: string, ev
             actionUrl: `/my-events/checkin/${registration.registrationId}`,
             actionLabel: 'Open ticket',
             ttlHours: 48,
-          }).catch(() => {});
-        }).catch(() => {});
+          }).catch(err => console.error(err));
+        }).catch(err => console.error(err));
       }
     } catch (err) {
       await mongoSession.abortTransaction();

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, ShieldCheck, RotateCcw, XCircle, Loader2, User, Calendar, MapPin, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ShieldCheck, RotateCcw, XCircle, Loader2, Calendar, MapPin, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import EmptyState from '@/components/ui/EmptyState';

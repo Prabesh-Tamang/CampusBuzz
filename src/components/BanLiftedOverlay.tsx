@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { CheckCircle, X, ArrowRight } from 'lucide-react';
 
-function storageKey(userId: string, key: string): string {
-  return `${key}_${userId}`;
+function storageKey(key: string): string {
+  return `${key}`;
 }
 
 export default function BanLiftedOverlay() {
@@ -26,14 +26,14 @@ export default function BanLiftedOverlay() {
         if (!data) return;
         const isBanned = data.isBanned;
 
-        const lastBanKey = storageKey(userId, 'lastBanStatus');
-        const dismissedKey = storageKey(userId, 'banLiftedOverlayDismissed');
+        const lastBanKey = storageKey('lastBanStatus');
+        const dismissedKey = storageKey('banLiftedOverlayDismissed');
 
         // Persist current ban state
         if (isBanned) {
-          sessionStorage.setItem(lastBanKey, 'banned');
+          localStorage.setItem(lastBanKey, 'banned');
           // Clean up dismissed flag so next lift will show overlay
-          sessionStorage.removeItem(dismissedKey);
+          localStorage.removeItem(dismissedKey);
         }
 
         // User changed — reset ref so first-check logic runs again
@@ -42,9 +42,9 @@ export default function BanLiftedOverlay() {
           lastBannedRef.current = null;
         }
 
-        // First check — initialize from sessionStorage
+        // First check — initialize from localStorage
         if (lastBannedRef.current === null) {
-          const stored = sessionStorage.getItem(lastBanKey);
+          const stored = localStorage.getItem(lastBanKey);
           lastBannedRef.current = stored === 'banned';
           if (lastBannedRef.current && !isBanned) {
             setShow(true);
@@ -56,7 +56,7 @@ export default function BanLiftedOverlay() {
 
         // Transition: banned → not banned
         if (lastBannedRef.current === true && !isBanned) {
-          const dismissed = sessionStorage.getItem(dismissedKey);
+          const dismissed = localStorage.getItem(dismissedKey);
           if (dismissed === 'true') {
             lastBannedRef.current = false;
             return;
@@ -68,7 +68,7 @@ export default function BanLiftedOverlay() {
 
         lastBannedRef.current = isBanned;
       })
-      .catch(() => {});
+      .catch(err => console.error(err));
   }
 
   useEffect(() => {
@@ -86,8 +86,7 @@ export default function BanLiftedOverlay() {
   }, [userId]);
 
   const handleDismiss = () => {
-    if (!userId) return;
-    sessionStorage.setItem(storageKey(userId, 'banLiftedOverlayDismissed'), 'true');
+    localStorage.setItem(storageKey('banLiftedOverlayDismissed'), 'true');
     setVisible(false);
     setTimeout(() => setShow(false), 300);
   };

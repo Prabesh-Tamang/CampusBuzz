@@ -212,8 +212,8 @@ export async function POST(req: NextRequest) {
         eventTitle: (existing.eventId as any).title,
         details: `Checked in to ${(existing.eventId as any).title}`,
         algorithmTriggers: anomalyScore !== null ? [`Anomaly score: ${anomalyScore}`] : undefined,
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch(err => console.error(err));
+    }).catch(err => console.error(err));
 
     // Push a "checked in" notification to the student
     void import('@/lib/notifications').then(({ pushNotification }) => {
@@ -227,8 +227,8 @@ export async function POST(req: NextRequest) {
         actionUrl: `/my-events/checkin/${updated.registrationId}`,
         actionLabel: 'View ticket',
         ttlHours: 12,
-      }).catch(() => {});
-    }).catch(() => {});
+      }).catch(err => console.error(err));
+    }).catch(err => console.error(err));
 
     return NextResponse.json({
       success: true,

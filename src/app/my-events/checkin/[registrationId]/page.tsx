@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { HiCheckCircle, HiXCircle, HiExclamationCircle, HiQrcode } from 'react-icons/hi'
+import { HiCheckCircle, HiExclamationCircle, HiQrcode } from 'react-icons/hi'
 import Navbar from '@/components/Navbar'
 import { AlertTriangle, Ban } from 'lucide-react'
 

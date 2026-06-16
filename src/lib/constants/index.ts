@@ -213,27 +213,22 @@ export const REGISTRATION_ID_PREFIX = 'CP-';
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-// ═══════════════════ TESTING VALUES (uncomment to use) ═══════════════════════
+// ═══════════════════ TESTING VALUES (comment out before deployment) ═══════════════════
 
-// Confirmation windows shrunk to minutes for rapid testing
-export const TIER_CONFIRMATION_WINDOWS = {
-  champion:   0.0167, // ~1 minute  (production: 48h)
-  regular:    0.0167, // ~1 minute  (production: 24h)
-  new:        0.0167, // ~1 minute  (production: 24h)
-  unreliable: 0.0083, // ~30 seconds (production: 12h)
-} as const;
-
-// Session expires in 1 minutes instead of 24 hours
-// export const SESSION_CONFIG = {
-//   MAX_AGE_SECONDS: 60,
+// // Confirmation windows shrunk to minutes for rapid testing
+// export const TIER_CONFIRMATION_WINDOWS = {
+//   champion:   0.0167, // ~1 minute  (production: 48h)
+//   regular:    0.0167, // ~1 minute  (production: 24h)
+//   new:        0.0167, // ~1 minute  (production: 24h)
+//   unreliable: 0.0083, // ~30 seconds (production: 12h)
 // } as const;
 
-// QR windows shrunk for rapid check-in testing
-export const QR_CONFIG = {
-  CHECKIN_WINDOW_BEFORE_MS: 60_000,   // 1 minute  (production: 30 min)
-  CHECKIN_WINDOW_AFTER_MS:  120_000,  // 2 minutes (production: 2 hours)
-  STALE_AFTER_DAYS:         0.001,    // ~1.5 min  (production: 7 days)
-} as const;
+// // QR windows shrunk for rapid check-in testing
+// export const QR_CONFIG = {
+//   CHECKIN_WINDOW_BEFORE_MS: 60_000,   // 1 minute  (production: 30 min)
+//   CHECKIN_WINDOW_AFTER_MS:  120_000,  // 2 minutes (production: 2 hours)
+//   STALE_AFTER_DAYS:         0.001,    // ~1.5 min  (production: 7 days)
+// } as const;
 
 // ══════════════════════════════════════════════════════════════════════════════
 

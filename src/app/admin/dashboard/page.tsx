@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useLayoutEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
@@ -87,8 +87,8 @@ export default function AdminDashboard() {
     }
   }, [pathname, fetchFlaggedCount])
 
-  // Hydrate from cache on mount
-  useEffect(() => {
+  // Hydrate from cache before first paint (synchronous)
+  useLayoutEffect(() => {
     const s = cacheGet<Stats>('admin_stats'); if (s) setStats(s)
     const a = cacheGet<Analytics>('admin_analytics'); if (a) setAnalytics(a)
     const f = cacheGet<{ total: number }>('admin_flagged'); if (f) setFlaggedCount(f.total ?? 0)
