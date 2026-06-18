@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, memo } from 'react';
 import { Brain, Users, Clock, Shield, RefreshCw, Trophy } from 'lucide-react';
+import { ALGORITHM_LABELS, ML_THRESHOLDS } from '@/lib/constants';
 
 interface AlgorithmStats {
   collaborativeFiltering: {
@@ -137,7 +138,7 @@ function AlgorithmInsightsNoMemo() {
             <div className="flex items-center gap-2">
               <Trophy size={14} className="text-amber-400" />
               <span className="text-[13px] font-semibold text-gray-200">
-                Student Reliability (IF + Decision Tree)
+                {ALGORITHM_LABELS.reliabilityIF} + {ALGORITHM_LABELS.decisionTree.split('(')[0].trim()}
               </span>
             </div>
             <StatusDot status={rel.status} />
@@ -227,13 +228,15 @@ function AlgorithmInsightsNoMemo() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield size={14} className="text-red-400" />
-              <span className="text-[13px] font-semibold text-gray-200">Isolation Forest (Check-in)</span>
+              <span className="text-[13px] font-semibold text-gray-200">{ALGORITHM_LABELS.checkinIF}</span>
             </div>
             <StatusDot status={ifo.status} />
           </div>
           <div className="bg-white/[0.03] rounded-lg p-4">
             <Row label="Trained on" value={`${ifo.trainedOnSamples} check-ins`} />
             <Row label="Check-in features" value="8 parameters" />
+            <Row label="Flag threshold" value={`${ML_THRESHOLDS.checkin.flagThreshold}`} />
+            <Row label="Block threshold" value={`${ML_THRESHOLDS.checkin.blockThreshold}`} />
             <Row label="Flagged today" value={ifo.flaggedToday} />
             <Row label="Blocked today" value={ifo.blockedToday} />
             <Row label="Total check-ins" value={ifo.totalCheckins} />
@@ -285,7 +288,7 @@ function AlgorithmInsightsNoMemo() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Clock size={14} className="text-amber-400" />
-              <span className="text-[13px] font-semibold text-gray-200">Min-Heap Waitlist</span>
+              <span className="text-[13px] font-semibold text-gray-200">{ALGORITHM_LABELS.minHeap}</span>
             </div>
             <StatusDot status={wl.status} />
           </div>
@@ -302,7 +305,7 @@ function AlgorithmInsightsNoMemo() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users size={14} className="text-purple-400" />
-              <span className="text-[13px] font-semibold text-gray-200">Collaborative Filtering</span>
+              <span className="text-[13px] font-semibold text-gray-200">{ALGORITHM_LABELS.collab}</span>
             </div>
             <StatusDot status={cf.status} />
           </div>

@@ -10,7 +10,7 @@ import Notification from '@/models/Notification';
 import type { NotificationType } from '@/models/Notification';
 import mongoose from 'mongoose';
 import { TIME_UNITS } from '@/lib/constants';
-import { getWaitlistPosition } from '@/lib/algorithms/waitlistManager';
+import { getWaitlistPosition, getSortedWaitlist } from '@/lib/algorithms/waitlistManager';
 
 export const dynamic = 'force-dynamic';
 

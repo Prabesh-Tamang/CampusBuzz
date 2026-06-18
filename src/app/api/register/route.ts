@@ -58,13 +58,6 @@ export async function POST(req: NextRequest) {
 
     const userTier = ((user as any)?.engagementTier ?? 'new') as 'champion' | 'regular' | 'new' | 'unreliable';
 
-    if (userTier === 'unreliable') {
-      return NextResponse.json({
-        error: 'Your account has been flagged with low reliability. Attend more events and maintain consistent check-ins to restore registration privileges.',
-        code: 'UNRELIABLE_TIER',
-      }, { status: 403 });
-    }
-
     const isLastMinute = event.date.getTime() - Date.now() < TIME_UNITS.DAY_MS;
     const tierBenefits = getTierBenefits(userTier);
     const confirmTokenExpiry = new Date(Date.now() + tierBenefits.confirmationWindowHours * 60 * 60 * 1000);

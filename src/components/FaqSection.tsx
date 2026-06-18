@@ -1,37 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-
-const faqs = [
-  {
-    q: 'How do I register for an event?',
-    a: 'Browse events, click on one you like, and click Register. For free events you will get a confirmation email. For paid events, complete payment through Khalti or eSewa.',
-  },
-  {
-    q: 'What is the QR code for?',
-    a: 'After confirming registration you receive a unique QR code. Show it to the admin at the event entrance for instant check-in. You can view it on your My Events page.',
-  },
-  {
-    q: 'What happens if an event is full?',
-    a: 'You can join the waitlist. When a spot opens, you are automatically notified and given your registration. Students with better attendance history get priority.',
-  },
-  {
-    q: 'Are event fees refundable?',
-    a: 'Ticket fees are non-refundable unless the event is cancelled by the organiser. If cancelled, refunds are processed through the original gateway within 3-5 business days.',
-  },
-  {
-    q: 'What is the reliability score?',
-    a: 'Your reliability score is computed by a machine learning algorithm based on your attendance history. Higher scores unlock benefits like extended confirmation windows and waitlist priority.',
-  },
-  {
-    q: 'How do I confirm my registration?',
-    a: 'After registering for a free event, check your email for a confirmation link. Click it within your deadline window. Your QR code is sent upon confirmation.',
-  },
-  {
-    q: 'Can I cancel my registration?',
-    a: 'Free event registrations can be cancelled from My Events before the event starts. Paid registrations are non-refundable per our ticket policy.',
-  },
-];
+import { FAQ_ITEMS } from '@/lib/constants';
 
 export default function FaqSection() {
   const [open, setOpen] = useState<number | null>(null);
@@ -47,7 +17,7 @@ export default function FaqSection() {
       </div>
 
       <div className="space-y-2">
-        {faqs.map((faq, i) => (
+        {FAQ_ITEMS.map((faq, i) => (
           <div key={i} className="rounded-xl overflow-hidden transition-all duration-300"
                style={{
                  background: open === i ? 'rgba(20,184,166,0.06)' : 'rgba(255,255,255,0.03)',

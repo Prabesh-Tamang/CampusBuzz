@@ -7,8 +7,56 @@ import {
   computeMetrics, getTierBenefits, isReliabilityModelReady,
   updateStudentReliability,
 } from '@/lib/ml/reliabilityScoring';
-import { MODEL_PARAMS } from '@/lib/ml/constants';
-import { TIER_CONFIG } from '@/lib/constants';
+import { MODEL_PARAMS } from '@/lib/constants';
+import { TIER_CONFIG, TIER_IMPROVEMENT_TEXT } from '@/lib/constants';
+
+interface ReliabilityMetrics {
+  totalRegistrations: number;
+  attendanceRate: number;
+  waitlistAbandonRate: number;
+  bulkRegistrationScore: number;
+  totalAttended: number;
+}
+
+function computeImprovementTip(tier: string, metrics: ReliabilityMetrics): string {
+  const champConf = TIER_CONFIG.champion;
+
+  if (tier === 'champion') {
+    return TIER_IMPROVEMENT_TEXT.maintainChamp
+      .replace('{rate}', String(Math.round(champConf.minAttendanceRate * 100)));
+  }
+
+  if (tier === 'regular') {
+    const needed = champConf.minAttended - metrics.totalAttended;
+    if (needed > 0) {
+      return TIER_IMPROVEMENT_TEXT.toChampion
+        .replace('{needed}', String(needed))
+        .replace('{s}', needed !== 1 ? 's' : '')
+        .replace('{rate}', String(Math.round(champConf.minAttendanceRate * 100)));
+    }
+    return TIER_IMPROVEMENT_TEXT.maintainChamp
+      .replace('{rate}', String(Math.round(champConf.minAttendanceRate * 100)));
+  }
+
+  if (tier === 'new') {
+    return TIER_IMPROVEMENT_TEXT.newStudent
+      .replace('{attended}', String(metrics.totalAttended))
+      .replace('{needed}', String(TIER_CONFIG.regular.minAttended));
+  }
+
+  if (tier === 'unreliable') {
+    if (metrics.attendanceRate < 0.25) {
+      return TIER_IMPROVEMENT_TEXT.unreliableRate
+        .replace('{rate}', String(Math.round(metrics.attendanceRate * 100)));
+    }
+    if (metrics.waitlistAbandonRate >= 0.5) {
+      return TIER_IMPROVEMENT_TEXT.unreliableAbandon;
+    }
+    return TIER_IMPROVEMENT_TEXT.unreliableBulk;
+  }
+
+  return '';
+}
 
 export async function GET() {
   try {
@@ -37,24 +85,15 @@ export async function GET() {
     const metrics = await computeMetrics(userId, retentionDays);
     const benefits = getTierBenefits(tier);
 
-    // What does the student need to do to improve?
-    const championConf = TIER_CONFIG.champion;
-    let improvementTip = '';
-    if (tier === 'new') {
-      const needed = championConf.minAttended - metrics.totalAttended;
-      improvementTip = `Attend ${Math.max(needed, 1)} more event${needed > 1 ? 's' : ''} to unlock your reliability score.`;
-    } else if (tier === 'regular') {
-      const attendedNeeded = championConf.minAttended - metrics.totalAttended;
-      if (attendedNeeded > 0) {
-        improvementTip = `Attend ${attendedNeeded} more event${attendedNeeded > 1 ? 's' : ''} and maintain ${Math.round(championConf.minAttendanceRate * 100)}%+ attendance to reach Champion.`;
-      } else {
-        improvementTip = `Maintain ${Math.round(championConf.minAttendanceRate * 100)}%+ attendance rate to reach Champion status.`;
-      }
-    } else if (tier === 'unreliable') {
-      improvementTip = 'Attend your next registered events to improve your score and restore full access.';
-    } else if (tier === 'champion') {
-      improvementTip = 'Champion status maintained. Keep attending events to stay at the top.';
-    }
+    const totalAttended = Math.round(metrics.attendanceRate * metrics.totalRegistrations);
+    const metricsWithAttended: ReliabilityMetrics = {
+      totalRegistrations: metrics.totalRegistrations,
+      attendanceRate: metrics.attendanceRate,
+      waitlistAbandonRate: metrics.waitlistAbandonRate,
+      bulkRegistrationScore: metrics.bulkRegistrationScore,
+      totalAttended,
+    };
+    const improvementTip = computeImprovementTip(tier, metricsWithAttended);
 
     return NextResponse.json({
       tier,
@@ -62,7 +101,7 @@ export async function GET() {
       scoreHistory: (user as any).scoreHistory?.slice(0, 5) ?? [],
       metrics: {
         totalRegistered: metrics.totalRegistrations,
-        totalAttended: Math.round(metrics.attendanceRate * metrics.totalRegistrations),
+        totalAttended,
         attendanceRate: Math.round(metrics.attendanceRate * 100),
         waitlistAbandonRate: Math.round(metrics.waitlistAbandonRate * 100),
         bulkRegistrationScore: metrics.bulkRegistrationScore,

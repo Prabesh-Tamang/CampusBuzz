@@ -4,7 +4,7 @@ import { useState, useEffect, memo, useRef } from 'react';
 import { TrendingUp, Clock, CheckCircle, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import TierBadge from './TierBadge';
-import { TIER_CONFIG } from '@/lib/constants';
+import { TIER_CONFIG, TIER_BENEFIT_TEXT, formatWindowTime } from '@/lib/constants';
 
 interface ReliabilityData {
   tier: 'champion' | 'regular' | 'new' | 'unreliable';
@@ -187,10 +187,7 @@ function ReliabilityCard() {
           <div className={`text-lg font-extrabold ${isUnreliable ? 'text-red-400' : 'text-teal-400'}`}>
             {(() => {
               const tierConf = TIER_CONFIG[data.tier as keyof typeof TIER_CONFIG];
-              const windowDisplay = tierConf.confirmationWindowHours < 1
-                ? `${Math.round(tierConf.confirmationWindowHours * 60)}m`
-                : `${tierConf.confirmationWindowHours}h`;
-              return windowDisplay;
+              return formatWindowTime(tierConf.confirmationWindowHours);
             })()}
           </div>
           <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">Confirmation window</p>

@@ -10,6 +10,7 @@ import EventCard from "@/components/EventCard";
 import AnimatedStat from "@/components/AnimatedStat";
 import FaqSection from "@/components/FaqSection";
 import AnimateIn from "@/components/AnimateIn";
+import { LANDING_FEATURES, FOOTER_LINKS, APP_CONFIG } from "@/lib/constants";
 import {
   Zap,
   Calendar,
@@ -17,6 +18,8 @@ import {
   BarChart3,
   Users,
   Shield,
+  Brain,
+  Star,
   ArrowRight,
   GraduationCap,
   Award,
@@ -24,41 +27,15 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Star,
   Sparkles,
   Trophy,
+  type LucideIcon,
 } from "lucide-react";
 
-const features = [
-  {
-    icon: Calendar,
-    title: "Discover Events",
-    desc: "Browse technical fests, cultural nights, sports meets & more on your campus.",
-    color: "text-teal-500",
-    bg: "bg-teal-500/10",
-  },
-  {
-    icon: QrCode,
-    title: "QR Check-in",
-    desc: "Get your unique QR code on registration. Instant scan & verify at entry.",
-    color: "text-rose-500",
-    bg: "bg-rose-500/10",
-  },
-  {
-    icon: BarChart3,
-    title: "Live Dashboard",
-    desc: "Admins track registrations, attendance & analytics in real time.",
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
-  },
-  {
-    icon: Shield,
-    title: "Secure Auth",
-    desc: "Role-based access for students and admins with JWT authentication.",
-    color: "text-violet-400",
-    bg: "bg-violet-400/10",
-  },
-];
+// Icon map — maps iconName strings from LANDING_FEATURES constants to Lucide components
+const ICON_MAP: Record<string, LucideIcon> = {
+  Calendar, QrCode, BarChart3, Shield, Brain, Star,
+};
 
 interface EventDoc {
   _id: string;
@@ -296,19 +273,18 @@ export default async function HomePage() {
         </AnimateIn>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((f, fi) => (
-            <div key={f.title} className="card p-6 animate-fade-up" style={{ animationDelay: `${fi * 0.1}s` }}>
-              <div
-                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${f.bg}`}
-              >
-                <f.icon size={22} className={f.color} />
+          {LANDING_FEATURES.map((f, fi) => {
+            const Icon = ICON_MAP[f.iconName];
+            return (
+              <div key={f.title} className="card p-6 animate-fade-up" style={{ animationDelay: `${fi * 0.1}s` }}>
+                <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${f.bgClass}`}>
+                  {Icon && <Icon size={22} className={f.colorClass} />}
+                </div>
+                <h3 className="mb-2 text-lg font-bold text-white">{f.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
               </div>
-              <h3 className="mb-2 text-lg font-bold text-white">{f.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {f.desc}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -343,10 +319,10 @@ export default async function HomePage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <GraduationCap size={20} className="text-teal-400" />
-                <span className="text-white font-bold text-lg">CampusBuzz</span>
+                <span className="text-white font-bold text-lg">{APP_CONFIG.name}</span>
               </div>
               <p className="text-sm leading-relaxed" style={{ color: '#64748b' }}>
-                Discover, register, and attend campus events.
+                {APP_CONFIG.description}.
                 Powered by machine learning for a fair experience.
               </p>
             </div>
@@ -357,11 +333,7 @@ export default async function HomePage() {
                 Quick Links
               </p>
               <div className="space-y-2">
-                {[
-                  { href: '/events', label: 'Browse Events' },
-                  { href: '/auth/signup', label: 'Create Account' },
-                  { href: '/auth/login', label: 'Sign In' },
-                ].map(link => (
+                {FOOTER_LINKS.quickLinks.map(link => (
                   <Link key={link.href} href={link.href}
                     className="block text-sm transition-colors hover:text-teal-400"
                     style={{ color: '#94a3b8' }}>
@@ -374,19 +346,11 @@ export default async function HomePage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider mb-3"
                  style={{ color: '#475569' }}>
-                For Students
+                Technology
               </p>
               <div className="space-y-2">
-                {[
-                  { href: '/events', label: 'Browse Events' },
-                  { href: '/my-events', label: 'My Events' },
-                  { href: '/my-reliability', label: 'My Reliability Score' },
-                ].map(link => (
-                  <Link key={link.href} href={link.href}
-                    className="block text-sm transition-colors hover:text-teal-400"
-                    style={{ color: '#94a3b8' }}>
-                    {link.label}
-                  </Link>
+                {FOOTER_LINKS.technology.map(tech => (
+                  <p key={tech} className="text-sm" style={{ color: '#94a3b8' }}>{tech}</p>
                 ))}
               </div>
             </div>
@@ -395,10 +359,10 @@ export default async function HomePage() {
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
                className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
             <p className="text-sm font-semibold text-white/70">
-              © {new Date().getFullYear()} CampusBuzz
+              © {new Date().getFullYear()} {APP_CONFIG.name}. Built for campus life.
             </p>
             <p className="text-sm font-bold tracking-wider text-teal-400/80">
-              Final Year BCA Project
+              Final Year BCA Project: {APP_CONFIG.collegeShort}
             </p>
           </div>
         </div>

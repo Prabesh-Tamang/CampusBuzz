@@ -1,3 +1,9 @@
+// ── New constant modules — single import point ────────────────────────────
+export * from './appConfig';
+export * from './flagMessages';
+export * from './uiText';
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const APP_NAME = 'CampusBuzz';
 export const APP_TAGLINE = 'Discover campus events you will love';
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
@@ -167,11 +173,11 @@ export const TIME_UNITS = {
   DAY_MS:  24 * 60 * 60 * 1000,
 } as const;
 
-// export const QR_CONFIG = {
-//   CHECKIN_WINDOW_BEFORE_MS: 30 * 60 * 1000,
-//   CHECKIN_WINDOW_AFTER_MS:  2 * TIME_UNITS.HOUR_MS,
-//   STALE_AFTER_DAYS: 7,
-// } as const;
+export const QR_CONFIG = {
+  CHECKIN_WINDOW_BEFORE_MS: 30 * 60 * 1000,
+  CHECKIN_WINDOW_AFTER_MS:  2 * TIME_UNITS.HOUR_MS,
+  STALE_AFTER_DAYS: 7,
+} as const;
 
 export const PAGINATION = {
   EVENTS_PER_PAGE: 12,
@@ -199,6 +205,25 @@ export const RATE_LIMIT_WINDOW_MS = RATE_LIMITS.checkin.windowMs;
 export const RATE_LIMIT_MAX_REQUESTS = RATE_LIMITS.checkin.requests;
 export const PAYMENT_PROVIDERS = ['esewa', 'khalti'] as const;
 export const REGISTRATION_ID_PREFIX = 'CP-';
+
+// ─── ML model parameters (consolidated from src/lib/ml/constants.ts) ─────────
+// These were previously in src/lib/ml/constants.ts — now consolidated here.
+export const MODEL_PARAMS = {
+  RETENTION_DAYS: {
+    champion:   60,
+    regular:    45,
+    new:        30,
+    unreliable: 15,
+  } as Record<string, number>,
+};
+
+export const MIN_EVENTS_FOR_SCORE        = 3;
+export const MIN_EVENTS_FOR_TRAINING     = 2;
+export const MIN_USERS_FOR_TRAINING      = 10;
+export const RETRAIN_AFTER_UPDATES       = 50;
+export const UPDATE_INTERVAL_MS          = 5 * 60 * 1000;
+export const ISOLATION_FOREST_TREES      = 100;
+export const ISOLATION_FOREST_SAMPLE     = 256;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TESTING VALUES — Swap these in when testing, swap back before deployment

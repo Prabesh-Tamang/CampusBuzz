@@ -26,7 +26,7 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import TitleSetter from '@/components/TitleSetter';
 import SoldOutStamp from '@/components/ui/SoldOutStamp';
-import { CATEGORY_COLORS, TIER_CONFIG } from '@/lib/constants';
+import { CATEGORY_COLORS, TIER_CONFIG, formatWindowTime } from '@/lib/constants';
 
 interface EventData {
   _id: string;
@@ -1064,10 +1064,7 @@ export default function EventDetailPage() {
                               }}>
                                 {(() => {
                                   const conf = TIER_CONFIG[reliabilityData.tier as keyof typeof TIER_CONFIG];
-                                  const windowDisplay = conf.confirmationWindowHours < 1
-                                    ? `${Math.round(conf.confirmationWindowHours * 60)} minutes`
-                                    : `${conf.confirmationWindowHours}h`;
-                                  return `${windowDisplay} confirmation window`;
+                                  return `${formatWindowTime(conf.confirmationWindowHours)} confirmation window`;
                                 })()}
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>

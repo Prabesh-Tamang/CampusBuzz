@@ -131,6 +131,17 @@ export async function POST(req: NextRequest) {
     const flagged = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.flagThreshold;
     const blocked = anomalyScore !== null && anomalyScore >= ML_THRESHOLDS.checkin.blockThreshold;
 
+    // ─── Pre-compute flag reason (synchronous, uses message library) ──────────
+    let flagReason: string | null = null;
+    if (flagged || blocked) {
+      flagReason = generateFlagReason(
+        features,
+        anomalyScore!,
+        blocked ? 'blocked' : 'flagged',
+        registrationId
+      );
+    }
+
     // ─── Handle blocked (score >= blockThreshold) ─────────────────────────────
     if (blocked) {
       await Registration.findOneAndUpdate(
@@ -140,7 +151,7 @@ export async function POST(req: NextRequest) {
             checkedIn: false,
             flagged: true,
             anomalyScore,
-            flagReason: await generateFlagReason(features, anomalyScore!, 'blocked', registrationId),
+            flagReason,
           },
         }
       );
@@ -164,7 +175,7 @@ export async function POST(req: NextRequest) {
             checkedIn: false,
             flagged: true,
             anomalyScore,
-            flagReason: await generateFlagReason(features, anomalyScore!, 'flagged', registrationId),
+            flagReason,
           },
         }
       );

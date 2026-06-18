@@ -8,7 +8,7 @@ import {
   MODEL_PARAMS,
   ISOLATION_FOREST_TREES,
   ISOLATION_FOREST_SAMPLE,
-} from './constants';
+} from '@/lib/constants';
 import { TIER_CONFIG, ML_THRESHOLDS, TIME_UNITS, WAITLIST_HOUR_DISCOUNT_MS } from '@/lib/constants';
 
 export type EngagementTier = 'champion' | 'regular' | 'new' | 'unreliable';
